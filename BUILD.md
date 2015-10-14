@@ -5,7 +5,7 @@ Basic steps:
  1. Install JDK 1.7 (or greater), Maven 2.0.9 (or greater)
  2. Download SIREn Join and unpack it
  3. Connect to the directory of your SIREn Join installation
- 5. Build the binary distribution
+ 4. Build the binary distribution and install the plugin
 
 ## Set up your development environment (JDK 1.7 or greater, Maven 2.0.9 or greater)
 
@@ -26,6 +26,10 @@ directory of your choice.
 SIREn Join's installation directory contains the project pom.xml file. By default,
 you do not need to change any of the settings in this file, but you do
 need to run maven from this location so it knows where to find pom.xml.
+
+## Build the binary distribution and install the plugin
+
+See README.md for instructions on how to build, install and use the plugin.
 
 --------------------------------------------------------------------------------
 

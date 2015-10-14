@@ -1,4 +1,4 @@
-# Elasticsearch FilterJoin Plugin
+# SIREn Join Plugin for Elasticsearch
 
 This plugin extends Elasticsearch with new search actions and a filter query parser that enables to perform
 "filter join" between two set of documents (in the same index or in different indexes).
@@ -14,7 +14,7 @@ $ mvn package
 The above command assembles our plugin package into a single Zip file that can be installed using the 
 Elasticsearch plugin command:
 
-    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/es-filter-join-0.1-SNAPSHOT.zip --install FilterJoinPlugin
+    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0-SNAPSHOT.zip --install FilterJoinPlugin
 
 
 Note that we use the `--url` option for the plugin command in order to inform it to get the file locally 
@@ -107,7 +107,7 @@ see example below. The object contains the following parameters:
             "relations": {
               "from": {
                 "indices": ["index2"],
-                "types": "[type"],
+                "types": ["type"],
                 "field": "id"
               },
               "to": {
@@ -131,8 +131,8 @@ see example below. The object contains the following parameters:
 ## Acknowledgement
 
 Part of this plugin is inspired and based on the pull request
-[3278|https://github.com/elastic/elasticsearch/pull/3278] submitted by [Matt Wever|https://github.com/mattweber]
-to the [Elasticsearch|https://github.com/elastic/elasticsearch] project.
+[3278](https://github.com/elastic/elasticsearch/pull/3278) submitted by [Matt Wever](https://github.com/mattweber)
+to the [Elasticsearch](https://github.com/elastic/elasticsearch) project.
 
 - - -
 
