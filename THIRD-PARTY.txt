@@ -1,0 +1,20 @@
+1. Apache Lucene Java, http://lucene.apache.org
+
+Apache Lucene Java is a Java-based text indexing and search implementation, as well as offering spellchecking, hit
+highlighting and advanced analysis/tokenization capabilities. It is licensed under the Apache License, Version 2.0.
+
+2. Elasticsearch, https://www.elastic.co/products/elasticsearch
+
+Elasticsearch is a distributed RESTful search engine built for the cloud. It is licensed under the Apache License,
+Version 2.0.
+
+3. Apache Commons, http://commons.apache.org
+
+The Commons is an Apache project focused on all aspects of reusable Java components. It is licensed under the Apache
+License, Version 2.0.
+
+4. Google Guava, https://github.com/google/guava
+
+The Guava project contains several of Google's core libraries that we rely on in our Java-based projects: collections,
+caching, primitives support, concurrency libraries, common annotations, string processing, I/O, and so forth. It is
+licensed under the Apache License, Version 2.0.
