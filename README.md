@@ -131,8 +131,8 @@ see example below. The object contains the following parameters:
 ## Acknowledgement
 
 Part of this plugin is inspired and based on the pull request
-[3278|https://github.com/elastic/elasticsearch/pull/3278] submitted by [Matt Wever|https://github.com/mattweber]
-to the [Elasticsearch|https://github.com/elastic/elasticsearch] project.
+[3278](https://github.com/elastic/elasticsearch/pull/3278) submitted by [Matt Wever](https://github.com/mattweber)
+to the [Elasticsearch](https://github.com/elastic/elasticsearch) project.
 
 - - -
 
