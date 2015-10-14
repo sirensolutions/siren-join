@@ -107,7 +107,7 @@ see example below. The object contains the following parameters:
             "relations": {
               "from": {
                 "indices": ["index2"],
-                "types": "[type"],
+                "types": ["type"],
                 "field": "id"
               },
               "to": {
