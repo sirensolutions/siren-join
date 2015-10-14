@@ -1,0 +1,5 @@
+======================= Release 1.0 =========================
+
+Improvements
+
+* [GH-4] Upgrade to Elasticsearch 1.7.2

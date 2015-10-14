@@ -11,7 +11,7 @@
   <properties>
     <skipProguard>true</skipProguard>
     <lucene.version>4.10.4</lucene.version>
-    <elasticsearch.version>1.6.2</elasticsearch.version>    
+    <elasticsearch.version>1.7.2</elasticsearch.version>
   </properties>
 
   <build>
