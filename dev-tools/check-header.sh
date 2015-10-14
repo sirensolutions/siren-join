@@ -7,6 +7,9 @@
 # Get the current directory
 DIR=$(cd $(dirname "$0"); pwd)
 
+# Get the target directory
+TARGET_DIR="$DIR/../"
+
 # AGPL copyright header
 COPYRIGHT_AGPL=$(cat $DIR/copyright_agpl | sed 's/\//\\\//g')
 
@@ -50,4 +53,4 @@ function change_header {
   done
 }
 
-change_header "${DIR}" "${COPYRIGHT_AGPL}"
+change_header "${TARGET_DIR}" "${COPYRIGHT_AGPL}"
