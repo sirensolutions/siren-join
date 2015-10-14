@@ -1,0 +1,298 @@
+/**
+ * Copyright (c) 2015 Renaud Delbru. All Rights Reserved.
+ */
+package com.sindicetech.kb.filterjoin.action.terms;
+
+import com.sindicetech.kb.filterjoin.action.coordinate.FilterJoinCache;
+import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.action.support.broadcast.BroadcastOperationRequest;
+import org.elasticsearch.common.Nullable;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.index.query.QueryBuilder;
+
+import java.io.IOException;
+import java.util.Arrays;
+
+/**
+ * A request to get the values from a specific field for documents matching a specific query.
+ * <p/>
+ * The request requires the filter source to be set using {@link #query(org.elasticsearch.index.query.QueryBuilder)}.
+ *
+ * @see TermsByQueryResponse
+ */
+public class TermsByQueryRequest extends BroadcastOperationRequest<TermsByQueryRequest> {
+
+  @Nullable
+  protected String routing;
+  private long nowInMillis;
+  @Nullable
+  private String preference;
+  private BytesReference querySource;
+  @Nullable
+  private String[] types = Strings.EMPTY_ARRAY;
+  private String field;
+  private Ordering ordering;
+  private Integer maxTermsPerShard;
+
+  TermsByQueryRequest() {}
+
+  /**
+   * Constructs a new terms by query request against the provided indices. No indices provided means it will run against all indices.
+   */
+  public TermsByQueryRequest(String... indices) {
+    super(indices);
+  }
+
+  /**
+   * Validates the request
+   *
+   * @return null if valid, exception otherwise
+   */
+  @Override
+  public ActionRequestValidationException validate() {
+    ActionRequestValidationException validationException = super.validate();
+    return validationException;
+  }
+
+  /**
+   * The field to extract terms from.
+   */
+  public String field() {
+    return field;
+  }
+
+  /**
+   * The field to extract terms from.
+   */
+  public TermsByQueryRequest field(String field) {
+    this.field = field;
+    return this;
+  }
+
+  /**
+   * The query source to execute.
+   */
+  public BytesReference querySource() {
+    return querySource;
+  }
+
+  /**
+   * The query source to execute.
+   *
+   * @see {@link org.elasticsearch.index.query.QueryBuilders}
+   */
+  public TermsByQueryRequest query(QueryBuilder queryBuilder) {
+    this.querySource = queryBuilder == null ? null : queryBuilder.buildAsBytes();
+    return this;
+  }
+
+  /**
+   * The query source to execute.
+   */
+  public TermsByQueryRequest query(XContentBuilder builder) {
+    this.querySource = builder == null ? null : builder.bytes();
+    return this;
+  }
+
+  /**
+   * The types of documents the query will run against. Defaults to all types.
+   */
+  public String[] types() {
+    return this.types;
+  }
+
+  /**
+   * The types of documents the query will run against. Defaults to all types.
+   */
+  public TermsByQueryRequest types(String... types) {
+    this.types = types;
+    return this;
+  }
+
+  /**
+   * A comma separated list of routing values to control the shards the search will be executed on.
+   */
+  public String routing() {
+    return this.routing;
+  }
+
+  /**
+   * A comma separated list of routing values to control the shards the search will be executed on.
+   */
+  public TermsByQueryRequest routing(String routing) {
+    this.routing = routing;
+    return this;
+  }
+
+  /**
+   * The current time in milliseconds
+   */
+  public long nowInMillis() {
+    return nowInMillis;
+  }
+
+  /**
+   * Sets the current time in milliseconds
+   */
+  public TermsByQueryRequest nowInMillis(long nowInMillis) {
+    this.nowInMillis = nowInMillis;
+    return this;
+  }
+
+  /**
+   * The routing values to control the shards that the request will be executed on.
+   */
+  public TermsByQueryRequest routing(String... routings) {
+    this.routing = Strings.arrayToCommaDelimitedString(routings);
+    return this;
+  }
+
+  /**
+   * The preference value to control what node the request will be executed on
+   */
+  public TermsByQueryRequest preference(String preference) {
+    this.preference = preference;
+    return this;
+  }
+
+  /**
+   * The current preference value
+   */
+  public String preference() {
+    return this.preference;
+  }
+
+  public enum Ordering {
+    DEFAULT,
+    DOC_SCORE
+  }
+
+  /**
+   * Set the ordering to use before performing the term cut.
+   */
+  public TermsByQueryRequest orderBy(Ordering ordering) {
+    this.ordering = ordering;
+    return this;
+  }
+
+  /**
+   * Return the ordering to use before performing the term cut.
+   */
+  public Ordering getOrderBy() {
+    return ordering;
+  }
+
+  /**
+   * The max number of terms to gather per shard
+   */
+  public TermsByQueryRequest maxTermsPerShard(Integer maxTermsPerShard) {
+    this.maxTermsPerShard = maxTermsPerShard;
+    return this;
+  }
+
+  /**
+   * The max number of terms to gather per shard
+   */
+  public Integer maxTermsPerShard() {
+    return maxTermsPerShard;
+  }
+
+  /**
+   * Deserialize
+   *
+   * @param in the input
+   * @throws IOException
+   */
+  @Override
+  public void readFrom(StreamInput in) throws IOException {
+    super.readFrom(in);
+
+    routing = in.readOptionalString();
+    preference = in.readOptionalString();
+
+    if (in.readBoolean()) {
+      querySource = in.readBytesReference();
+    } else {
+      querySource = null;
+    }
+
+    if (in.readBoolean()) {
+      types = in.readStringArray();
+    }
+
+    field = in.readString();
+    nowInMillis = in.readVLong();
+
+    if (in.readBoolean()) {
+      ordering = Ordering.valueOf(in.readString());
+    }
+
+    if (in.readBoolean()) {
+      maxTermsPerShard = in.readVInt();
+    }
+  }
+
+  /**
+   * Serialize
+   *
+   * @param out the output
+   * @throws IOException
+   */
+  @Override
+  public void writeTo(StreamOutput out) throws IOException {
+    super.writeTo(out);
+
+    out.writeOptionalString(routing);
+    out.writeOptionalString(preference);
+
+    if (querySource != null) {
+      out.writeBoolean(true);
+      out.writeBytesReference(querySource);
+    } else {
+      out.writeBoolean(false);
+    }
+
+    if (types == null) {
+      out.writeBoolean(false);
+    } else {
+      out.writeBoolean(true);
+      out.writeStringArray(types);
+    }
+
+    out.writeString(field);
+    out.writeVLong(nowInMillis);
+
+    if (ordering == null) {
+      out.writeBoolean(false);
+    } else {
+      out.writeBoolean(true);
+      out.writeString(ordering.name());
+    }
+
+    if (maxTermsPerShard == null) {
+      out.writeBoolean(false);
+    } else {
+      out.writeBoolean(true);
+      out.writeVInt(maxTermsPerShard);
+    }
+  }
+
+  /**
+   * String representation of the request
+   */
+  @Override
+  public String toString() {
+    String sSource = "_na_";
+    try {
+      sSource = XContentHelper.convertToJson(querySource, false);
+    } catch (Exception e) {
+      // ignore
+    }
+    return Arrays.toString(indices) + Arrays.toString(types) + "[" + field + "], querySource[" + sSource + "]";
+  }
+}
