@@ -14,7 +14,7 @@ $ mvn package
 The above command assembles our plugin package into a single Zip file that can be installed using the 
 Elasticsearch plugin command:
 
-    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0-SNAPSHOT.zip --install FilterJoinPlugin
+    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0.zip --install FilterJoinPlugin
 
 
 Note that we use the `--url` option for the plugin command in order to inform it to get the file locally 
@@ -22,10 +22,11 @@ instead of trying to download it from an online repository.
 
 We can now start Elasticsearch and see that our plugin gets loaded:
 
-    $ bin/elasticsearch -f
-    [2013-09-04 17:33:27,443][INFO ][node    ] [Andrew Chord] version[0.90.3], pid[67218], build[5c38d60/2013-08-06T13:18:31Z]
+    $ bin/elasticsearch
+    ...
     [2013-09-04 17:33:27,443][INFO ][node    ] [Andrew Chord] initializing ...
     [2013-09-04 17:33:27,455][INFO ][plugins ] [Andrew Chord] loaded [FilterJoinPlugin], sites []
+    ...
 
 To uninstall plugin
 

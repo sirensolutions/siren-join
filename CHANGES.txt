@@ -1,0 +1,6 @@
+======================= Release 1.0 =========================
+
+Improvements
+
+* [GH-3] Upgraded to Elasticsearch 1.7.2
+* [GH-4] Removed references to proguard
