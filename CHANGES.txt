@@ -6,3 +6,4 @@ Improvements
 * [GH-4] Removed references to proguard
 * [GH-7] Changed namespace from com.sirensolutions to solutions.siren
 * [GH-9] Added ossrh deployment configuration
+* [GH-11] Release fails to complete due to missing information in pom.xml
