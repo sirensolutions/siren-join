@@ -31,6 +31,13 @@ need to run maven from this location so it knows where to find pom.xml.
 
 See README.md for instructions on how to build, install and use the plugin.
 
+## Deploy the plugin to Central Repository
+
+Assuming that [GPG and Maven is properly configured](http://central.sonatype.org/pages/apache-maven.html),
+you can deploy the artifacts to the Central repository with this command:
+
+    $ mvn clean deploy -P release
+
 --------------------------------------------------------------------------------
 
 Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
