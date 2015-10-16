@@ -7,7 +7,7 @@
   <name>siren-join</name>
   <version>1.0-SNAPSHOT</version>
   <description>SIREn plugin that adds join capabilities to Elasticsearch</description>
-  <url>http://siren.solutions</url>
+  <url>http://github.com/sirensolutions/siren-join</url>
 
   <licenses>
     <license>
@@ -15,6 +15,24 @@
       <url>http://www.gnu.org/licenses/agpl-3.0.html</url>
     </license>
   </licenses>
+
+  <organization>
+    <name>SIREn Solutions</name>
+    <url>http://siren.solutions</url>
+  </organization>
+
+  <developers>
+    <developer>
+      <id>SirenUserGroup</id>
+      <name>SIREn User Group</name>
+      <url>https://groups.google.com/a/sindicetech.com/forum/embed/?place=forum/siren-user#!forum/siren-user</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <url>https://github.com/sirensolutions/siren-join</url>
+    <connection>git@github.com:sirensolutions/siren-join.git</connection>
+  </scm>
 
   <properties>
     <lucene.version>4.10.4</lucene.version>
