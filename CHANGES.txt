@@ -4,3 +4,4 @@ Improvements
 
 * [GH-3] Upgraded to Elasticsearch 1.7.2
 * [GH-4] Removed references to proguard
+* [GH-7] Changed namespace from com.sirensolutions to solutions.siren
