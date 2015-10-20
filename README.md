@@ -1,7 +1,7 @@
 # SIREn Join Plugin for Elasticsearch
 
 This plugin extends Elasticsearch with new search actions and a filter query parser that enables to perform
-"filter join" between two set of documents (in the same index or in different indexes).
+a "filter join" between two set of documents (in the same index or in different indexes).
 
 ## Building and Installing the Plugin
 
