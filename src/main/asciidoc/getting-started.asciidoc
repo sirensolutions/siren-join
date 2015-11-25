@@ -113,10 +113,10 @@ $ curl -XPUT 'http://localhost:9200/_bulk?pretty' -d '
 === Relational Querying of the Data
 
 We will now show you how to execute a relational query across the two indices. For example, we would like
-to retrieve all the articles that mentions companies whose name matches `orient`. This relational query can be decomposed in
+to retrieve all the articles that mention companies whose name matches `orient`. This relational query can be decomposed in
 two search queries: the first one to find all the companies whose name matches `orient`, and a second
 query to filter out all articles that do not mention a company from the first result set. The SIREn Join plugin
-introduces a new Elasticsearch's filter, named `filterjoin`, that allows to
+<<siren-join-introduction,introduces a new Elasticsearch's filter>>, named `filterjoin`, that allows to
 define such a query plan and a new search API `_coordinate_search` that allows to execute this query plan.
 Below is the command to run the relational query:
 
@@ -146,7 +146,7 @@ $ curl -XGET 'http://localhost:9200/articles/_coordinate_search?pretty' -d '{
 }'
 -----------------------------------------------------------
 <1> The `filterjoin` definition
-<2> The field on the target index (i.e., `articles`) containing the foreign keys
+<2> The path on the target index (i.e., `articles`) containing the foreign keys
 <3> The definition of the source index (i.e., `companies`)
 <4> The path to the primary key of the `companies` index
 <5> The query that will be used to filter out companies

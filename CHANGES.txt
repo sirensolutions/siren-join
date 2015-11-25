@@ -16,3 +16,4 @@ Improvements
 * [GH-7] Changed namespace from com.sirensolutions to solutions.siren
 * [GH-9] Added ossrh deployment configuration
 * [GH-11] Release fails to complete due to missing information in pom.xml
+* [GH-15] Update the Readme with the command to install the plugin from an online repository
