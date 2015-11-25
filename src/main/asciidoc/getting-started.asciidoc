@@ -1,0 +1,237 @@
+[[siren-join-getting-started]]
+== Getting Started
+
+In this short guide, you will learn how you can quickly install the SIREn Join plugin in Elasticsearch,
+load two collections of documents inter-connected by a common attribute, and execute a relational query across
+the two collections within the Elasticsearch environment.
+
+[[siren-join-prerequisites]]
+=== Prerequisites
+
+This guide requires that you have downloaded and
+installed the https://www.elastic.co/downloads/elasticsearch[Elasticsearch 1.7.x] distribution
+on your computer. If you do not have an Elasticsearch distribution, you can run the following
+commands:
+
+[source,bash]
+-----------------------------------------------------------
+$ wget https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-1.7.3.zip
+$ unzip elasticsearch-1.7.3.zip
+$ cd elasticsearch-1.7.3
+-----------------------------------------------------------
+
+[[siren-join-install]]
+=== Installing the SIREn Join Plugin
+
+Before starting Elasticsearch, you have to install the SIREn Join plugin. Assuming that you are in your Elasticsearch
+installation directory, you can run the following command:
+
+[source,bash]
+-----------------------------------------------------------
+$ ./bin/plugin -i solutions.siren/siren-join/1.0
+
+-> Installing solutions.siren/siren-join/1.0...
+Trying http://download.elasticsearch.org/solutions.siren/siren-join/siren-join-1.0.zip...
+Trying http://search.maven.org/remotecontent?filepath=solutions/siren/siren-join/1.0/siren-join-1.0.zip...
+Downloading ..........................................................................................DONE
+Installed solutions.siren/siren-join/1.0 into /tmp/elasticsearch-1.7.3/plugins/siren-join
+-----------------------------------------------------------
+
+In case you want to remove the plugin, you can run the following command:
+
+[source,bash]
+-----------------------------------------------------------
+$ ./bin/plugin -r siren-join
+
+-> Removing siren-join...
+Removed siren-join
+-----------------------------------------------------------
+
+[[siren-join-starting-elasticsearch]]
+=== Starting Elasticsearch
+
+To launch Elasticsearch, run the following command:
+
+[source,bash]
+-----------------------------------------------------------
+$ ./bin/elasticsearch
+-----------------------------------------------------------
+
+In the output, you should see a line like the following which indicates that the SIREn Join plugin is installed and
+running:
+-----------------------------------------------------------
+[2015-10-21 15:07:33,369][INFO ][plugins                  ] [Free Spirit] loaded [FilterJoinPlugin], sites []
+-----------------------------------------------------------
+
+[[siren-join-loading-data]]
+=== Loading Some Relational Data
+
+We will use a simple synthetic dataset for the purpose of this demo. The dataset consists of two collections
+of documents: Articles and Companies. An article is connected to a company with the attribute `mentions`.
+Articles will be loaded into the `articles` index and companies in the `companies` index. To load the dataset, run
+the following command:
+
+[source,bash]
+-----------------------------------------------------------
+$ curl -XPUT 'http://localhost:9200/_bulk?pretty' -d '
+{ "index" : { "_index" : "articles", "_type" : "article", "_id" : "1" } }
+{ "title" : "​The NoSQL database glut", "mentions" : ["1", "2"] }
+{ "index" : { "_index" : "articles", "_type" : "article", "_id" : "2" } }
+{ "title" : "Graph Databases Seen Connecting the Dots", "mentions" : [] }
+{ "index" : { "_index" : "articles", "_type" : "article", "_id" : "3" } }
+{ "title" : "How to determine which NoSQL DBMS best fits your needs", "mentions" : ["2", "4"] }
+{ "index" : { "_index" : "articles", "_type" : "article", "_id" : "4" } }
+{ "title" : "MapR ships Apache Drill", "mentions" : ["4"] }
+
+{ "index" : { "_index" : "companies", "_type" : "company", "_id" : "1" } }
+{ "id": "1", "name" : "Elastic" }
+{ "index" : { "_index" : "companies", "_type" : "company", "_id" : "2" } }
+{ "id": "2", "name" : "Orient Technologies" }
+{ "index" : { "_index" : "companies", "_type" : "company", "_id" : "3" } }
+{ "id": "3", "name" : "Cloudera" }
+{ "index" : { "_index" : "companies", "_type" : "company", "_id" : "4" } }
+{ "id": "4", "name" : "MapR" }
+'
+
+{
+  "took" : 8,
+  "errors" : false,
+  "items" : [ {
+    "index" : {
+      "_index" : "articles",
+      "_type" : "article",
+      "_id" : "1",
+      "_version" : 3,
+      "status" : 200
+    }
+  },
+  ...
+}
+-----------------------------------------------------------
+
+[[siren-join-query-data]]
+=== Relational Querying of the Data
+
+We will now show you how to execute a relational query across the two indices. For example, we would like
+to retrieve all the articles that mentions companies whose name matches `orient`. This relational query can be decomposed in
+two search queries: the first one to find all the companies whose name matches `orient`, and a second
+query to filter out all articles that do not mention a company from the first result set. The SIREn Join plugin
+introduces a new Elasticsearch's filter, named `filterjoin`, that allows to
+define such a query plan and a new search API `_coordinate_search` that allows to execute this query plan.
+Below is the command to run the relational query:
+
+[source,bash]
+-----------------------------------------------------------
+$ curl -XGET 'http://localhost:9200/articles/_coordinate_search?pretty' -d '{
+   "query" : {
+      "filtered" : {
+        "query" : {
+          "match_all" : { }
+        },
+        "filter" : {
+          "filterjoin" : {                  <1>
+            "mentions" : {                  <2>
+              "indices" : ["companies"],    <3>
+              "path" : "id",                <4>
+              "query" : {                   <5>
+                "term" : {
+                  "name" : "orient"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+}'
+-----------------------------------------------------------
+<1> The `filterjoin` definition
+<2> The field on the target index (i.e., `articles`) containing the foreign keys
+<3> The definition of the source index (i.e., `companies`)
+<4> The path to the primary key of the `companies` index
+<5> The query that will be used to filter out companies
+
+The command should return you the following response with two search hits:
+
+[source,bash]
+-----------------------------------------------------------
+{
+  "hits" : {
+    "total" : 2,
+    "max_score" : 1.0,
+    "hits" : [ {
+      "_index" : "articles",
+      "_type" : "article",
+      "_id" : "1",
+      "_score" : 1.0,
+      "_source":{ "title" : "​The NoSQL database glut", "mentions" : ["1", "2"] }
+    }, {
+      "_index" : "articles",
+      "_type" : "article",
+      "_id" : "3",
+      "_score" : 1.0,
+      "_source":{ "title" : "How to determine which NoSQL DBMS best fits your needs", "mentions" : ["2", "4"] }
+    } ]
+  }
+}
+-----------------------------------------------------------
+
+You can also reverse the order of the join, and query for all the companies that are mentioned
+in articles whose title matches `nosql`:
+
+[source,bash]
+-----------------------------------------------------------
+$ curl -XGET 'http://localhost:9200/companies/_coordinate_search?pretty' -d '{
+   "query" : {
+      "filtered" : {
+        "query" : {
+          "match_all" : { }
+        },
+        "filter" : {
+          "filterjoin" : {
+            "id" : {
+              "indices" : ["articles"],
+              "path" : "mentions",
+              "query" : {
+                "term" : {
+                  "title" : "nosql"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+}'
+-----------------------------------------------------------
+
+The command should return you the following response with three search hits:
+
+[source,bash]
+-----------------------------------------------------------
+{
+  "hits" : {
+    "total" : 3,
+    "max_score" : 1.0,
+    "hits" : [ {
+      "_index" : "companies",
+      "_type" : "company",
+      "_id" : "4",
+      "_score" : 1.0,
+      "_source":{ "id": "4", "name" : "MapR" }
+    }, {
+      "_index" : "companies",
+      "_type" : "company",
+      "_id" : "1",
+      "_score" : 1.0,
+      "_source":{ "id": "1", "name" : "Elastic" }
+    }, {
+      "_index" : "companies",
+      "_type" : "company",
+      "_id" : "2",
+      "_score" : 1.0,
+      "_source":{ "id": "2", "name" : "Orient Technologies" }
+    } ]
+  }
+}
+-----------------------------------------------------------

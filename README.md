@@ -16,9 +16,11 @@ Elasticsearch plugin command:
 
     $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0.zip --install FilterJoinPlugin
 
-
 Note that we use the `--url` option for the plugin command in order to inform it to get the file locally 
 instead of trying to download it from an online repository.
+Alternatively, you can use the following command to download the plugin from an online repository:
+
+    $ bin/plugin -i solutions.siren/siren-join/1.0
 
 We can now start Elasticsearch and see that our plugin gets loaded:
 

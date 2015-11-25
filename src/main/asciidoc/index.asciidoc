@@ -1,0 +1,6 @@
+[[siren-join-guide]]
+= User Guide for the SIREn Join Plugin
+
+include::introduction.asciidoc[]
+
+include::getting-started.asciidoc[]
