@@ -75,7 +75,7 @@ the following command:
 -----------------------------------------------------------
 $ curl -XPUT 'http://localhost:9200/_bulk?pretty' -d '
 { "index" : { "_index" : "articles", "_type" : "article", "_id" : "1" } }
-{ "title" : "​The NoSQL database glut", "mentions" : ["1", "2"] }
+{ "title" : "The NoSQL database glut", "mentions" : ["1", "2"] }
 { "index" : { "_index" : "articles", "_type" : "article", "_id" : "2" } }
 { "title" : "Graph Databases Seen Connecting the Dots", "mentions" : [] }
 { "index" : { "_index" : "articles", "_type" : "article", "_id" : "3" } }
@@ -164,7 +164,7 @@ The command should return you the following response with two search hits:
       "_type" : "article",
       "_id" : "1",
       "_score" : 1.0,
-      "_source":{ "title" : "​The NoSQL database glut", "mentions" : ["1", "2"] }
+      "_source":{ "title" : "The NoSQL database glut", "mentions" : ["1", "2"] }
     }, {
       "_index" : "articles",
       "_type" : "article",
