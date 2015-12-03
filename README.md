@@ -3,32 +3,33 @@
 This plugin extends Elasticsearch with new search actions and a filter query parser that enables to perform
 a "filter join" between two set of documents (in the same index or in different indexes).
 
-## Building and Installing the Plugin
+## Installing the Plugin
 
-Before distributing and using the plugin, it has to be assembled, which is done via Maven:
-
-```
-$ mvn package
-```
-
-The above command assembles our plugin package into a single Zip file that can be installed using the 
-Elasticsearch plugin command:
-
-    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0.zip --install FilterJoinPlugin
-
-Note that we use the `--url` option for the plugin command in order to inform it to get the file locally 
-instead of trying to download it from an online repository.
-Alternatively, you can use the following command to download the plugin from an online repository:
+you can use the following command to download the plugin from the online repository:
 
     $ bin/plugin -i solutions.siren/siren-join/1.0
 
-We can now start Elasticsearch and see that our plugin gets loaded:
+you can now start Elasticsearch and see that our plugin gets loaded:
 
     $ bin/elasticsearch
     ...
     [2013-09-04 17:33:27,443][INFO ][node    ] [Andrew Chord] initializing ...
     [2013-09-04 17:33:27,455][INFO ][plugins ] [Andrew Chord] loaded [FilterJoinPlugin], sites []
     ...
+
+alternatively, you can assemple it via Maven:
+
+```
+$ mvn package
+```
+
+this creates a Zip file that can be installed using the Elasticsearch plugin command:
+
+    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0.zip --install FilterJoinPlugin
+
+Note that we use the `--url` option for the plugin command in order to inform it to get the file locally 
+instead of trying to download it from an online repository.
+Alternatively, 
 
 To uninstall plugin
 
