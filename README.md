@@ -1,26 +1,33 @@
 # SIREn Join Plugin for Elasticsearch
 
 This plugin extends Elasticsearch with new search actions and a filter query parser that enables to perform
-a "filter join" between two set of documents (in the same index or in different indexes).
+a "Filter Join" between two set of documents (in the same index or in different indexes).
 
-## Building and Installing the Plugin
+The Filter Join is basically a (left) semi-join between two set of documents based on a common attribute, where
+the result only contains the attributes of one of the joined set of documents. This join is
+used to filter one document set based on a second document set, hence its name. It is equivalent
+to the `EXISTS()` operator in SQL.
 
-Before distributing and using the plugin, it has to be assembled, which is done via Maven:
+## Installing the Plugin
+
+You can use the following command to download the plugin from the online repository:
+
+    $ bin/plugin -i solutions.siren/siren-join/1.0
+
+Alternatively, you can assemble it via Maven:
 
 ```
 $ mvn package
 ```
 
-The above command assembles our plugin package into a single Zip file that can be installed using the 
-Elasticsearch plugin command:
+This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
     $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0.zip --install FilterJoinPlugin
-
 
 Note that we use the `--url` option for the plugin command in order to inform it to get the file locally 
 instead of trying to download it from an online repository.
 
-We can now start Elasticsearch and see that our plugin gets loaded:
+You can now start Elasticsearch and see that our plugin gets loaded:
 
     $ bin/elasticsearch
     ...
@@ -28,7 +35,7 @@ We can now start Elasticsearch and see that our plugin gets loaded:
     [2013-09-04 17:33:27,455][INFO ][plugins ] [Andrew Chord] loaded [FilterJoinPlugin], sites []
     ...
 
-To uninstall plugin
+To uninstall the plugin:
 
     $ bin/plugin --remove FilterJoinPlugin
 
