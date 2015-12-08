@@ -8,6 +8,14 @@ the result only contains the attributes of one of the joined set of documents. T
 used to filter one document set based on a second document set, hence its name. It is equivalent
 to the `EXISTS()` operator in SQL.
 
+## Compatibility
+
+The following table shows the compatibility between releases of Elasticsearch and the SIREn Join plugin:
+
+Elasticsearch|SIREn Join
+---|---
+1.7.x|1.0
+
 ## Installing the Plugin
 
 You can use the following command to download the plugin from the online repository:
