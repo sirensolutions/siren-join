@@ -20,16 +20,16 @@ package solutions.siren.join.index.query;
 
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongScatterSet;
+import com.google.common.hash.Hashing;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.hash.Hashing;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 
 import java.io.IOException;
 
 /**
- * Helper class for {@link BinaryTermsFilterParser} to encode, decode and hash terms.
+ * Helper class for {@link FieldDataTermsQueryParser} to encode, decode and hash terms.
  */
-public class BinaryTermsFilterHelper {
+public class FieldDataTermsQueryHelper {
 
   /**
    * Decodes a list of longs from a byte array. The first 4 bytes must contains the number of

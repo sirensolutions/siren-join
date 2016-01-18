@@ -19,15 +19,15 @@
 package solutions.siren.join;
 
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
-import org.elasticsearch.action.admin.cluster.node.info.PluginInfo;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
+import org.elasticsearch.plugins.PluginInfo;
+import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope=ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes=1)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
 public class FilterJoinPluginTest extends FilterJoinTestCase {
 
   @Test

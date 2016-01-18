@@ -20,8 +20,8 @@ package solutions.siren.join.action.coordinate;
 
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
-import solutions.siren.join.index.query.BinaryTermsFilterParser;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
+import solutions.siren.join.index.query.FieldDataTermsQueryParser;
 import solutions.siren.join.index.query.FilterJoinBuilder;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -230,7 +230,7 @@ public class FilterJoinVisitor {
     binaryFilter.put(node.getField(), binaryFilterParams);
 
     // Add the filter to the parent
-    parent.put(BinaryTermsFilterParser.NAME, binaryFilter);
+    parent.put(FieldDataTermsQueryParser.NAME, binaryFilter);
     node.setState(FilterJoinNode.State.CONVERTED);
     this.blockingQueue.poll();
   }

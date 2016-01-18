@@ -21,7 +21,7 @@ package solutions.siren.join.action.terms;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
 import solutions.siren.join.action.terms.collector.TermsCollector;
-import solutions.siren.join.index.query.BinaryTermsFilterHelper;
+import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -114,7 +114,7 @@ public class TermsResponse implements Streamable {
     // Encode longs
     Iterator<LongCursor> it = this.terms.getTermsHash().iterator();
     while (it.hasNext()) {
-      BinaryTermsFilterHelper.writeLong(buffer, offset, it.next().value);
+      FieldDataTermsQueryHelper.writeLong(buffer, offset, it.next().value);
       offset += 8;
       if (offset == buffer.length) {
         out.write(buffer, 0, offset);
@@ -172,12 +172,12 @@ public class TermsResponse implements Streamable {
     int offset = 0;
 
     // Encode size of list
-    BinaryTermsFilterHelper.writeInt(bytes, 0, size);
+    FieldDataTermsQueryHelper.writeInt(bytes, 0, size);
     offset += 4;
 
     // Encode longs
     for (LongCursor i : this.terms.getTermsHash()) {
-      BinaryTermsFilterHelper.writeLong(bytes, offset, i.value);
+      FieldDataTermsQueryHelper.writeLong(bytes, offset, i.value);
       offset += 8;
     }
 

@@ -18,15 +18,15 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.elasticsearch.action.ClientAction;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.action.Action;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.transport.TransportRequestOptions;
 
 /**
  * The action to request terms by query
  */
-public class TermsByQueryAction extends ClientAction<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryRequestBuilder> {
+public class TermsByQueryAction extends Action<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryRequestBuilder> {
 
   public static final TermsByQueryAction INSTANCE = new TermsByQueryAction();
   public static final String NAME = "indices:data/read/search/termsbyquery";
@@ -69,8 +69,8 @@ public class TermsByQueryAction extends ClientAction<TermsByQueryRequest, TermsB
    * @return the new {@link TermsByQueryRequestBuilder}
    */
   @Override
-  public TermsByQueryRequestBuilder newRequestBuilder(Client client) {
-    return new TermsByQueryRequestBuilder(client);
+  public TermsByQueryRequestBuilder newRequestBuilder(ElasticsearchClient client) {
+    return new TermsByQueryRequestBuilder(client, this);
   }
 
 }

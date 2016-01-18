@@ -18,27 +18,26 @@
  */
 package solutions.siren.join;
 
+import org.elasticsearch.action.ActionModule;
+import org.elasticsearch.indices.IndicesModule;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.rest.RestModule;
 import solutions.siren.join.action.coordinate.CoordinateMultiSearchAction;
+import solutions.siren.join.action.coordinate.CoordinateSearchAction;
 import solutions.siren.join.action.coordinate.TransportCoordinateMultiSearchAction;
 import solutions.siren.join.action.coordinate.TransportCoordinateSearchAction;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TransportTermsByQueryAction;
-import solutions.siren.join.index.query.BinaryTermsFilterParser;
-import solutions.siren.join.index.query.BinaryTermsQueryParser;
-import solutions.siren.join.rest.RestCoordinateMultiSearchAction;
-import solutions.siren.join.rest.RestCoordinateSearchAction;
-import solutions.siren.join.action.coordinate.CoordinateSearchAction;
-import org.elasticsearch.action.ActionModule;
+import solutions.siren.join.index.query.FieldDataTermsQueryParser;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.indices.query.IndicesQueriesModule;
-import org.elasticsearch.plugins.AbstractPlugin;
-import org.elasticsearch.rest.RestModule;
+import solutions.siren.join.rest.RestCoordinateMultiSearchAction;
+import solutions.siren.join.rest.RestCoordinateSearchAction;
 
 /**
  * The FilterJoin plugin.
  */
-public class FilterJoinPlugin extends AbstractPlugin {
+public class FilterJoinPlugin extends Plugin {
 
   @Inject
   public FilterJoinPlugin(Settings settings) {}
@@ -49,9 +48,8 @@ public class FilterJoinPlugin extends AbstractPlugin {
     module.registerAction(CoordinateMultiSearchAction.INSTANCE, TransportCoordinateMultiSearchAction.class);
   }
 
-  public void onModule(IndicesQueriesModule module) {
-    module.addFilter(BinaryTermsFilterParser.class);
-    module.addQuery(BinaryTermsQueryParser.class);
+  public void onModule(IndicesModule module) {
+    module.registerQueryParser(FieldDataTermsQueryParser.class);
   }
 
    public void onModule(RestModule module) {

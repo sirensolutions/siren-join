@@ -18,6 +18,10 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.elasticsearch.action.support.broadcast.TransportBroadcastAction;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.search.SearchService;
 import solutions.siren.join.action.terms.collector.HitStream;
 import solutions.siren.join.action.terms.collector.TermsCollector;
 import solutions.siren.join.action.terms.collector.BitSetHitStream;
@@ -29,8 +33,6 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastShardOperationFailedException;
-import org.elasticsearch.action.support.broadcast.TransportBroadcastOperationAction;
-import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.cache.recycler.PageCacheRecycler;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.ClusterState;
@@ -39,7 +41,6 @@ import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.routing.GroupShardsIterator;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Lists;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
@@ -47,7 +48,6 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.fielddata.IndexFieldData;
-import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.query.QueryParseContext;
 import org.elasticsearch.index.shard.IndexShard;
@@ -64,20 +64,16 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * The terms by query transport operation
  */
-public class TransportTermsByQueryAction extends TransportBroadcastOperationAction<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryShardRequest, TermsByQueryShardResponse> {
+public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryShardRequest, TermsByQueryShardResponse> {
 
   private final IndicesService indicesService;
   private final ScriptService scriptService;
-  private final CacheRecycler cacheRecycler;
   private final PageCacheRecycler pageCacheRecycler;
   private final BigArrays bigArrays;
 
@@ -87,13 +83,15 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
   @Inject
   public TransportTermsByQueryAction(Settings settings, ThreadPool threadPool, ClusterService clusterService,
                                      TransportService transportService, IndicesService indicesService,
-                                     ScriptService scriptService, CacheRecycler cacheRecycler,
-                                     PageCacheRecycler pageCacheRecycler, BigArrays bigArrays,
-                                     ActionFilters actionFilters) {
-    super(settings, TermsByQueryAction.NAME, threadPool, clusterService, transportService, actionFilters);
+                                     ScriptService scriptService, PageCacheRecycler pageCacheRecycler,
+                                     BigArrays bigArrays, ActionFilters actionFilters,
+                                     IndexNameExpressionResolver indexNameExpressionResolver) {
+    super(settings, TermsByQueryAction.NAME, threadPool, clusterService, transportService, actionFilters,
+            indexNameExpressionResolver, TermsByQueryRequest.class, TermsByQueryShardRequest.class,
+            // Use the generic threadpool which is cached, as we can end up with deadlock with the SEARCH threadpool
+            ThreadPool.Names.GENERIC);
     this.indicesService = indicesService;
     this.scriptService = scriptService;
-    this.cacheRecycler = cacheRecycler;
     this.pageCacheRecycler = pageCacheRecycler;
     this.bigArrays = bigArrays;
   }
@@ -108,36 +106,11 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
   }
 
   /**
-   * The threadpool this request will execute against
-   */
-  @Override
-  protected String executor() {
-    // Use the generic threadpool which is cached, as we can end up with deadlock with the SEARCH threadpool
-    return ThreadPool.Names.GENERIC;
-  }
-
-  /**
-   * Creates a new {@link TermsByQueryRequest}
-   */
-  @Override
-  protected TermsByQueryRequest newRequest() {
-    return new TermsByQueryRequest();
-  }
-
-  /**
-   * Creates a new {@link TermsByQueryShardRequest}
-   */
-  @Override
-  protected TermsByQueryShardRequest newShardRequest() {
-    return new TermsByQueryShardRequest();
-  }
-
-  /**
    * Creates a new {@link TermsByQueryShardRequest}
    */
   @Override
   protected TermsByQueryShardRequest newShardRequest(int numShards, ShardRouting shard, TermsByQueryRequest request) {
-    String[] filteringAliases = clusterService.state().metaData().filteringAliases(shard.index(), request.indices());
+    String[] filteringAliases = indexNameExpressionResolver.filteringAliases(clusterService.state(), shard.index(), request.indices());
     return new TermsByQueryShardRequest(shard.shardId(), filteringAliases, request);
   }
 
@@ -154,8 +127,8 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
    */
   @Override
   protected GroupShardsIterator shards(ClusterState clusterState, TermsByQueryRequest request, String[] concreteIndices) {
-    Map<String, Set<String>> routingMap = clusterState.metaData().resolveSearchRouting(request.routing(), request.indices());
-    return clusterService.operationRouting().searchShards(clusterState, request.indices(), concreteIndices, routingMap, request.preference());
+    Map<String, Set<String>> routingMap = indexNameExpressionResolver.resolveSearchRouting(clusterState, request.routing(), request.indices());
+    return clusterService.operationRouting().searchShards(clusterState, concreteIndices, routingMap, request.preference());
   }
 
   @Override
@@ -187,7 +160,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
       } else if (shardResponse instanceof BroadcastShardOperationFailedException) {
         failedShards++;
         if (shardFailures == null) {
-          shardFailures = Lists.newArrayList();
+          shardFailures = new ArrayList<>();
         }
         logger.error("Shard operation failed", (BroadcastShardOperationFailedException) shardResponse);
         shardFailures.add(new DefaultShardOperationFailedException((BroadcastShardOperationFailedException) shardResponse));
@@ -237,18 +210,19 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
                                                                         shardRequest.filteringAliases());
 
     SearchContext context = new DefaultSearchContext(0, shardSearchRequest, shardTarget,
-      indexShard.acquireSearcher("termsByQuery"), indexService, indexShard, scriptService, cacheRecycler,
-      pageCacheRecycler, bigArrays, threadPool.estimatedTimeInMillisCounter());
+      indexShard.acquireSearcher("termsByQuery"), indexService, indexShard, scriptService,
+      pageCacheRecycler, bigArrays, threadPool.estimatedTimeInMillisCounter(), parseFieldMatcher,
+      SearchService.NO_TIMEOUT);
     SearchContext.setCurrent(context);
 
     try {
-      FieldMapper fieldMapper = context.smartNameFieldMapper(request.field());
-      if (fieldMapper == null) {
+      MappedFieldType fieldType = context.smartNameFieldType(request.field());
+      if (fieldType == null) {
         throw new SearchContextException(context, "[termsByQuery] field '" + request.field() +
                 "' not found for types " + Arrays.toString(request.types()));
       }
 
-      IndexFieldData indexFieldData = context.fieldData().getForField(fieldMapper);
+      IndexFieldData indexFieldData = context.fieldData().getForField(fieldType);
 
       BytesReference querySource = request.querySource();
       if (querySource != null && querySource.length() > 0) {

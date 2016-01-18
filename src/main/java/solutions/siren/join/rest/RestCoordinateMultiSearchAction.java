@@ -56,15 +56,19 @@ public class RestCoordinateMultiSearchAction extends BaseRestHandler {
   @Override
   public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) throws Exception {
     MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
-    multiSearchRequest.listenerThreaded(false);
 
     String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
     String[] types = Strings.splitStringByCommaToArray(request.param("type"));
+    String path = request.path();
+    boolean isTemplateRequest = isTemplateRequest(path);
     IndicesOptions indicesOptions = IndicesOptions.fromRequest(request, multiSearchRequest.indicesOptions());
-    multiSearchRequest.add(RestActions.getRestContent(request), indices, types,
-      request.param("search_type"), request.param("routing"), indicesOptions, allowExplicitIndex);
+    multiSearchRequest.add(RestActions.getRestContent(request), isTemplateRequest, indices, types, request.param("search_type"), request.param("routing"), indicesOptions, allowExplicitIndex);
 
     client.execute(CoordinateMultiSearchAction.INSTANCE, multiSearchRequest, new RestToXContentListener<MultiSearchResponse>(channel));
+  }
+
+  private boolean isTemplateRequest(String path) {
+    return (path != null && path.endsWith("/template"));
   }
 
 }

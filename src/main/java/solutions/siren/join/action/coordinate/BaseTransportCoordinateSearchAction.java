@@ -18,13 +18,13 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import org.elasticsearch.ElasticsearchIllegalStateException;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
@@ -48,8 +48,10 @@ extends HandledTransportAction<Request, Response> {
 
   protected BaseTransportCoordinateSearchAction(final Settings settings, final String actionName,
                                                 final ThreadPool threadPool, final TransportService transportService,
-                                                final ActionFilters actionFilters, Client client) {
-    super(settings, actionName, threadPool, transportService, actionFilters);
+                                                final ActionFilters actionFilters,
+                                                final IndexNameExpressionResolver indexNameExpressionResolver,
+                                                final Client client, Class<Request> request) {
+    super(settings, actionName, threadPool, transportService, actionFilters, indexNameExpressionResolver, request);
     this.client = client;
   }
 
@@ -81,7 +83,7 @@ extends HandledTransportAction<Request, Response> {
     }
     catch (IOException e) {
       logger.error("failed to build source", e);
-      throw new ElasticsearchIllegalStateException("Failed to build source", e);
+      throw new IllegalStateException("Failed to build source", e);
     }
   }
 }
