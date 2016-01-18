@@ -37,7 +37,6 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitC
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
-@Seed("D6DB95CEC646905F:FDCDF00B58BBDA06")
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
 public class FieldDataTermsQueryTest extends FilterJoinTestCase {
 
@@ -57,7 +56,8 @@ public class FieldDataTermsQueryTest extends FilterJoinTestCase {
   public Settings indexSettings() {
     Settings.Builder builder = Settings.builder();
     builder.put(super.indexSettings());
-    builder.put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true); // force caching
+    builder.put(IndexCacheModule.QUERY_CACHE_TYPE, IndexCacheModule.INDEX_QUERY_CACHE); // force query cache
+    builder.put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true); // force caching even small queries
     return builder.build();
   }
 
