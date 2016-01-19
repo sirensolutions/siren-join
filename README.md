@@ -14,13 +14,15 @@ The following table shows the compatibility between releases of Elasticsearch an
 
 Elasticsearch|SIREn Join
 ---|---
+2.1.1|2.1.1
+---|---
 1.7.x|1.0
 
 ## Installing the Plugin
 
 You can use the following command to download the plugin from the online repository:
 
-    $ bin/plugin -i solutions.siren/siren-join/1.0
+    $ bin/plugin -i solutions.siren/siren-join/2.1.1
 
 Alternatively, you can assemble it via Maven:
 
@@ -30,7 +32,7 @@ $ mvn package
 
 This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
-    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-1.0.zip --install FilterJoinPlugin
+    $ bin/plugin --url file:///PATH-TO-FILTERJOIN-PLUGIN/target/releases/siren-join-2.1.1.zip --install FilterJoinPlugin
 
 Note that we use the `--url` option for the plugin command in order to inform it to get the file locally 
 instead of trying to download it from an online repository.
@@ -77,10 +79,7 @@ The query first filters documents from `index2` and of type `type` with the quer
 
 ```json
     {
-      "filtered" : {
-        "query" : {
-          "match_all" : { }
-        },
+      "bool" : {
         "filter" : {
           "filterjoin" : {
             "foreign_key" : {
@@ -152,4 +151,4 @@ to the [Elasticsearch](https://github.com/elastic/elasticsearch) project.
 
 - - -
 
-Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
