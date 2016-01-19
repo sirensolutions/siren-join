@@ -56,9 +56,6 @@ public class FieldDataTermsQueryBuilder extends QueryBuilder {
   public void doXContent(XContentBuilder builder, ToXContent.Params params) throws IOException {
     builder.startObject(FieldDataTermsQueryParser.NAME);
       builder.startObject(name);
-//        // Do not serialise the full byte array, but instead the number of bytes - see issue #168
-//        // Hack: the toString method is the only one using the JSON content type
-//        builder.field("value", builder.contentType().equals(XContentType.JSON) ? "[size=" + value.length + "]" : value);
         builder.field("value", value);
         builder.field("_cache_key", cacheKey);
       builder.endObject();

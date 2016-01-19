@@ -61,13 +61,6 @@ public class FieldDataTermsQueryTest extends FilterJoinTestCase {
     return builder.build();
   }
 
-  @Ignore("Deprecated ? We should check what's the behaviour in case of an error: https://github.com/sirensolutions/knowledge-browser/issues/168")
-  @Test
-  public void testStringSerialization() throws Exception {
-    // check that the byte array is not serialised
-    assertTrue(fieldDataTermsQuery("id", new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 }, CACHE_KEY).toString().contains("[size=76]"));
-  }
-
   @Test
   public void testSimpleFilter() throws Exception {
     assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer"));
