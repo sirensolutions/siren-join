@@ -35,7 +35,7 @@ import java.util.Arrays;
 /**
  * A request to get the values from a specific field for documents matching a specific query.
  * <p/>
- * The request requires the filter source to be set using {@link #query(org.elasticsearch.index.query.QueryBuilder)}.
+ * The request requires the filter source to be set using {@link #query(QueryBuilder)}.
  *
  * @see TermsByQueryResponse
  */
