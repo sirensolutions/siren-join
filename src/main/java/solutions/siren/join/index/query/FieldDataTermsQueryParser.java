@@ -19,7 +19,9 @@
 package solutions.siren.join.index.query;
 
 import com.carrotsearch.hppc.LongHashSet;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Weight;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
@@ -37,7 +39,7 @@ import org.elasticsearch.index.query.QueryParsingException;
 import java.io.IOException;
 
 /**
- * A query based on a byte encoded list of long terms.
+ * A {@link QueryParser} for {@link FieldDataTermsQuery}.
  */
 public class FieldDataTermsQueryParser implements QueryParser {
 
@@ -103,16 +105,8 @@ public class FieldDataTermsQueryParser implements QueryParser {
       fieldName = fieldType.names().indexName();
     }
 
-    LongHashSet longHashSet = this.decodeTerms(value);
-    int size = longHashSet.size();
-    logger.debug("{}: Query is composed of {} terms", Thread.currentThread().getName(), size);
-
-    if (size == 0) {
-      return Queries.newMatchNoDocsQuery();
-    }
-
     IndexFieldData fieldData = parseContext.getForField(fieldType);
-    Query query = this.toFieldDataTermsQuery(fieldType, fieldData, longHashSet, cacheKey);
+    Query query = this.toFieldDataTermsQuery(fieldType, fieldData, value, cacheKey);
 
     if (queryName != null) {
       parseContext.addNamedQuery(queryName, query);
@@ -121,28 +115,14 @@ public class FieldDataTermsQueryParser implements QueryParser {
     return query;
   }
 
-  private final LongHashSet decodeTerms(byte[] value) {
-    // Decodes the values and creates the long hash set
-    try {
-      long start = System.nanoTime();
-      // keep a reference to the decoded set of terms, to avoid having to decode it for every index segment
-      LongHashSet longHashSet = FieldDataTermsQueryHelper.decode(value);
-      logger.debug("Deserialized {} terms - took {} ms", longHashSet.size(), (System.nanoTime() - start) / 1000000);
-      return longHashSet;
-    }
-    catch (IOException e) {
-      throw new ElasticsearchParseException("[fielddata_terms] error while decoding filter binary value", e);
-    }
-  }
-
   private final Query toFieldDataTermsQuery(MappedFieldType fieldType, IndexFieldData fieldData,
-                                            LongHashSet longHashSet, int cacheKey) {
+                                            byte[] encodedTerms, int cacheKey) {
     Query query = null;
 
     if (fieldType instanceof NumberFieldMapper.NumberFieldType) {
-      query = FieldDataTermsQuery.newLongs((IndexNumericFieldData) fieldData, longHashSet, cacheKey);
+      query = FieldDataTermsQuery.newLongs(encodedTerms, (IndexNumericFieldData) fieldData, cacheKey);
     } else if (fieldType instanceof StringFieldMapper.StringFieldType) {
-      query = FieldDataTermsQuery.newBytes(fieldData, longHashSet, cacheKey);
+      query = FieldDataTermsQuery.newBytes(encodedTerms, fieldData, cacheKey);
     } else {
       throw new ElasticsearchParseException("[fielddata_terms] query does not support field data type " + fieldType.fieldDataType().getType());
     }

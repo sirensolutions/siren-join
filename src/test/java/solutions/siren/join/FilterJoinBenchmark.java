@@ -18,7 +18,11 @@
  */
 package solutions.siren.join;
 
+import org.apache.lucene.search.QueryCachingPolicy;
 import org.elasticsearch.Version;
+import org.elasticsearch.index.IndexModule;
+import org.elasticsearch.index.cache.IndexCacheModule;
+import org.elasticsearch.index.cache.query.index.IndexQueryCache;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.plugins.Plugin;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
@@ -50,7 +54,7 @@ import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
 
 /**
  * Perform the parent/child search tests using terms query lookup.
- * This should work across multiple shards and not need a special mapping
+ * This should work across multiple shards.
  */
 @SuppressWarnings("unchecked")
 public class FilterJoinBenchmark {
@@ -78,6 +82,7 @@ public class FilterJoinBenchmark {
         .put("node.local", true)
         .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
         .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
+//        .put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true)
         .build();
 
       this.nodes = new MockNode[2];
@@ -148,8 +153,13 @@ public class FilterJoinBenchmark {
     public void setupIndex() {
         log("==== INDEX SETUP ====");
         try {
-            client.admin().indices().create(createIndexRequest(PARENT_INDEX)).actionGet();
-            client.admin().indices().create(createIndexRequest(CHILD_INDEX)).actionGet();
+          client.admin().indices().create(createIndexRequest(PARENT_INDEX).mapping(PARENT_TYPE,
+                  "id", "type=string,index=not_analyzed,doc_values=true",
+                  "num", "type=integer,doc_values=true")).actionGet();
+          client.admin().indices().create(createIndexRequest(CHILD_INDEX).mapping(CHILD_TYPE,
+                  "id", "type=string,index=not_analyzed,doc_values=true",
+                  "pid", "type=string,index=not_analyzed,doc_values=true",
+                  "num", "type=integer,doc_values=true")).actionGet();
             Thread.sleep(5000);
 
             StopWatch stopWatch = new StopWatch().start();

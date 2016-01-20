@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ListenableActionFuture;
@@ -36,7 +35,6 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
-import org.junit.runner.RunWith;
 import solutions.siren.join.FilterJoinPlugin;
 
 import java.io.IOException;
@@ -66,13 +64,13 @@ public class TermsByQueryBenchmark {
   public static final String CHILD_INDEX = "joinchild";
   public static final String CHILD_TYPE = "c";
   // test settings
-  public static final int NUM_PARENTS = 100000;
+  public static final int NUM_PARENTS = 1000000;
   public static final int NUM_CHILDREN_PER_PARENT = 5;
   public static final int BATCH_SIZE = 100;
   public static final int NUM_QUERIES = 50;
 
-  public static final int MAX_TERMS_PER_SHARD = 100000;
-  public static final TermsByQueryRequest.Ordering ORDERING = TermsByQueryRequest.Ordering.DOC_SCORE;
+  public static final int MAX_TERMS_PER_SHARD = -1;
+  public static final TermsByQueryRequest.Ordering ORDERING = TermsByQueryRequest.Ordering.DEFAULT;
 
   private final Node[] nodes;
   private final Client client;

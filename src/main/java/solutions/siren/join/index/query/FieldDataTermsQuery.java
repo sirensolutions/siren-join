@@ -24,69 +24,70 @@ import com.carrotsearch.hppc.LongHashSet;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.Accountable;
+import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 
 /**
- * Specialization for a disjunction over many terms that behaves like a
+ * Specialization for a disjunction over many terms, encoded in a byte array, that behaves like a
  * {@link ConstantScoreQuery} over a {@link BooleanQuery} containing only
  * {@link org.apache.lucene.search.BooleanClause.Occur#SHOULD} clauses.
- * <p>For instance in the following example, both @{code q1} and {@code q2}
- * would yield the same scores:
- * <pre class="prettyprint">
- * Query q1 = new TermsQuery(new Term("field", "foo"), new Term("field", "bar"));
- *
- * BooleanQuery bq = new BooleanQuery();
- * bq.add(new TermQuery(new Term("field", "foo")), Occur.SHOULD);
- * bq.add(new TermQuery(new Term("field", "bar")), Occur.SHOULD);
- * Query q2 = new ConstantScoreQuery(bq);
- * </pre>
- * <p>When there are few terms, this query executes like a regular disjunction.
- * However, when there are many terms, instead of merging iterators on the fly,
- * it will populate a bit set with matching docs and return a {@link Scorer}
- * over this bit set.
- * <p>NOTE: This query produces scores that are equal to its boost
  */
 public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
   private static final long BASE_RAM_BYTES_USED = RamUsageEstimator.shallowSizeOfInstance(FieldDataTermsQuery.class);
 
-  final IndexFieldData fieldData;
-  final int cacheKey;
+  /**
+   * Reference to the encoded list of values for late decoding.
+   */
+  protected byte[] encodedTerms;
+
+  /**
+   * The field data for the field
+   */
+  protected final IndexFieldData fieldData;
+
+  /**
+   * The cache key for this query
+   */
+  protected final int cacheKey;
 
   /**
    * Get a {@link FieldDataTermsQuery} that filters on non-floating point numeric terms found in a hppc
    * {@link LongHashSet}.
    *
-   * @param fieldData The fielddata for the field.
-   * @param terms     A {@link LongHashSet} of terms.
-   * @param cacheKey  A unique key to use for caching this query.
+   * @param encodedTerms  An encoded set of terms.
+   * @param fieldData     The fielddata for the field.
+   * @param cacheKey      A unique key to use for caching this query.
    * @return the query.
    */
-  public static FieldDataTermsQuery newLongs(IndexNumericFieldData fieldData, LongHashSet terms, int cacheKey) {
-    return new LongsFieldDataTermsQuery(fieldData, terms, cacheKey);
+  public static FieldDataTermsQuery newLongs(final byte[] encodedTerms, final IndexNumericFieldData fieldData, final int cacheKey) {
+    return new LongsFieldDataTermsQuery(encodedTerms, fieldData, cacheKey);
   }
 
   /**
    * Get a {@link FieldDataTermsQuery} that filters on non-numeric terms found in a hppc {@link LongHashSet} of
    * {@link BytesRef}.
    *
-   * @param fieldData The fielddata for the field.
-   * @param terms     An {@link LongHashSet} of terms.
-   * @param cacheKey  A unique key to use for caching this query.
+   * @param encodedTerms  An encoded set of terms.
+   * @param fieldData     The fielddata for the field.
+   * @param cacheKey      A unique key to use for caching this query.
    * @return the query.
    */
-  public static FieldDataTermsQuery newBytes(IndexFieldData fieldData, LongHashSet terms, int cacheKey) {
-    return new BytesFieldDataTermsQuery(fieldData, terms, cacheKey);
+  public static FieldDataTermsQuery newBytes(final byte[] encodedTerms, final IndexFieldData fieldData, final int cacheKey) {
+    return new BytesFieldDataTermsQuery(encodedTerms, fieldData, cacheKey);
   }
 
   /**
    * Creates a new {@link FieldDataTermsQuery} from the given field data.
    */
-  public FieldDataTermsQuery(final IndexFieldData fieldData, final int cacheKey) {
+  public FieldDataTermsQuery(final byte[] encodedTerms, final IndexFieldData fieldData, final int cacheKey) {
+    this.encodedTerms = encodedTerms;
     this.fieldData = fieldData;
     this.cacheKey = cacheKey;
   }
@@ -99,7 +100,17 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
     if (!super.equals(obj)) {
       return false;
     }
+    if (cacheKey != ((FieldDataTermsQuery) obj).cacheKey) { // relies on the cache key instead of the encodedTerms for equality
+      return false;
+    }
     return true;
+  }
+
+  @Override
+  public int hashCode() {
+    int hashcode = super.hashCode();
+    hashcode = 31 * hashcode + cacheKey; // relies on the cache key instead of the encodedTerms for hashcode
+    return hashcode;
   }
 
   @Override
@@ -153,36 +164,22 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
    */
   protected static class LongsFieldDataTermsQuery extends FieldDataTermsQuery {
 
-    final LongHashSet terms;
+    private LongHashSet terms;
+
+    private final ESLogger logger = Loggers.getLogger(getClass());
 
     /**
      * Creates a new {@link FieldDataTermsQuery} from the given field data.
      *
      * @param fieldData
      */
-    public LongsFieldDataTermsQuery(IndexFieldData fieldData, LongHashSet terms, int cacheKey) {
-      super(fieldData, cacheKey);
-      this.terms = terms;
+    public LongsFieldDataTermsQuery(final byte[] encodedTerms, final IndexFieldData fieldData, final int cacheKey) {
+      super(encodedTerms, fieldData, cacheKey);
     }
 
     @Override
     public long ramBytesUsed() {
       return BASE_RAM_BYTES_USED + (terms != null ? terms.size() * 8 : 0);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (super.equals(obj) == false) {
-        return false;
-      }
-      return terms.equals(((LongsFieldDataTermsQuery) obj).terms);
-    }
-
-    @Override
-    public int hashCode() {
-      int hashcode = super.hashCode();
-      hashcode = 31 * hashcode + (terms != null ? terms.hashCode() : 0);
-      return hashcode;
     }
 
     @Override
@@ -198,6 +195,11 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public DocIdSet getDocIdSet(LeafReaderContext context) throws IOException {
+      if (encodedTerms != null) { // late decoding of the encoded terms
+        terms = this.decodeTerms(encodedTerms);
+        encodedTerms = null; // release reference to the byte array to be able to reclaim memory
+      }
+
       // make sure there are terms to filter on
       if (terms == null || terms.isEmpty()) return null;
 
@@ -225,6 +227,14 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
       return null;
     }
 
+    private final LongHashSet decodeTerms(byte[] encodedTerms) throws IOException {
+      // Decodes the values and creates the long hash set
+      long start = System.nanoTime();
+      LongHashSet longHashSet = FieldDataTermsQueryHelper.decode(encodedTerms);
+      logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), longHashSet.size(), (System.nanoTime() - start) / 1000000 });
+      return longHashSet;
+    }
+
   }
 
   /**
@@ -232,36 +242,22 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
    */
   protected static class BytesFieldDataTermsQuery extends FieldDataTermsQuery {
 
-    final LongHashSet terms;
+    private LongHashSet terms;
+
+    private final ESLogger logger = Loggers.getLogger(getClass());
 
     /**
      * Creates a new {@link BytesFieldDataTermsQuery} from the given field data.
      *
      * @param fieldData
      */
-    public BytesFieldDataTermsQuery(IndexFieldData fieldData, LongHashSet terms, int cacheKey) {
-      super(fieldData, cacheKey);
-      this.terms = terms;
+    public BytesFieldDataTermsQuery(final byte[] encodedTerms, final IndexFieldData fieldData, final int cacheKey) {
+      super(encodedTerms, fieldData, cacheKey);
     }
 
     @Override
     public long ramBytesUsed() {
       return BASE_RAM_BYTES_USED + (terms != null ? terms.size() * 8 : 0);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (super.equals(obj) == false) {
-        return false;
-      }
-      return terms.equals(((BytesFieldDataTermsQuery) obj).terms);
-    }
-
-    @Override
-    public int hashCode() {
-      int hashcode = super.hashCode();
-      hashcode = 31 * hashcode + (terms != null ? terms.hashCode() : 0);
-      return hashcode;
     }
 
     @Override
@@ -277,6 +273,11 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public DocIdSet getDocIdSet(LeafReaderContext context) throws IOException {
+      if (encodedTerms != null) { // late decoding of the encoded terms
+        terms = this.decodeTerms(encodedTerms);
+        encodedTerms = null; // release reference to the byte array to be able to reclaim memory
+      }
+
       // make sure there are terms to filter on
       if (terms == null || terms.isEmpty()) return null;
 
@@ -299,20 +300,35 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
       };
     }
 
+    private final LongHashSet decodeTerms(byte[] encodedTerms) throws IOException {
+      // Decodes the values and creates the long hash set
+      long start = System.nanoTime();
+      LongHashSet longHashSet = FieldDataTermsQueryHelper.decode(encodedTerms);
+      logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), longHashSet.size(), (System.nanoTime() - start) / 1000000 });
+      return longHashSet;
+    }
+
   }
 
   /**
-   * This query will be returned by the {@link ConstantScoreWeight} instead of the {@link FieldDataTermsQuery}
-   * and used by the
-   * {@link org.apache.lucene.search.LRUQueryCache.CachingWrapperWeight} to cache the query.
-   * This is necessary in order to avoid caching the byte array and long hash set, which is not memory friendly
-   * and not very efficient.
+   * <p>
+   *   This query will be returned by the {@link ConstantScoreWeight} instead of the {@link FieldDataTermsQuery}
+   *   and used by the
+   *   {@link org.apache.lucene.search.LRUQueryCache.CachingWrapperWeight} to cache the query.
+   *   This is necessary in order to avoid caching the byte array and long hash set, which is not memory friendly
+   *   and not very efficient.
+   * </p>
+   * <p>
+   *   Extends MultiTermQuery in order to be detected as "costly" query by {@link UsageTrackingQueryCachingPolicy}
+   *   and trigger early caching.
+   * </p>
    */
-  private static class CacheKeyFieldDataTermsQuery extends Query {
+  private static class CacheKeyFieldDataTermsQuery extends MultiTermQuery {
 
     private final int cacheKey;
 
     public CacheKeyFieldDataTermsQuery(int cacheKey) {
+      super("");
       this.cacheKey = cacheKey;
     }
 
@@ -330,8 +346,16 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
     }
 
     @Override
+    protected TermsEnum getTermsEnum(Terms terms, AttributeSource atts) throws IOException {
+      return null;
+    }
+
+    @Override
     public int hashCode() {
-      return super.hashCode() ^ cacheKey;
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + cacheKey;
+      return result;
     }
 
   }
