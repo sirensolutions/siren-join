@@ -35,7 +35,7 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
-import solutions.siren.join.FilterJoinPlugin;
+import solutions.siren.join.SirenJoinPlugin;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -87,9 +87,9 @@ public class TermsByQueryBenchmark {
 
       this.nodes = new MockNode[2];
       this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(FilterJoinPlugin.class)).start();
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
       this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(FilterJoinPlugin.class)).start();
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
       this.client = nodes[0].client();
       this.random = new Random(System.currentTimeMillis());
     }

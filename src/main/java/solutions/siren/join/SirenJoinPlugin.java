@@ -35,12 +35,12 @@ import solutions.siren.join.rest.RestCoordinateMultiSearchAction;
 import solutions.siren.join.rest.RestCoordinateSearchAction;
 
 /**
- * The FilterJoin plugin.
+ * The SIREn Join plugin.
  */
-public class FilterJoinPlugin extends Plugin {
+public class SirenJoinPlugin extends Plugin {
 
   @Inject
-  public FilterJoinPlugin(Settings settings) {}
+  public SirenJoinPlugin(Settings settings) {}
 
   public void onModule(ActionModule module) {
     module.registerAction(TermsByQueryAction.INSTANCE, TransportTermsByQueryAction.class);
@@ -59,12 +59,12 @@ public class FilterJoinPlugin extends Plugin {
 
   @Override
   public String name() {
-    return "FilterJoinPlugin";
+    return "SirenJoinPlugin";
   }
 
   @Override
   public String description() {
-    return "Filter join query parser and terms by query action";
+    return "SIREn plugin that adds join capabilities to Elasticsearch";
   }
 
 }

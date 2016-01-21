@@ -19,7 +19,6 @@
 package solutions.siren.join;
 
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.action.coordinate.FilterJoinCache;
 import org.elasticsearch.common.settings.Settings;
@@ -52,7 +51,7 @@ public class FilterJoinTestCase extends ESIntegTestCase {
 
   @Override
   protected Collection<Class<? extends Plugin>> nodePlugins() {
-    return Arrays.<Class<? extends Plugin>> asList(FilterJoinPlugin.class);
+    return Arrays.<Class<? extends Plugin>> asList(SirenJoinPlugin.class);
   }
 
   @Override

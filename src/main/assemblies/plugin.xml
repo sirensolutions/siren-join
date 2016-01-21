@@ -1,18 +1,33 @@
 <?xml version="1.0"?>
 <assembly>
-    <id>plugin</id>
-    <formats>
-        <format>zip</format>
-    </formats>
-    <includeBaseDirectory>false</includeBaseDirectory>
-    <dependencySets>
-        <dependencySet>
-            <outputDirectory>/</outputDirectory>
-            <useProjectArtifact>true</useProjectArtifact>
-            <useTransitiveFiltering>true</useTransitiveFiltering>
-            <excludes>
-                <exclude>org.elasticsearch:elasticsearch</exclude>
-            </excludes>
-        </dependencySet>
-    </dependencySets>
+
+  <id>plugin</id>
+
+  <formats>
+    <format>zip</format>
+  </formats>
+
+  <includeBaseDirectory>false</includeBaseDirectory>
+
+  <files>
+    <file>
+      <source>${project.basedir}/src/main/resources/plugin-descriptor.properties</source>
+      <outputDirectory></outputDirectory>
+      <filtered>true</filtered>
+    </file>
+  </files>
+
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>/</outputDirectory>
+      <useProjectArtifact>true</useProjectArtifact>
+      <useTransitiveFiltering>true</useTransitiveFiltering>
+      <excludes>
+        <exclude>org.elasticsearch:elasticsearch</exclude>
+        <exclude>com.google.guava:guava</exclude>
+        <exclude>com.carrotsearch:hppc</exclude>
+      </excludes>
+    </dependencySet>
+  </dependencySets>
+
 </assembly>

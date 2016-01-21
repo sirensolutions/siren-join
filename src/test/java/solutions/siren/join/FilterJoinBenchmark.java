@@ -18,11 +18,7 @@
  */
 package solutions.siren.join;
 
-import org.apache.lucene.search.QueryCachingPolicy;
 import org.elasticsearch.Version;
-import org.elasticsearch.index.IndexModule;
-import org.elasticsearch.index.cache.IndexCacheModule;
-import org.elasticsearch.index.cache.query.index.IndexQueryCache;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.plugins.Plugin;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
@@ -87,9 +83,9 @@ public class FilterJoinBenchmark {
 
       this.nodes = new MockNode[2];
       this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(FilterJoinPlugin.class)).start();
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
       this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(FilterJoinPlugin.class)).start();
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
       this.client = nodes[0].client();
       this.random = new Random(System.currentTimeMillis());
     }

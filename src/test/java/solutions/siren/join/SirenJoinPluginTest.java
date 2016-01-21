@@ -28,7 +28,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
-public class FilterJoinPluginTest extends FilterJoinTestCase {
+public class SirenJoinPluginTest extends FilterJoinTestCase {
 
   @Test
   public void testPluginLoaded() {
@@ -40,7 +40,7 @@ public class FilterJoinPluginTest extends FilterJoinTestCase {
     boolean pluginFound = false;
 
     for (PluginInfo pluginInfo : nodesInfoResponse.getNodes()[0].getPlugins().getInfos()) {
-      if (pluginInfo.getName().equals("FilterJoinPlugin")) {
+      if (pluginInfo.getName().equals("SirenJoinPlugin")) {
         pluginFound = true;
         break;
       }
