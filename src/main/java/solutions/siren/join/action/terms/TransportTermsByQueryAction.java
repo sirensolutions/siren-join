@@ -18,14 +18,16 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
+import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.action.fieldstats.FieldStats;
 import org.elasticsearch.action.support.broadcast.TransportBroadcastAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.search.SearchService;
-import solutions.siren.join.action.terms.collector.HitStream;
-import solutions.siren.join.action.terms.collector.TermsCollector;
-import solutions.siren.join.action.terms.collector.BitSetHitStream;
-import solutions.siren.join.action.terms.collector.TopHitStream;
+import solutions.siren.join.action.terms.collector.*;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionListener;
@@ -224,6 +226,15 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
 
       IndexFieldData indexFieldData = context.fieldData().getForField(fieldType);
 
+      try (Engine.Searcher searcher = indexShard.acquireSearcher("fieldstats")) {
+        IndexReader reader = searcher.reader();
+        org.apache.lucene.index.Terms terms = MultiFields.getTerms(reader, request.field());
+        FieldStats stats = fieldType.stats(terms, reader.maxDoc());
+        logger.info("{}: shard: {} - min={}, max={}", new Object[] { Thread.currentThread().getName(), shardRequest.shardId(), stats.getMinValue(), stats.getMaxValue() });
+      } catch (IOException e) {
+        throw ExceptionsHelper.convertToElastic(e);
+      }
+
       BytesReference querySource = request.querySource();
       if (querySource != null && querySource.length() > 0) {
         XContentParser queryParser = null;
@@ -249,10 +260,10 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
       logger.debug("{}: Executes search for collecting terms {}", Thread.currentThread().getName(),
         shardRequest.shardId());
 
-      TermsCollector termsCollector = new TermsCollector(indexFieldData, context);
+      LongTermsCollector termsCollector = new LongTermsCollector(indexFieldData, context);
       if (request.maxTermsPerShard() != null) termsCollector.setMaxTerms(request.maxTermsPerShard());
       HitStream hitStream = orderByOperation.getHitStream(context);
-      TermsCollector.TermsCollection terms = termsCollector.collect(hitStream);
+      TermsSet terms = termsCollector.collect(hitStream);
       TermsResponse termsResponse = new TermsResponse(terms);
 
       logger.debug("{}: Returns terms response with {} terms for shard {}", Thread.currentThread().getName(),

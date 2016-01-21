@@ -20,7 +20,7 @@ package solutions.siren.join.action.terms;
 
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
-import solutions.siren.join.action.terms.collector.TermsCollector;
+import solutions.siren.join.action.terms.collector.LongTermsCollector;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -41,7 +41,7 @@ public class TermsResponse implements Streamable {
 
   protected static final ESLogger logger = Loggers.getLogger(TermsResponse.class);
 
-  private transient TermsCollector.TermsCollection terms;
+  private transient LongTermsCollector.TermsCollection terms;
 
   /**
    * Default constructor
@@ -52,7 +52,7 @@ public class TermsResponse implements Streamable {
    * Constructor used after terms collection in
    * {@link TransportTermsByQueryAction#shardOperation(TermsByQueryShardRequest)}
    */
-  TermsResponse(TermsCollector.TermsCollection terms) {
+  TermsResponse(LongTermsCollector.TermsCollection terms) {
     this.terms = terms;
   }
 
@@ -61,7 +61,7 @@ public class TermsResponse implements Streamable {
    * {@link TransportTermsByQueryAction#newResponse(TermsByQueryRequest, AtomicReferenceArray, ClusterState)}
    */
   TermsResponse(int numTerms) {
-    this.terms = new TermsCollector.TermsCollection(numTerms);
+    this.terms = new LongTermsCollector.TermsCollection(numTerms);
   }
 
   /**
@@ -87,7 +87,7 @@ public class TermsResponse implements Streamable {
     for (long i = 0; i < size; i++) {
       termsHash.add(in.readLong());
     }
-    this.terms = new TermsCollector.TermsCollection(termsHash, isPruned);
+    this.terms = new LongTermsCollector.TermsCollection(termsHash, isPruned);
   }
 
   /**

@@ -97,9 +97,9 @@ public class FilterJoinBenchmark {
       bench.memStatus();
 
       bench.benchHasChildSingleTerm();
-      bench.benchHasParentSingleTerm();
-      bench.benchHasParentMatchAll();
-      bench.benchHasChildMatchAll();
+//      bench.benchHasParentSingleTerm();
+//      bench.benchHasParentMatchAll();
+//      bench.benchHasChildMatchAll();
 //        bench.benchHasParentRandomTerms();
 
       System.gc();
@@ -281,7 +281,8 @@ public class FilterJoinBenchmark {
             stringFilter.query(lookupQuery);
             longFilter.query(lookupQuery);
 
-            tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
+          log("==== EXECUTE QUERY ====");
+//            tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
             tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
         }
 
