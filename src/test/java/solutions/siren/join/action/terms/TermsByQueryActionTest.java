@@ -22,7 +22,7 @@ import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
 import com.carrotsearch.randomizedtesting.RandomizedTest;
 import org.elasticsearch.test.ESIntegTestCase;
-import solutions.siren.join.FilterJoinTestCase;
+import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -38,7 +38,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcke
 import static org.hamcrest.Matchers.*;
 
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
-public class TermsByQueryActionTest extends FilterJoinTestCase {
+public class TermsByQueryActionTest extends SirenJoinTestCase {
 
   /**
    * Tests that the terms by query action returns the correct terms against string fields

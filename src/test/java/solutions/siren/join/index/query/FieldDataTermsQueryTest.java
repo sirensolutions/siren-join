@@ -18,14 +18,12 @@
  */
 package solutions.siren.join.index.query;
 
-import com.carrotsearch.randomizedtesting.annotations.Seed;
 import com.google.common.hash.Hashing;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.index.cache.IndexCacheModule;
 import org.elasticsearch.index.cache.query.QueryCacheStats;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.junit.Ignore;
-import solutions.siren.join.FilterJoinTestCase;
+import solutions.siren.join.SirenJoinTestCase;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
@@ -38,7 +36,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
-public class FieldDataTermsQueryTest extends FilterJoinTestCase {
+public class FieldDataTermsQueryTest extends SirenJoinTestCase {
 
   private static final Integer CACHE_KEY = 123;
 

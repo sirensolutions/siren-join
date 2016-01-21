@@ -21,7 +21,7 @@ package solutions.siren.join.action.coordinate;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.test.ESIntegTestCase;
-import solutions.siren.join.FilterJoinTestCase;
+import solutions.siren.join.SirenJoinTestCase;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.RestStatus;
@@ -45,7 +45,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
-public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
+public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {

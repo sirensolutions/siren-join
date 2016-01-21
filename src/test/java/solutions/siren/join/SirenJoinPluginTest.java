@@ -28,7 +28,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
-public class SirenJoinPluginTest extends FilterJoinTestCase {
+public class SirenJoinPluginTest extends SirenJoinTestCase {
 
   @Test
   public void testPluginLoaded() {

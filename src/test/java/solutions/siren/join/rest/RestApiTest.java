@@ -21,14 +21,13 @@ package solutions.siren.join.rest;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.test.ESIntegTestCase;
-import solutions.siren.join.FilterJoinTestCase;
+import solutions.siren.join.SirenJoinTestCase;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.rest.client.RestException;
 import org.elasticsearch.test.rest.client.http.HttpResponse;
 import org.junit.Test;
-import solutions.siren.join.index.query.QueryBuilders;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,7 +41,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcke
 import static org.hamcrest.Matchers.equalTo;
 
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
-public class RestApiTest extends FilterJoinTestCase {
+public class RestApiTest extends SirenJoinTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {

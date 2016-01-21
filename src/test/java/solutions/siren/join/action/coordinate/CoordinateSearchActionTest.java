@@ -19,7 +19,7 @@
 package solutions.siren.join.action.coordinate;
 
 import org.elasticsearch.test.ESIntegTestCase;
-import solutions.siren.join.FilterJoinTestCase;
+import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.index.query.QueryBuilders;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
@@ -29,7 +29,7 @@ import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
-public class CoordinateSearchActionTest extends FilterJoinTestCase {
+public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithStringFields() throws Exception {

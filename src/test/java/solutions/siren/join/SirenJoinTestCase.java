@@ -29,24 +29,13 @@ import java.util.Collection;
 
 import static org.elasticsearch.common.settings.Settings.settingsBuilder;
 
-public class FilterJoinTestCase extends ESIntegTestCase {
+public class SirenJoinTestCase extends ESIntegTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
     return settingsBuilder()
       .put("path.data", "./target/elasticsearch-test/data/")
       .put(super.nodeSettings(nodeOrdinal)).build();
-  }
-
-  /**
-   * Elasticsearch test framework will randomly use a transport client instead of a node.
-   * It is necessary to explicitly tell Elasticsearch to load plugins for transport clients, otherwise
-   * tests will fail randomly.
-   */
-  @Override
-  protected Settings transportClientSettings() {
-    return settingsBuilder()
-      .put(super.transportClientSettings()).build();
   }
 
   @Override
