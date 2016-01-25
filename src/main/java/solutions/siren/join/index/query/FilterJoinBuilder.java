@@ -21,6 +21,7 @@ package solutions.siren.join.index.query;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.BoostableQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
 
@@ -38,6 +39,7 @@ public class FilterJoinBuilder extends QueryBuilder implements BoostableQueryBui
   private String orderBy;
   private Integer maxTermsPerShard;
   private String filterName;
+  private TermsByQueryRequest.TermsEncoding termsEncoding;
   private float boost = -1;
 
   public static final String NAME = "filterjoin";
@@ -102,6 +104,13 @@ public class FilterJoinBuilder extends QueryBuilder implements BoostableQueryBui
     return this;
   }
 
+  /**
+   * Sets the encoding to use for transferring terms across shards.
+   */
+  public FilterJoinBuilder termsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
+    this.termsEncoding = termsEncoding;
+    return this;
+  }
 
   /**
    * Sets the filter name for the filter that can be used when searching for matched_filters per hit.
@@ -137,6 +146,9 @@ public class FilterJoinBuilder extends QueryBuilder implements BoostableQueryBui
 
     if (filterName != null) {
       builder.field("_name", filterName);
+    }
+    if (termsEncoding != null) {
+      builder.field("termsEncoding", termsEncoding);
     }
     if (boost != -1) {
       builder.field("boost", boost);

@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.coordinate;
 
+import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.index.query.QueryBuilders;
@@ -28,6 +29,7 @@ import org.junit.Test;
 import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 
+@Seed("A2C68E338959E571:9593A79747746B63")
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
 public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
@@ -124,7 +126,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
     assertHitCount(searchResponse, 0L);
 
     // Joining index2.id with index1.foreign_key
-    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
       QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
         boolQuery().filter(termQuery("id", "1"))
       )
@@ -133,7 +135,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
     assertSearchHits(searchResponse, "1", "3");
 
     // Joining index2.id with empty index1.foreign_key
-    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
       QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
         boolQuery().filter(termQuery("id", "2"))
       )

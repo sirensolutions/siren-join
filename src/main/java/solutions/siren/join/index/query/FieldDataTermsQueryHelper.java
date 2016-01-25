@@ -18,11 +18,10 @@
  */
 package solutions.siren.join.index.query;
 
-import com.carrotsearch.hppc.LongHashSet;
-import com.carrotsearch.hppc.LongScatterSet;
 import com.google.common.hash.Hashing;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import solutions.siren.join.action.terms.collector.LongTermsSet;
 
 import java.io.IOException;
 
@@ -32,34 +31,14 @@ import java.io.IOException;
 public class FieldDataTermsQueryHelper {
 
   /**
-   * Decodes a list of longs from a byte array. The first 4 bytes must contains the number of
-   * long elements.
-   */
-  public final static LongHashSet decode(byte[] values) throws IOException {
-    int size = readInt(values, 0);
-    // Scatter set is slightly more efficient than the hash set, but should be used only for lookups,
-    // not for merging
-    LongScatterSet longSet = new LongScatterSet(size);
-
-    for (int i = 0; i < size; i++) {
-      longSet.add(readLong(values, 4 + (i * 8)));
-    }
-
-    return longSet;
-  }
-
-  /**
-   * Encodes the list of longs into a byte array. The first 4 bytes encodes the number of
-   * long elements.
+   * Encodes the list of longs into a serialised {@link LongTermsSet}.
    */
   public final static byte[] encode(long[] values) throws IOException {
-    BytesStreamOutput out = new BytesStreamOutput();
-    out.writeInt(values.length);
+    LongTermsSet termsSet = new LongTermsSet(values.length);
     for (int i = 0; i < values.length; i++) {
-      out.writeLong(values[i]);
+      termsSet.add(values[i]);
     }
-    out.close();
-    return out.bytes().toBytes();
+    return termsSet.writeToBytes();
   }
 
   /**

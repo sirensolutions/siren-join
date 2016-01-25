@@ -75,7 +75,7 @@ public class FilterJoinNode extends AbstractNode {
   /**
    * The cache id for this filter join node. The cache id is a unique identifier based on the source map.
    * This is currently used in {@link FilterJoinCache} to cache the list of terms resulting from a filter join,
-   * and by {@link FilterJoinVisitor#convertToBinaryTermsFilter(FilterJoinNode)} as cache key for the
+   * and by {@link FilterJoinVisitor#convertToFieldDataTermsQuery(FilterJoinNode)} as cache key for the
    * binary terms filter.
    */
   int getCacheId() {
@@ -138,6 +138,20 @@ public class FilterJoinNode extends AbstractNode {
   public Integer getMaxTermsPerShard() {
     Map<String, Object> conf = (Map<String, Object>) this.self.get(this.getField());
     return (Integer) conf.get("maxTermsPerShard");
+  }
+
+  public void setTermsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
+    Map<String, Object> conf = (Map<String, Object>) this.self.get(this.getField());
+    conf.put("termsEncoding", termsEncoding.name());
+  }
+
+  public TermsByQueryRequest.TermsEncoding getTermsEncoding() {
+    Map<String, Object> conf = (Map<String, Object>) this.self.get(this.getField());
+    String termsEncoding = (String) conf.get("termsEncoding");
+    if (termsEncoding == null) {
+      return null;
+    }
+    return TermsByQueryRequest.TermsEncoding.valueOf(termsEncoding.toUpperCase());
   }
 
   private XContentBuilder buildQuery(Map query) {

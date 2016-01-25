@@ -40,22 +40,18 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
     this.cache = cache;
   }
 
-  /**
-   * Execute a terms by query action
-   */
   @Override
   protected void executeAsyncOperation(FilterJoinNode node) {
     // Check cache
     FilterJoinCache.CacheEntry cacheEntry = this.cache.get(node);
 
     if (cacheEntry == null) { // if cache miss
-      logger.debug("Executing async terms by query action");
+      logger.debug("Executing async actions");
+      node.setState(FilterJoinNode.State.RUNNING); // set state before execution to avoid race conditions
       // Create term by query request (can be an expensive operation - do it only if cache miss)
-      final TermsByQueryRequest termsByQueryReq = this.getTermsByQueryRequest(node);
       TermsByQueryActionListener listener = new CachedTermsByQueryActionListener(node);
       node.setActionListener(listener);
-      node.setState(FilterJoinNode.State.RUNNING); // set state before execution to avoid race conditions
-      client.execute(TermsByQueryAction.INSTANCE, termsByQueryReq, listener);
+      new AsyncFilterJoinVisitorAction(client, node, listener).start();
     }
     else { // if cache hit
       logger.debug("Cache hit for terms by query action");

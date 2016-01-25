@@ -18,6 +18,10 @@
  */
 package solutions.siren.join.action.coordinate;
 
+import org.elasticsearch.action.fieldstats.FieldStatsAction;
+import org.elasticsearch.action.fieldstats.FieldStatsRequest;
+import org.elasticsearch.action.fieldstats.FieldStatsResponse;
+import org.elasticsearch.index.query.ConstantScoreQueryParser;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
@@ -38,7 +42,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Visitor that will traverse the tree until all the filter join nodes have been converted
- * into binary terms filters. The visitor will execute in parallel multiple async actions
+ * into field data terms queries. The visitor will execute in parallel multiple async actions
  * when it is possible.
  */
 public class FilterJoinVisitor {
@@ -64,7 +68,7 @@ public class FilterJoinVisitor {
   }
 
   /**
-   * Traverse the tree until all the filter join nodes have been converted to binary terms filters.
+   * Traverse the tree until all the filter join nodes have been converted to field data terms queries.
    */
   public void traverse() {
     while (root.hasChildren()) {
@@ -81,7 +85,7 @@ public class FilterJoinVisitor {
       // Clean up all filter join leaf nodes that have been converted
       boolean nodeRemoved = this.removeConvertedNodes(root);
       // If some nodes were removed, it means that we converted in the previous iteration
-      // at least one filter join into a binary terms filter. We don't have to wait since
+      // at least one filter join into a field data terms query. We don't have to wait since
       // we might have new filter join leaf nodes.
       if (!nodeRemoved && root.hasChildren()) {
         logger.debug("Visitor thread block - blocking queue size: {}", blockingQueue.size());
@@ -142,42 +146,25 @@ public class FilterJoinVisitor {
       case COMPLETED:
         this.checkForFailure(node);
         this.recordMetadata(node);
-        this.convertToBinaryTermsFilter(node);
+        this.convertToFieldDataTermsQuery(node);
         return;
     }
   }
 
   /**
-   * Execute a terms by query action
+   * Executes the sequence of async actions to compute the terms.
    */
   protected void executeAsyncOperation(FilterJoinNode node) {
-    // Executes the lookup query.
-    logger.debug("Executing async terms by query action");
-    TermsByQueryActionListener listener = new TermsByQueryActionListener(node);
+    logger.debug("Executing async actions");
     node.setState(FilterJoinNode.State.RUNNING); // set state before execution to avoid race conditions with listener
+    TermsByQueryActionListener listener = new TermsByQueryActionListener(node);
     node.setActionListener(listener);
-    final TermsByQueryRequest termsByQueryReq = this.getTermsByQueryRequest(node);
-    client.execute(TermsByQueryAction.INSTANCE, termsByQueryReq, listener);
-  }
-
-  protected TermsByQueryRequest getTermsByQueryRequest(FilterJoinNode node) {
-    String[] lookupIndices = node.getLookupIndices();
-    String[] lookupTypes = node.getLookupTypes();
-    String lookupPath = node.getLookupPath();
-    XContentBuilder lookupQuery = node.getLookupQuery();
-    TermsByQueryRequest.Ordering ordering = node.getOrderBy();
-    Integer maxTermsPerShard = node.getMaxTermsPerShard();
-
-    return new TermsByQueryRequest(lookupIndices).field(lookupPath)
-      .types(lookupTypes)
-      .query(lookupQuery)
-      .orderBy(ordering)
-      .maxTermsPerShard(maxTermsPerShard);
+    new AsyncFilterJoinVisitorAction(client, node, listener).start();
   }
 
   /**
    * Records metadata of each terms by query actions. This must be called before
-   * converting the filter join into a binary terms filter.
+   * converting the filter join into a field data terms query.
    * <br>
    * Returns the created action, so that subclasses, e.g., {@link CachedFilterJoinVisitor}, can extend it.
    */
@@ -209,9 +196,9 @@ public class FilterJoinVisitor {
   }
 
   /**
-   * Converts a filter join into a binary terms filter.
+   * Converts a filter join into a field data terms query.
    */
-  private void convertToBinaryTermsFilter(FilterJoinNode node) {
+  private void convertToFieldDataTermsQuery(FilterJoinNode node) {
     Map<String, Object> parent = node.getParentSourceMap();
     TermsByQueryActionListener listener = node.getActionListener();
     byte[] bytes = listener.getEncodedTerms();
@@ -219,20 +206,104 @@ public class FilterJoinVisitor {
     // Remove the filter join from the parent
     parent.remove(FilterJoinBuilder.NAME);
 
-    // Create the object for the parameters of the filter
-    Map<String, Object> binaryFilterParams = new HashMap<>();
-    binaryFilterParams.put("value", bytes);
+    // Create the nested object for the parameters of the field data terms query
+    Map<String, Object> queryParams = new HashMap<>();
+    queryParams.put("value", bytes);
     // use the hash of the filter join source map as cache key - see #170
-    binaryFilterParams.put("_cache_key", node.getCacheId());
+    queryParams.put("_cache_key", node.getCacheId());
 
-    // Create the object for the filter
-    Map<String, Object> binaryFilter = new HashMap<>();
-    binaryFilter.put(node.getField(), binaryFilterParams);
+    // Create the nested object for the field
+    Map<String, Object> field = new HashMap<>();
+    field.put(node.getField(), queryParams);
 
-    // Add the filter to the parent
-    parent.put(FieldDataTermsQueryParser.NAME, binaryFilter);
+    // Create the nested object for the field data terms query
+    Map<String, Object> fieldDataTermsQuery = new HashMap<>();
+    fieldDataTermsQuery.put(FieldDataTermsQueryParser.NAME, field);
+
+    // Create the object for the constant score query
+    Map<String, Object> constantScoreQueryParams = new HashMap<>();
+    constantScoreQueryParams.put("filter", fieldDataTermsQuery);
+
+    // Add the constant score query to the parent
+    parent.put(ConstantScoreQueryParser.NAME, constantScoreQueryParams);
     node.setState(FilterJoinNode.State.CONVERTED);
     this.blockingQueue.poll();
+  }
+
+  protected static class AsyncFilterJoinVisitorAction {
+
+    protected final Client client;
+    protected final FilterJoinNode node;
+    protected final TermsByQueryActionListener listener;
+
+    protected static final ESLogger logger = Loggers.getLogger(AsyncFilterJoinVisitorAction.class);
+
+    protected AsyncFilterJoinVisitorAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener) {
+      this.client = client;
+      this.node = node;
+      this.listener = listener;
+    }
+
+    protected void start() {
+      this.executeTermsEncodingOptimisation();
+    }
+
+    protected void executeTermsEncodingOptimisation() {
+      logger.debug("Executing field stats action");
+      // check if we can encode using integers instead of longs
+      client.prepareFieldStats().setIndices(node.getLookupIndices()).setFields(node.getLookupPath())
+            .execute(new ActionListener<FieldStatsResponse>() {
+        @Override
+        public void onResponse(FieldStatsResponse fieldStatsResponse) {
+          String maxValue = fieldStatsResponse.getAllFieldStats().get(node.getLookupPath()).getMaxValue();
+          if (maxValue != null) {
+            try {
+              long value = Long.parseLong(maxValue);
+              if (value < Integer.MAX_VALUE) {
+                node.setTermsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
+              }
+            } catch (NumberFormatException e) {
+              // field contains strings or floating-point numbers, ignore
+            }
+          }
+          this.executeNextStep();
+        }
+
+        @Override
+        public void onFailure(Throwable e) {
+          listener.onFailure(e);
+        }
+
+        private void executeNextStep() {
+          AsyncFilterJoinVisitorAction.this.executeTermsByQuery();
+        }
+
+      });
+    }
+
+    protected void executeTermsByQuery() {
+      logger.debug("Executing async terms by query action");
+      final TermsByQueryRequest termsByQueryReq = this.getTermsByQueryRequest(node);
+      client.execute(TermsByQueryAction.INSTANCE, termsByQueryReq, listener);
+    }
+
+    protected TermsByQueryRequest getTermsByQueryRequest(FilterJoinNode node) {
+      String[] lookupIndices = node.getLookupIndices();
+      String[] lookupTypes = node.getLookupTypes();
+      String lookupPath = node.getLookupPath();
+      XContentBuilder lookupQuery = node.getLookupQuery();
+      TermsByQueryRequest.Ordering ordering = node.getOrderBy();
+      Integer maxTermsPerShard = node.getMaxTermsPerShard();
+      TermsByQueryRequest.TermsEncoding termsEncoding = node.getTermsEncoding();
+
+      return new TermsByQueryRequest(lookupIndices).field(lookupPath)
+              .types(lookupTypes)
+              .query(lookupQuery)
+              .orderBy(ordering)
+              .maxTermsPerShard(maxTermsPerShard)
+              .termsEncoding(termsEncoding);
+    }
+
   }
 
   public class TermsByQueryActionListener implements ActionListener<TermsByQueryResponse> {
@@ -330,10 +401,10 @@ public class FilterJoinVisitor {
 
     @Override
     public void onResponse(final TermsByQueryResponse termsByQueryResponse) {
-      logger.debug("Received terms by query response with {} terms", termsByQueryResponse.getTermsResponse().size());
-      this.encodedTerms = termsByQueryResponse.getTermsResponse().getBytes();
-      this.size = termsByQueryResponse.getTermsResponse().size();
-      this.isPruned = termsByQueryResponse.getTermsResponse().isPruned();
+      logger.info("Received terms by query response with {} terms", termsByQueryResponse.getTermsSet().size());
+      this.encodedTerms = termsByQueryResponse.getTermsSet().writeToBytes();
+      this.size = termsByQueryResponse.getTermsSet().size();
+      this.isPruned = termsByQueryResponse.getTermsSet().isPruned();
       this.tookInMillis = termsByQueryResponse.getTookInMillis();
       this.node.setState(FilterJoinNode.State.COMPLETED); // set state before unblocking the queue to avoid race conditions
       FilterJoinVisitor.this.blockingQueue.offer(0);

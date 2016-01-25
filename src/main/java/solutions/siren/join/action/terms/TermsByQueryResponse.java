@@ -22,6 +22,9 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import solutions.siren.join.action.terms.collector.IntegerTermsSet;
+import solutions.siren.join.action.terms.collector.LongTermsSet;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
 import java.util.List;
@@ -34,7 +37,7 @@ public class TermsByQueryResponse extends BroadcastResponse {
   /**
    * The set of terms that has been retrieved
    */
-  private TermsResponse termsResponse;
+  private TermsSet termsSet;
 
   /**
    * How long it took to retrieve the terms.
@@ -49,17 +52,17 @@ public class TermsByQueryResponse extends BroadcastResponse {
   /**
    * Main constructor
    *
-   * @param termsResponse    the merged terms
+   * @param termsSet    the merged terms
    * @param tookInMillis     the time in millis it took to retrieve the terms.
    * @param totalShards      the number of shards the request executed on
    * @param successfulShards the number of shards the request executed on successfully
    * @param failedShards     the number of failed shards
    * @param shardFailures    the failures
    */
-  TermsByQueryResponse(TermsResponse termsResponse, long tookInMillis, int totalShards, int successfulShards, int failedShards,
+  TermsByQueryResponse(TermsSet termsSet, long tookInMillis, int totalShards, int successfulShards, int failedShards,
                        List<ShardOperationFailedException> shardFailures) {
     super(totalShards, successfulShards, failedShards, shardFailures);
-    this.termsResponse = termsResponse;
+    this.termsSet = termsSet;
     this.tookInMillis = tookInMillis;
   }
 
@@ -75,8 +78,8 @@ public class TermsByQueryResponse extends BroadcastResponse {
    *
    * @return the terms
    */
-  public TermsResponse getTermsResponse() {
-    return termsResponse;
+  public TermsSet getTermsSet() {
+    return termsSet;
   }
 
   /**
@@ -88,8 +91,24 @@ public class TermsByQueryResponse extends BroadcastResponse {
   @Override
   public void readFrom(StreamInput in) throws IOException {
     super.readFrom(in);
-    termsResponse = new TermsResponse();
-    termsResponse.readFrom(in);
+
+    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[in.readVInt()];
+    switch (termsEncoding) {
+
+      case LONG:
+        termsSet = new LongTermsSet();
+        termsSet.readFrom(in);
+        return;
+
+      case INTEGER:
+        termsSet = new IntegerTermsSet();
+        termsSet.readFrom(in);
+        return;
+
+      default:
+        throw new IOException("[termsByQuery] Invalid type of terms encoding: " + termsEncoding.name());
+
+    }
   }
 
   /**
@@ -101,6 +120,11 @@ public class TermsByQueryResponse extends BroadcastResponse {
   @Override
   public void writeTo(StreamOutput out) throws IOException {
     super.writeTo(out);
-    termsResponse.writeTo(out);
+
+    // Encode type of encoding
+    out.writeVInt(termsSet.getEncoding().ordinal());
+    // Encode terms
+    termsSet.writeTo(out);
   }
+
 }
