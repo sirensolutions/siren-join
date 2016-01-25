@@ -18,8 +18,8 @@
  */
 package solutions.siren.join.action.terms.collector;
 
-import solutions.siren.join.index.query.BinaryTermsFilterHelper;
-import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.LeafReaderContext;
+import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.BytesRef;
@@ -93,8 +93,8 @@ abstract class TermStream {
       // loading values from field data cache is costly,
       // therefore we load values from cache only if new atomic reader id
       if (lastAtomicReaderId != atomicReaderId) {
-        AtomicReaderContext atomicReader = reader.leaves().get(atomicReaderId);
-        this.values = this.fieldData.load(atomicReader).getLongValues();
+        LeafReaderContext leafReader = reader.leaves().get(atomicReaderId);
+        this.values = this.fieldData.load(leafReader).getLongValues();
       }
       this.values.setDocument(atomicDocId);
       this.count = 0;
@@ -136,8 +136,8 @@ abstract class TermStream {
       // loading values from field data cache is costly,
       // therefore we load values from cache only if new atomic reader id
       if (lastAtomicReaderId != atomicReaderId) {
-        AtomicReaderContext atomicReader = reader.leaves().get(atomicReaderId);
-        this.values = this.fieldData.load(atomicReader).getBytesValues();
+        LeafReaderContext leafReader = reader.leaves().get(atomicReaderId);
+        this.values = this.fieldData.load(leafReader).getBytesValues();
       }
       this.values.setDocument(atomicDocId);
       this.count = 0;
@@ -155,7 +155,7 @@ abstract class TermStream {
     @Override
     public long next() {
       final BytesRef term = values.valueAt(this.count++);
-      return BinaryTermsFilterHelper.hash(term);
+      return FieldDataTermsQueryHelper.hash(term);
     }
 
   }

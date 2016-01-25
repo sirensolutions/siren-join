@@ -40,4 +40,4 @@ you can deploy the artifacts to the Central repository with this command:
 
 --------------------------------------------------------------------------------
 
-Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+Copyright (c) 2016, SIREn Solutions. All Rights Reserved.

@@ -18,7 +18,7 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.elasticsearch.action.support.broadcast.BroadcastShardOperationResponse;
+import org.elasticsearch.action.support.broadcast.BroadcastShardResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
@@ -28,7 +28,7 @@ import java.io.IOException;
 /**
  * Internal terms by query response of a shard terms by query request executed directly against a specific shard.
  */
-class TermsByQueryShardResponse extends BroadcastShardOperationResponse {
+class TermsByQueryShardResponse extends BroadcastShardResponse {
 
   private TermsResponse termsResponse;
 

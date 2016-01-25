@@ -19,19 +19,21 @@
 package solutions.siren.join.action.coordinate;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.ElasticsearchClient;
 
 public class CoordinateSearchRequestBuilder extends SearchRequestBuilder {
 
-  public CoordinateSearchRequestBuilder(final Client client) {
-    super(client);
+  public CoordinateSearchRequestBuilder(final ElasticsearchClient client) {
+    // hack to be able to subclass SearchRequestBuilder: the action instance is only used in #execute which we overwrite
+    super(client, SearchAction.INSTANCE);
   }
 
   @Override
-  protected void doExecute(final ActionListener<SearchResponse> listener) {
-    client.execute(CoordinateSearchAction.INSTANCE, this.request(), listener);
+  public void execute(final ActionListener<SearchResponse> listener) {
+    client.execute(CoordinateSearchAction.INSTANCE, beforeExecute(request), listener);
   }
 
 }

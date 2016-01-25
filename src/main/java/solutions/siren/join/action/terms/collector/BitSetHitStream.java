@@ -18,7 +18,7 @@
  */
 package solutions.siren.join.action.terms.collector;
 
-import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.FixedBitSet;
 
@@ -66,8 +66,11 @@ public class BitSetHitStream extends HitStream {
     if (currentAtomicReaderId < collector.getFixedSets().size()) {
       do {
         FixedBitSet bitSet = collector.getFixedSets().get(currentAtomicReaderId);
-        atomicDocId = atomicDocId + 1 < bitSet.length() ? bitSet.nextSetBit(atomicDocId + 1) : -1;
-      } while (atomicDocId == -1 && ++currentAtomicReaderId < collector.getFixedSets().size());
+        if (atomicDocId == DocIdSetIterator.NO_MORE_DOCS) { // we start a new reader, reset the doc id
+          atomicDocId = -1;
+        }
+        atomicDocId = atomicDocId + 1 < bitSet.length() ? bitSet.nextSetBit(atomicDocId + 1) : DocIdSetIterator.NO_MORE_DOCS;
+      } while (atomicDocId == DocIdSetIterator.NO_MORE_DOCS && ++currentAtomicReaderId < collector.getFixedSets().size());
     }
 
     this.currentAtomicDocId = atomicDocId;
@@ -84,7 +87,7 @@ public class BitSetHitStream extends HitStream {
     return currentAtomicReaderId;
   }
 
-  private static class LimitedBitSetHitCollector extends Collector {
+  private static class LimitedBitSetHitCollector implements Collector {
 
     /** The total number of documents that the collector encountered. */
     private int totalHits;
@@ -100,23 +103,27 @@ public class BitSetHitStream extends HitStream {
     }
 
     @Override
-    public void collect(int doc) throws IOException {
-      current.set(doc);
-      totalHits++;
-    }
-
-    @Override
-    public void setNextReader(AtomicReaderContext context) throws IOException {
+    public LeafCollector getLeafCollector(LeafReaderContext context) throws IOException {
       current = new FixedBitSet(context.reader().maxDoc());
       fixedBitSets.add(context.ord, current);
+
+      return new LeafCollector() {
+
+        @Override
+        public void setScorer(Scorer scorer) throws IOException {}
+
+        @Override
+        public void collect(int doc) throws IOException {
+          current.set(doc);
+          totalHits++;
+        }
+
+      };
     }
 
     @Override
-    public void setScorer(Scorer scorer) throws IOException {}
-
-    @Override
-    public boolean acceptsDocsOutOfOrder() {
-      return true;
+    public boolean needsScores() {
+      return false;
     }
 
     /**

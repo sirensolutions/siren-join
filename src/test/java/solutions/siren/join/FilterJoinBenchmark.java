@@ -18,6 +18,9 @@
  */
 package solutions.siren.join;
 
+import org.elasticsearch.Version;
+import org.elasticsearch.node.MockNode;
+import org.elasticsearch.plugins.Plugin;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
 import solutions.siren.join.index.query.FilterJoinBuilder;
 import org.elasticsearch.action.ListenableActionFuture;
@@ -33,28 +36,21 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.node.Node;
-import solutions.siren.join.index.query.FilterBuilders;
+import solutions.siren.join.index.query.QueryBuilders;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_SHARDS;
-import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.index.query.FilterBuilders.*;
-import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
-import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
-import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
+import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
 
 /**
  * Perform the parent/child search tests using terms query lookup.
- * This should work across multiple shards and not need a special mapping
+ * This should work across multiple shards.
  */
 @SuppressWarnings("unchecked")
 public class FilterJoinBenchmark {
@@ -76,18 +72,20 @@ public class FilterJoinBenchmark {
     private final Random random;
 
     FilterJoinBenchmark() {
-      Settings settings = settingsBuilder()
+      Settings settings = Settings.builder()
         .put("index.engine.robin.refreshInterval", "-1")
-        .put("path.data", "./target/elasticsearch-benchmark/data/")
-        .put("gateway.type", "local")
-//        .put("transport.tcp.compress", "true")
+        .put("path.home", "./target/elasticsearch-benchmark/home/")
+        .put("node.local", true)
         .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
         .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
+//        .put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true)
         .build();
 
-      this.nodes = new Node[2];
-      this.nodes[0] = nodeBuilder().settings(settingsBuilder().put(settings).put("name", "node1")).node();
-      this.nodes[1] = nodeBuilder().settings(settingsBuilder().put(settings).put("name", "node2")).node();
+      this.nodes = new MockNode[2];
+      this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(),
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
+      this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(),
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
       this.client = nodes[0].client();
       this.random = new Random(System.currentTimeMillis());
     }
@@ -125,14 +123,14 @@ public class FilterJoinBenchmark {
 
     public void memStatus() throws IOException {
       NodeStats[] nodeStats = client.admin().cluster().prepareNodesStats()
-        .setJvm(true).setIndices(true).setNetwork(true).setTransport(true)
+        .setJvm(true).setIndices(true).setTransport(true)
         .execute().actionGet().getNodes();
 
       log("==== MEMORY ====");
       log("Committed heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapCommitted());
       log("Used heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapUsed());
       log("FieldData cache size: [0]=" + nodeStats[0].getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getFieldData().getMemorySize());
-      log("Filter cache size: [0]=" + nodeStats[0].getIndices().getFilterCache().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getFilterCache().getMemorySize());
+      log("Query cache size: [0]=" + nodeStats[0].getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getQueryCache().getMemorySize());
       log("");
       log("==== NETWORK ====");
       log("Transport: [0]=" + nodeStats[0].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats[1].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
@@ -151,8 +149,13 @@ public class FilterJoinBenchmark {
     public void setupIndex() {
         log("==== INDEX SETUP ====");
         try {
-            client.admin().indices().create(createIndexRequest(PARENT_INDEX)).actionGet();
-            client.admin().indices().create(createIndexRequest(CHILD_INDEX)).actionGet();
+          client.admin().indices().create(createIndexRequest(PARENT_INDEX).mapping(PARENT_TYPE,
+                  "id", "type=string,index=not_analyzed,doc_values=true",
+                  "num", "type=integer,doc_values=true")).actionGet();
+          client.admin().indices().create(createIndexRequest(CHILD_INDEX).mapping(CHILD_TYPE,
+                  "id", "type=string,index=not_analyzed,doc_values=true",
+                  "pid", "type=string,index=not_analyzed,doc_values=true",
+                  "num", "type=integer,doc_values=true")).actionGet();
             Thread.sleep(5000);
 
             StopWatch stopWatch = new StopWatch().start();
@@ -255,12 +258,12 @@ public class FilterJoinBenchmark {
         QueryBuilder lookupQuery;
         QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = FilterBuilders.filterJoin("id")
+        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("id")
                 .indices(CHILD_INDEX)
                 .types(CHILD_TYPE)
                 .path("pid");
 
-        FilterJoinBuilder longFilter = FilterBuilders.filterJoin("num")
+        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
                 .indices(CHILD_INDEX)
                 .types(CHILD_TYPE)
                 .path("num");
@@ -273,7 +276,7 @@ public class FilterJoinBenchmark {
 
         log("==== HAS CHILD SINGLE TERM ====");
         for (int i = 0; i < NUM_QUERIES; i++) {
-            lookupQuery = filteredQuery(matchAllQuery(), termFilter("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
+            lookupQuery = boolQuery().filter(termQuery("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
 
             stringFilter.query(lookupQuery);
             longFilter.query(lookupQuery);
@@ -300,13 +303,13 @@ public class FilterJoinBenchmark {
         QueryBuilder lookupQuery = matchAllQuery();
         QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = FilterBuilders.filterJoin("id")
+        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("id")
                 .indices(CHILD_INDEX)
                 .types(CHILD_TYPE)
                 .path("pid")
                 .query(lookupQuery);
 
-        FilterJoinBuilder longFilter = FilterBuilders.filterJoin("num")
+        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
                 .indices(CHILD_INDEX)
                 .types(CHILD_TYPE)
                 .path("num")
@@ -342,12 +345,12 @@ public class FilterJoinBenchmark {
         QueryBuilder lookupQuery;
         QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = FilterBuilders.filterJoin("pid")
+        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
                 .indices(PARENT_INDEX)
                 .types(PARENT_TYPE)
                 .path("id");
 
-        FilterJoinBuilder longFilter = FilterBuilders.filterJoin("num")
+        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
                 .indices(PARENT_INDEX)
                 .types(PARENT_TYPE)
                 .path("num");
@@ -360,7 +363,7 @@ public class FilterJoinBenchmark {
 
         log("==== HAS PARENT SINGLE TERM ====");
         for (int i = 0; i < NUM_QUERIES; i++) {
-            lookupQuery = filteredQuery(matchAllQuery(), termFilter("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
+            lookupQuery = boolQuery().filter(termQuery("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
 
             stringFilter.query(lookupQuery);
             longFilter.query(lookupQuery);
@@ -387,13 +390,13 @@ public class FilterJoinBenchmark {
         QueryBuilder lookupQuery = matchAllQuery();
         QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = FilterBuilders.filterJoin("pid")
+        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
                 .indices(PARENT_INDEX)
                 .types(PARENT_TYPE)
                 .path("id")
                 .query(lookupQuery);
 
-        FilterJoinBuilder longFilter = FilterBuilders.filterJoin("num")
+        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
                 .indices(PARENT_INDEX)
                 .types(PARENT_TYPE)
                 .path("num")
@@ -430,12 +433,12 @@ public class FilterJoinBenchmark {
         QueryBuilder mainQuery = matchAllQuery();
         Set<String> names = new HashSet<>(NUM_PARENTS);
 
-        FilterJoinBuilder stringFilter = FilterBuilders.filterJoin("pid")
+        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
                 .indices(PARENT_INDEX)
                 .types(PARENT_TYPE)
                 .path("id");
 
-        FilterJoinBuilder longFilter = FilterBuilders.filterJoin("num")
+        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
                 .indices(PARENT_INDEX)
                 .types(PARENT_TYPE)
                 .path("num");
@@ -456,7 +459,7 @@ public class FilterJoinBenchmark {
                 names.add("test" + (random.nextInt(NUM_PARENTS) + 1));
             }
 
-            lookupQuery = filteredQuery(matchAllQuery(), termsFilter("name", names).execution("fielddata"));
+            lookupQuery = boolQuery().filter(termsQuery("name", names));
             expected = NUM_CHILDREN_PER_PARENT * names.size();
             stringFilter.query(lookupQuery);
             longFilter.query(lookupQuery);

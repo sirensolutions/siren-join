@@ -19,7 +19,7 @@
 package solutions.siren.join.action.terms;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.support.broadcast.BroadcastOperationRequest;
+import org.elasticsearch.action.support.broadcast.BroadcastRequest;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -35,11 +35,11 @@ import java.util.Arrays;
 /**
  * A request to get the values from a specific field for documents matching a specific query.
  * <p/>
- * The request requires the filter source to be set using {@link #query(org.elasticsearch.index.query.QueryBuilder)}.
+ * The request requires the filter source to be set using {@link #query(QueryBuilder)}.
  *
  * @see TermsByQueryResponse
  */
-public class TermsByQueryRequest extends BroadcastOperationRequest<TermsByQueryRequest> {
+public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
 
   @Nullable
   protected String routing;

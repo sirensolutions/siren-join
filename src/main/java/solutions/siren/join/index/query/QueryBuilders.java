@@ -23,7 +23,7 @@ import java.io.IOException;
 /**
  * A static factory for simple "import static" usage.
  */
-public class FilterBuilders {
+public class QueryBuilders {
 
   /**
    * A filter join for the provided field name. A filter join can
@@ -34,17 +34,17 @@ public class FilterBuilders {
   }
 
   /**
-   * A binary terms filter for the provided field name.
+   * A field data terms query for the provided field name.
    */
-  public static BinaryTermsFilterBuilder binaryTermsFilter(String name, byte[] value, String cacheKey) {
-    return new BinaryTermsFilterBuilder(name, value, cacheKey);
+  public static FieldDataTermsQueryBuilder fieldDataTermsQuery(String name, byte[] value, int cacheKey) {
+    return new FieldDataTermsQueryBuilder(name, value, cacheKey);
   }
 
   /**
-   * A binary terms filter for the provided field name.
+   * A field data terms query for the provided field name.
    */
-  public static BinaryTermsFilterBuilder binaryTermsFilter(String name, long[] values, String cacheKey) throws IOException {
-    return new BinaryTermsFilterBuilder(name, values, cacheKey);
+  public static FieldDataTermsQueryBuilder fieldDataTermsQuery(String name, long[] values, int cacheKey) throws IOException {
+    return new FieldDataTermsQueryBuilder(name, values, cacheKey);
   }
 
 }
