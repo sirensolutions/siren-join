@@ -142,7 +142,7 @@ public class IntegerTermsSet extends TermsSet {
       offset += 4;
     }
 
-    logger.info("Serialized {} terms - took {} ms", this.size(), (System.nanoTime() - start) / 1000000);
+    logger.debug("Serialized {} terms - took {} ms", this.size(), (System.nanoTime() - start) / 1000000);
     return bytes;
   }
 

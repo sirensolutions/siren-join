@@ -142,13 +142,13 @@ public class FilterJoinBuilder extends QueryBuilder implements BoostableQueryBui
     if (maxTermsPerShard != null) {
       builder.field("maxTermsPerShard", maxTermsPerShard);
     }
+    if (termsEncoding != null) {
+      builder.field("termsEncoding", termsEncoding);
+    }
     builder.endObject();
 
     if (filterName != null) {
       builder.field("_name", filterName);
-    }
-    if (termsEncoding != null) {
-      builder.field("termsEncoding", termsEncoding);
     }
     if (boost != -1) {
       builder.field("boost", boost);

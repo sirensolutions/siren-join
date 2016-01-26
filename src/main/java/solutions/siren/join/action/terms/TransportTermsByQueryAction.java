@@ -252,7 +252,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
       context.preProcess();
 
       // execute the search only gathering the hit count and bitset for each segment
-      logger.info("{}: Executes search for collecting terms {}", Thread.currentThread().getName(),
+      logger.debug("{}: Executes search for collecting terms {}", Thread.currentThread().getName(),
         shardRequest.shardId());
 
       TermsCollector termsCollector = this.getTermsCollector(request.termsEncoding(), indexFieldData, context);
@@ -260,7 +260,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
       HitStream hitStream = orderByOperation.getHitStream(context);
       TermsSet terms = termsCollector.collect(hitStream);
 
-      logger.info("{}: Returns terms response with {} terms for shard {}", Thread.currentThread().getName(),
+      logger.debug("{}: Returns terms response with {} terms for shard {}", Thread.currentThread().getName(),
         terms.size(), shardRequest.shardId());
 
       return new TermsByQueryShardResponse(shardRequest.shardId(), terms);

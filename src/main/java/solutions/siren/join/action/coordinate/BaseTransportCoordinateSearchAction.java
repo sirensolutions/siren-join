@@ -42,7 +42,7 @@ import java.util.Map;
  * Abstract class for coordinate search action which enforces {@link XContentType#CBOR} encoding of the content.
  */
 public abstract class BaseTransportCoordinateSearchAction<Request extends ActionRequest, Response extends ActionResponse>
-extends HandledTransportAction<Request, Response> {
+extends MyHandledTransportAction<Request, Response> {
 
   protected final Client client;
 

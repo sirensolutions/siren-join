@@ -15,7 +15,6 @@ The following table shows the compatibility between releases of Elasticsearch an
 Elasticsearch|SIREn Join
 ---|---
 2.1.1|2.1.1
----|---
 1.7.x|1.0
 
 ## Installing the Plugin
@@ -64,7 +63,7 @@ as the `filterjoin` filter is not supported by the original elaticsearch actions
 * `query`: the query used to lookup terms with.
 * `orderBy`: the ordering to use to lookup the maximum number of terms: default, doc_score (optional, default to default ordering).
 * `maxTermsPerShard`: the maximum number of terms per shard to lookup (optional, default to all terms).
-* `routing`: the node routing used to control the shards the lookup request is executed on.
+* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer (optional, default to long).
 
 ### Example
 
@@ -109,6 +108,7 @@ see example below. The object contains the following parameters:
 * `size_in_bytes`: the size in bytes of the filter used to compute the join.
 * `is_pruned`: a flag to indicate if the join computation has been pruned based on the `maxTermsPerShard` limit.
 * `cache_hit`: a flag to indicate if the join was already computed and cached.
+* `terms_encoding`: the terms encoding used to transfer terms across the network.
 * `took`: the time it took to construct the filter.
 
 ```json
@@ -132,6 +132,7 @@ see example below. The object contains the following parameters:
             "size_in_bytes": 20,
             "is_pruned": false,
             "cache_hit": false,
+            "terms_encoding" : "long",
             "took": 313
           }
         ]

@@ -128,13 +128,13 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
   /**
    * Returns the set of terms. This method will perform a late-decoding of the encoded terms, and will release the
-   * byte array.
+   * byte array. This method needs to be synchronized as each segment thread will call it concurrently.
    */
   protected synchronized TermsSet getTermsSet() {
     if (encodedTerms != null) { // late decoding of the encoded terms
       long start = System.nanoTime();
       termsSet = TermsSet.readFrom(encodedTerms, 0);
-      logger.info("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), termsSet.size(), (System.nanoTime() - start) / 1000000 });
+      logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), termsSet.size(), (System.nanoTime() - start) / 1000000 });
       encodedTerms = null; // release reference to the byte array to be able to reclaim memory
     }
     return termsSet;
@@ -209,7 +209,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
               .append(defaultField)
               .append(":")
               // Do not serialise the full array, but instead the number of bytes - see issue #168
-              .append("[size=" + (termsSet != null ? termsSet.size() * 8 : "0") + "]")
+              .append("[size=" + (termsSet != null ? termsSet.getSizeInBytes() : "0") + "]")
               .toString();
     }
 

@@ -18,8 +18,8 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import org.elasticsearch.action.fieldstats.FieldStatsAction;
-import org.elasticsearch.action.fieldstats.FieldStatsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.fieldstats.FieldStatsResponse;
 import org.elasticsearch.index.query.ConstantScoreQueryParser;
 import solutions.siren.join.action.terms.TermsByQueryAction;
@@ -52,7 +52,7 @@ public class FilterJoinVisitor {
   protected final BlockingQueue<Integer> blockingQueue = new LinkedBlockingQueue<>();
   protected final CoordinateSearchMetadata metadata;
 
-  protected static final ESLogger logger = Loggers.getLogger(FilterJoinVisitor.class);
+  private static final ESLogger logger = Loggers.getLogger(FilterJoinVisitor.class);
 
   public FilterJoinVisitor(Client client, RootNode root) {
     this.client = client;
@@ -180,6 +180,7 @@ public class FilterJoinVisitor {
     action.setSizeInBytes(listener.getEncodedTerms().length);
     action.setCacheHit(false);
     action.setTookInMillis(listener.getTookInMillis());
+    action.setTermsEncoding(node.getTermsEncoding());
 
     return action;
   }
@@ -245,40 +246,7 @@ public class FilterJoinVisitor {
     }
 
     protected void start() {
-      this.executeTermsEncodingOptimisation();
-    }
-
-    protected void executeTermsEncodingOptimisation() {
-      logger.debug("Executing field stats action");
-      // check if we can encode using integers instead of longs
-      client.prepareFieldStats().setIndices(node.getLookupIndices()).setFields(node.getLookupPath())
-            .execute(new ActionListener<FieldStatsResponse>() {
-        @Override
-        public void onResponse(FieldStatsResponse fieldStatsResponse) {
-          String maxValue = fieldStatsResponse.getAllFieldStats().get(node.getLookupPath()).getMaxValue();
-          if (maxValue != null) {
-            try {
-              long value = Long.parseLong(maxValue);
-              if (value < Integer.MAX_VALUE) {
-                node.setTermsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
-              }
-            } catch (NumberFormatException e) {
-              // field contains strings or floating-point numbers, ignore
-            }
-          }
-          this.executeNextStep();
-        }
-
-        @Override
-        public void onFailure(Throwable e) {
-          listener.onFailure(e);
-        }
-
-        private void executeNextStep() {
-          AsyncFilterJoinVisitorAction.this.executeTermsByQuery();
-        }
-
-      });
+      this.executeTermsByQuery();
     }
 
     protected void executeTermsByQuery() {
@@ -401,7 +369,7 @@ public class FilterJoinVisitor {
 
     @Override
     public void onResponse(final TermsByQueryResponse termsByQueryResponse) {
-      logger.info("Received terms by query response with {} terms", termsByQueryResponse.getTermsSet().size());
+      logger.debug("Received terms by query response with {} terms", termsByQueryResponse.getTermsSet().size());
       this.encodedTerms = termsByQueryResponse.getTermsSet().writeToBytes();
       this.size = termsByQueryResponse.getTermsSet().size();
       this.isPruned = termsByQueryResponse.getTermsSet().isPruned();

@@ -140,16 +140,11 @@ public class FilterJoinNode extends AbstractNode {
     return (Integer) conf.get("maxTermsPerShard");
   }
 
-  public void setTermsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
-    Map<String, Object> conf = (Map<String, Object>) this.self.get(this.getField());
-    conf.put("termsEncoding", termsEncoding.name());
-  }
-
   public TermsByQueryRequest.TermsEncoding getTermsEncoding() {
     Map<String, Object> conf = (Map<String, Object>) this.self.get(this.getField());
     String termsEncoding = (String) conf.get("termsEncoding");
     if (termsEncoding == null) {
-      return null;
+      return TermsByQueryRequest.DEFAULT_TERM_ENCODING;
     }
     return TermsByQueryRequest.TermsEncoding.valueOf(termsEncoding.toUpperCase());
   }

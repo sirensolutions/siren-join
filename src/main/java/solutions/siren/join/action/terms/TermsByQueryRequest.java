@@ -55,11 +55,13 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   private Ordering ordering;
   @Nullable
   private Integer maxTermsPerShard;
+  @Nullable
+  private TermsEncoding termsEncoding;
 
   /**
-   * The encoding to use for terms. Default to {@link TermsEncoding#LONG}.
+   * Default terms encoding
    */
-  private TermsEncoding termsEncoding = TermsEncoding.LONG;
+  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.LONG;
 
   TermsByQueryRequest() {}
 
@@ -243,10 +245,10 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   }
 
   /**
-   * Returns the encoding to use for transferring terms across shards.
+   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#LONG}.
    */
   public TermsEncoding termsEncoding() {
-    return termsEncoding;
+    return termsEncoding == null ? DEFAULT_TERM_ENCODING : termsEncoding;
   }
 
   /**
@@ -283,7 +285,9 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
       maxTermsPerShard = in.readVInt();
     }
 
-    termsEncoding = TermsEncoding.values()[in.readVInt()];
+    if (in.readBoolean()) {
+      termsEncoding = TermsEncoding.values()[in.readVInt()];
+    }
   }
 
   /**
@@ -330,7 +334,12 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
       out.writeVInt(maxTermsPerShard);
     }
 
-    out.writeVInt(termsEncoding.ordinal());
+    if (termsEncoding == null) {
+      out.writeBoolean(false);
+    } else {
+      out.writeBoolean(true);
+      out.writeVInt(termsEncoding.ordinal());
+    }
   }
 
   /**

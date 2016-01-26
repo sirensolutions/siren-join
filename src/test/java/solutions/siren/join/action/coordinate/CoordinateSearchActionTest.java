@@ -21,6 +21,7 @@ package solutions.siren.join.action.coordinate;
 import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.QueryBuilders;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
@@ -29,7 +30,6 @@ import org.junit.Test;
 import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 
-@Seed("A2C68E338959E571:9593A79747746B63")
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
 public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
@@ -499,6 +499,59 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
     assertHitCount(rsp, 2L);
     assertSearchHits(rsp, "1", "4");
+  }
+
+  @Test
+  public void testSimpleJoinWithIntegerEncoding() throws Exception {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string"));
+
+    ensureGreen();
+
+    indexRandom(true,
+            client().prepareIndex("index1", "type", "1").setSource("id", "1", "foreign_key", new String[]{"1", "3"}),
+            client().prepareIndex("index1", "type", "2").setSource("id", "2"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3", "foreign_key", new String[]{"2"}),
+            client().prepareIndex("index1", "type", "4").setSource("id", "4", "foreign_key", new String[]{"1", "4"}),
+
+            client().prepareIndex("index2", "type", "1").setSource("id", "1", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "2").setSource("id", "2", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
+            client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc") );
+
+    // Joining index1.foreign_key with index2.id
+    SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                    boolQuery().filter(termQuery("tag", "aaa"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 3L);
+    assertSearchHits(searchResponse, "1", "3", "4");
+
+    // Joining index1.foreign_key with empty index2 relation
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                    boolQuery().filter(termQuery("tag", "ddd"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 0L);
+
+    // Joining index2.id with index1.foreign_key
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
+            QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+                    boolQuery().filter(termQuery("id", "1"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 2L);
+    assertSearchHits(searchResponse, "1", "3");
+
+    // Joining index2.id with empty index1.foreign_key
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
+            QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+                    boolQuery().filter(termQuery("id", "2"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 0L);
   }
 
 }

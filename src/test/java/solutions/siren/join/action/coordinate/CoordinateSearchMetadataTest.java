@@ -30,6 +30,7 @@ import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.elasticsearch.test.rest.client.RestException;
 import org.elasticsearch.test.rest.client.http.HttpResponse;
 import org.junit.Test;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,7 +46,6 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
-@Seed("71367A90D98D3F01:D00A01E7956F5347")
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
 public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
 
@@ -131,6 +131,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
 
     key = CoordinateSearchMetadata.Action.Fields.TOOK.underscore().getValue();
     assertThat((Integer) action.get(key), greaterThan(0));
+
+    key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING.underscore().getValue();
+    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name()));
   }
 
   @Test
