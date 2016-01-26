@@ -133,7 +133,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     assertThat((Integer) action.get(key), greaterThan(0));
 
     key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING.underscore().getValue();
-    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name()));
+    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name().toLowerCase()));
   }
 
   @Test
