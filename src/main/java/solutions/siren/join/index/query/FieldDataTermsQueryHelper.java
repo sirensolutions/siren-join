@@ -38,7 +38,7 @@ public class FieldDataTermsQueryHelper {
     for (int i = 0; i < values.length; i++) {
       termsSet.add(values[i]);
     }
-    return termsSet.writeToBytes();
+    return termsSet.writeToBytes().bytes;
   }
 
   /**
@@ -52,28 +52,73 @@ public class FieldDataTermsQueryHelper {
   /**
    * Encodes a long into the byte array dst at the given offset.
    */
-  public final static void writeInt(byte[] dst, int offset, int i) {
-    dst[offset] = ((byte) (i >> 24));
-    dst[offset + 1] = ((byte) (i >> 16));
-    dst[offset + 2] = ((byte) (i >> 8));
-    dst[offset + 3] = ((byte) i);
+  public final static void writeInt(BytesRef dst, int i) {
+    dst.bytes[dst.offset++] = ((byte) (i >> 24));
+    dst.bytes[dst.offset++] = ((byte) (i >> 16));
+    dst.bytes[dst.offset++] = ((byte) (i >> 8));
+    dst.bytes[dst.offset++] = ((byte) i);
+  }
+
+  /**
+   * Writes an int in a variable-length format.
+   * Writes between one and five bytes. Smaller values take fewer bytes. Negative numbers
+   * will always use all 5 bytes and are therefore better serialized using {@link #writeInt}.
+   */
+  public final static void writeVInt(BytesRef dst, int i) {
+    while ((i & ~0x7F) != 0) {
+      dst.bytes[dst.offset++] = (byte) ((i & 0x7f) | 0x80);
+      i >>>= 7;
+    }
+    dst.bytes[dst.offset++] = (byte) i;
   }
 
   /**
    * Encodes a long into the byte array dst at the given offset.
    */
-  public final static void writeLong(byte[] dst, int offset, long i) {
-    writeInt(dst, offset, (int) (i >> 32));
-    writeInt(dst, offset + 4, (int) i);
+  public final static void writeLong(BytesRef dst, long i) {
+    writeInt(dst, (int) (i >> 32));
+    writeInt(dst, (int) i);
   }
 
-  public final static int readInt(byte[] src, int offset) {
-    return ((src[offset] & 0xFF) << 24) | ((src[offset + 1] & 0xFF) << 16)
-            | ((src[offset + 2] & 0xFF) << 8) | (src[offset + 3] & 0xFF);
+  public final static int readInt(BytesRef src) {
+    return ((src.bytes[src.offset++] & 0xFF) << 24) | ((src.bytes[src.offset++] & 0xFF) << 16)
+            | ((src.bytes[src.offset++] & 0xFF) << 8) | (src.bytes[src.offset++] & 0xFF);
   }
 
-  public final static long readLong(byte[] src, int offset) {
-    return (((long) readInt(src, offset)) << 32) | (readInt(src, offset + 4) & 0xFFFFFFFFL);
+  /**
+   * Reads an int stored in variable-length format.  Reads between one and
+   * five bytes.  Smaller values take fewer bytes.  Negative numbers
+   * will always use all 5 bytes and are therefore better serialized
+   * using {@link #readInt}
+   */
+  public final static int readVInt(BytesRef src) {
+    byte b = src.bytes[src.offset++];
+    int i = b & 0x7F;
+    if ((b & 0x80) == 0) {
+      return i;
+    }
+    b = src.bytes[src.offset++];
+    i |= (b & 0x7F) << 7;
+    if ((b & 0x80) == 0) {
+      return i;
+    }
+    b = src.bytes[src.offset++];
+    i |= (b & 0x7F) << 14;
+    if ((b & 0x80) == 0) {
+      return i;
+    }
+    b = src.bytes[src.offset++];
+    i |= (b & 0x7F) << 21;
+    if ((b & 0x80) == 0) {
+      return i;
+    }
+    b = src.bytes[src.offset++];
+    assert (b & 0x80) == 0;
+    return i | ((b & 0x7F) << 28);
+  }
+
+  public final static long readLong(BytesRef src) {
+    return (((long) readInt(src)) << 32) | (readInt(src) & 0xFFFFFFFFL);
   }
 
 }

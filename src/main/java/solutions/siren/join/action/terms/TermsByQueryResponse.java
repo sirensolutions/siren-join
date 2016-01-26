@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -37,7 +38,22 @@ public class TermsByQueryResponse extends BroadcastResponse {
   /**
    * The set of terms that has been retrieved
    */
-  private TermsSet termsSet;
+  private BytesRef encodedTerms;
+
+  /**
+   * The number of terms
+   */
+  private int size;
+
+  /**
+   * The type of encoding used
+   */
+  private TermsByQueryRequest.TermsEncoding termsEncoding;
+
+  /**
+   * Has the terms set been pruned ?
+   */
+  private boolean isPruned;
 
   /**
    * How long it took to retrieve the terms.
@@ -62,7 +78,10 @@ public class TermsByQueryResponse extends BroadcastResponse {
   TermsByQueryResponse(TermsSet termsSet, long tookInMillis, int totalShards, int successfulShards, int failedShards,
                        List<ShardOperationFailedException> shardFailures) {
     super(totalShards, successfulShards, failedShards, shardFailures);
-    this.termsSet = termsSet;
+    this.encodedTerms = termsSet.writeToBytes();
+    this.termsEncoding = termsSet.getEncoding();
+    this.size = termsSet.size();
+    this.isPruned = termsSet.isPruned();
     this.tookInMillis = tookInMillis;
   }
 
@@ -78,8 +97,22 @@ public class TermsByQueryResponse extends BroadcastResponse {
    *
    * @return the terms
    */
-  public TermsSet getTermsSet() {
-    return termsSet;
+  public BytesRef getEncodedTermsSet() {
+    return encodedTerms;
+  }
+
+  /**
+   * Gets the number of terms
+   */
+  public int getSize() {
+    return size;
+  }
+
+  /**
+   * Returns true if the set of terms has been pruned.
+   */
+  public boolean isPruned() {
+    return isPruned;
   }
 
   /**
@@ -92,23 +125,10 @@ public class TermsByQueryResponse extends BroadcastResponse {
   public void readFrom(StreamInput in) throws IOException {
     super.readFrom(in);
 
-    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[in.readVInt()];
-    switch (termsEncoding) {
-
-      case LONG:
-        termsSet = new LongTermsSet();
-        termsSet.readFrom(in);
-        return;
-
-      case INTEGER:
-        termsSet = new IntegerTermsSet();
-        termsSet.readFrom(in);
-        return;
-
-      default:
-        throw new IOException("[termsByQuery] Invalid type of terms encoding: " + termsEncoding.name());
-
-    }
+    isPruned = in.readBoolean();
+    size = in.readVInt();
+    termsEncoding = TermsByQueryRequest.TermsEncoding.values()[in.readVInt()];
+    encodedTerms = in.readBytesRef();
   }
 
   /**
@@ -121,10 +141,14 @@ public class TermsByQueryResponse extends BroadcastResponse {
   public void writeTo(StreamOutput out) throws IOException {
     super.writeTo(out);
 
+    // Encode flag
+    out.writeBoolean(isPruned);
+    // Encode size
+    out.writeVInt(size);
     // Encode type of encoding
-    out.writeVInt(termsSet.getEncoding().ordinal());
+    out.writeVInt(termsEncoding.ordinal());
     // Encode terms
-    termsSet.writeTo(out);
+    out.writeBytesRef(encodedTerms);
   }
 
 }

@@ -1,5 +1,6 @@
 package solutions.siren.join.action.terms.collector;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
@@ -29,13 +30,13 @@ public abstract class TermsSet implements Streamable {
     }
   }
 
-  public static TermsSet readFrom(byte[] in, int offset) {
-    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[FieldDataTermsQueryHelper.readInt(in, offset)];
+  public static TermsSet readFrom(BytesRef in) {
+    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[FieldDataTermsQueryHelper.readInt(in)];
     switch (termsEncoding) {
       case INTEGER:
-        return new IntegerTermsSet(in, offset + 4);
+        return new IntegerTermsSet(in);
       case LONG:
-        return new LongTermsSet(in, offset + 4);
+        return new LongTermsSet(in);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
@@ -83,13 +84,6 @@ public abstract class TermsSet implements Streamable {
   public abstract int size();
 
   /**
-   * The size of the {@link TermsSet} in bytes.
-   *
-   * @return The size in bytes
-   */
-  public abstract int getSizeInBytes();
-
-  /**
    * Deserialize the set of terms from the {@link StreamInput}.
    *
    * @param in the input
@@ -108,7 +102,7 @@ public abstract class TermsSet implements Streamable {
    * {@link solutions.siren.join.action.terms.TermsByQueryRequest.TermsEncoding} returned by
    * {@link #getEncoding()}.
    */
-  public abstract byte[] writeToBytes();
+  public abstract BytesRef writeToBytes();
 
   /**
    * Returns the type of encoding for the terms.

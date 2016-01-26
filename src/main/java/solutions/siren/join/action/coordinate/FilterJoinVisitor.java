@@ -18,9 +18,7 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
-import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
-import org.elasticsearch.action.fieldstats.FieldStatsResponse;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.query.ConstantScoreQueryParser;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
@@ -202,14 +200,14 @@ public class FilterJoinVisitor {
   private void convertToFieldDataTermsQuery(FilterJoinNode node) {
     Map<String, Object> parent = node.getParentSourceMap();
     TermsByQueryActionListener listener = node.getActionListener();
-    byte[] bytes = listener.getEncodedTerms();
+    BytesRef bytes = listener.getEncodedTerms();
 
     // Remove the filter join from the parent
     parent.remove(FilterJoinBuilder.NAME);
 
     // Create the nested object for the parameters of the field data terms query
     Map<String, Object> queryParams = new HashMap<>();
-    queryParams.put("value", bytes);
+    queryParams.put("value", bytes.bytes);
     // use the hash of the filter join source map as cache key - see #170
     queryParams.put("_cache_key", node.getCacheId());
 
@@ -284,7 +282,7 @@ public class FilterJoinVisitor {
     /**
      * The set of encoded terms from the {@link TermsByQueryResponse}
      */
-    private byte[] encodedTerms;
+    private BytesRef encodedTerms;
 
     /**
      * The size of the set of terms (number of terms)
@@ -319,7 +317,7 @@ public class FilterJoinVisitor {
      * To be used by subclasses to set the encoded terms, for example if the encoded terms were
      * cached.
      */
-    protected void setEncodedTerms(final byte[] encodedTerms) {
+    protected void setEncodedTerms(final BytesRef encodedTerms) {
       this.encodedTerms = encodedTerms;
     }
 
@@ -339,7 +337,7 @@ public class FilterJoinVisitor {
       this.isPruned = isPruned;
     }
 
-    public byte[] getEncodedTerms() {
+    public BytesRef getEncodedTerms() {
       return encodedTerms;
     }
 
@@ -369,10 +367,10 @@ public class FilterJoinVisitor {
 
     @Override
     public void onResponse(final TermsByQueryResponse termsByQueryResponse) {
-      logger.debug("Received terms by query response with {} terms", termsByQueryResponse.getTermsSet().size());
-      this.encodedTerms = termsByQueryResponse.getTermsSet().writeToBytes();
-      this.size = termsByQueryResponse.getTermsSet().size();
-      this.isPruned = termsByQueryResponse.getTermsSet().isPruned();
+      logger.debug("Received terms by query response with {} terms", termsByQueryResponse.getSize());
+      this.encodedTerms = termsByQueryResponse.getEncodedTermsSet();
+      this.size = termsByQueryResponse.getSize();
+      this.isPruned = termsByQueryResponse.isPruned();
       this.tookInMillis = termsByQueryResponse.getTookInMillis();
       this.node.setState(FilterJoinNode.State.COMPLETED); // set state before unblocking the queue to avoid race conditions
       FilterJoinVisitor.this.blockingQueue.offer(0);

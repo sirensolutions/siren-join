@@ -3,6 +3,7 @@ package solutions.siren.join.action.terms.collector;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongScatterSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
@@ -38,8 +39,8 @@ public class LongTermsSet extends TermsSet {
    * Constructor based on a byte array containing the encoded set of terms.
    * Used in {@link solutions.siren.join.index.query.FieldDataTermsQuery}.
    */
-  public LongTermsSet(byte[] bytes, int offset) {
-    this.readFromBytes(bytes, offset);
+  public LongTermsSet(BytesRef bytes) {
+    this.readFromBytes(bytes);
   }
 
   /**
@@ -73,11 +74,6 @@ public class LongTermsSet extends TermsSet {
   }
 
   @Override
-  public int getSizeInBytes() {
-    return HEADER_SIZE + this.set.size() * 8;
-  }
-
-  @Override
   public void readFrom(StreamInput in) throws IOException {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
@@ -99,9 +95,6 @@ public class LongTermsSet extends TermsSet {
    */
   @Override
   public void writeTo(StreamOutput out) throws IOException {
-    byte[] buffer = new byte[1024 * 8];
-    int offset = 0;
-
     // Encode flag
     out.writeBoolean(this.isPruned());
 
@@ -109,58 +102,54 @@ public class LongTermsSet extends TermsSet {
     out.writeInt(set.size());
 
     // Encode longs
+    BytesRef buffer = new BytesRef(new byte[1024 * 8]);
     Iterator<LongCursor> it = set.iterator();
     while (it.hasNext()) {
-      FieldDataTermsQueryHelper.writeLong(buffer, offset, it.next().value);
-      offset += 8;
-      if (offset == buffer.length) {
-        out.write(buffer, 0, offset);
-        offset = 0;
+      FieldDataTermsQueryHelper.writeLong(buffer, it.next().value);
+      if (buffer.offset == buffer.length) {
+        out.write(buffer.bytes, 0, buffer.offset);
+        buffer.offset = 0;
       }
     }
 
     // flush the remaining bytes from the buffer
-    out.write(buffer, 0, offset);
+    out.write(buffer.bytes, 0, buffer.offset);
   }
 
   @Override
-  public byte[] writeToBytes() {
+  public BytesRef writeToBytes() {
     long start = System.nanoTime();
-
     int size = set.size();
-    byte[] bytes = new byte[this.getSizeInBytes()];
-    int offset = 0;
+
+    BytesRef bytes = new BytesRef(new byte[HEADER_SIZE + 8 * size]);
 
     // Encode encoding type
-    FieldDataTermsQueryHelper.writeInt(bytes, offset, this.getEncoding().ordinal());
-    offset += 4;
+    FieldDataTermsQueryHelper.writeInt(bytes, this.getEncoding().ordinal());
 
     // Encode flag
-    bytes[offset] = (byte) (this.isPruned() ? 1 : 0);
-    offset += 1;
+    bytes.bytes[bytes.offset++] = (byte) (this.isPruned() ? 1 : 0);
 
     // Encode size of the set
-    FieldDataTermsQueryHelper.writeInt(bytes, offset, size);
-    offset += 4;
+    FieldDataTermsQueryHelper.writeInt(bytes, size);
 
     // Encode longs
     for (LongCursor i : set) {
-      FieldDataTermsQueryHelper.writeLong(bytes, offset, i.value);
-      offset += 8;
+      FieldDataTermsQueryHelper.writeLong(bytes, i.value);
     }
 
     logger.debug("Serialized {} terms - took {} ms", this.size(), (System.nanoTime() - start) / 1000000);
+
+    bytes.length = bytes.offset;
+    bytes.offset = 0;
     return bytes;
   }
 
-  private void readFromBytes(byte[] bytes, int offset) {
+  private void readFromBytes(BytesRef bytes) {
     // Read pruned flag
-    this.setIsPruned(bytes[offset] == 1 ? true : false);
-    offset += 1;
+    this.setIsPruned(bytes.bytes[bytes.offset++] == 1 ? true : false);
 
     // Read size fo the set
-    int size = FieldDataTermsQueryHelper.readInt(bytes, offset);
-    offset += 4;
+    int size = FieldDataTermsQueryHelper.readInt(bytes);
 
     // Read terms
 
@@ -168,7 +157,7 @@ public class LongTermsSet extends TermsSet {
     // not for merging
     set = new LongScatterSet(size);
     for (int i = 0; i < size; i++) {
-      set.add(FieldDataTermsQueryHelper.readLong(bytes, offset + (i * 8)));
+      set.add(FieldDataTermsQueryHelper.readLong(bytes));
     }
   }
 

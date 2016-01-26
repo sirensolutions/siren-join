@@ -133,7 +133,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
   protected synchronized TermsSet getTermsSet() {
     if (encodedTerms != null) { // late decoding of the encoded terms
       long start = System.nanoTime();
-      termsSet = TermsSet.readFrom(encodedTerms, 0);
+      termsSet = TermsSet.readFrom(new BytesRef(encodedTerms));
       logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), termsSet.size(), (System.nanoTime() - start) / 1000000 });
       encodedTerms = null; // release reference to the byte array to be able to reclaim memory
     }
@@ -198,7 +198,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
     @Override
     public long ramBytesUsed() {
       TermsSet termsSet = this.getTermsSet();
-      return BASE_RAM_BYTES_USED + (termsSet != null ? termsSet.size() * 8 : 0);
+      return BASE_RAM_BYTES_USED + termsSet.size() * 8;
     }
 
     @Override
@@ -208,8 +208,8 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
       return sb
               .append(defaultField)
               .append(":")
-              // Do not serialise the full array, but instead the number of bytes - see issue #168
-              .append("[size=" + (termsSet != null ? termsSet.getSizeInBytes() : "0") + "]")
+              // Do not serialise the full array, but instead the number of elements - see issue #168
+              .append("[size=" + termsSet.size() + "]")
               .toString();
     }
 
@@ -265,7 +265,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
     @Override
     public long ramBytesUsed() {
       TermsSet termsSet = this.getTermsSet();
-      return BASE_RAM_BYTES_USED + (termsSet != null ? termsSet.size() * 8 : 0);
+      return BASE_RAM_BYTES_USED + termsSet.size() * 8;
     }
 
     @Override
@@ -275,8 +275,8 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
       return sb
               .append(defaultField)
               .append(":")
-              // Do not serialise the full array, but instead the number of bytes - see issue #168
-              .append("[size=" + (termsSet != null ? termsSet.size() * 8 : "0") + "]")
+              // Do not serialise the full array, but instead the number of elements - see issue #168
+              .append("[size=" + termsSet.size() * 8 + "]")
               .toString();
     }
 

@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.coordinate;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
@@ -91,7 +92,7 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
     /**
      * Constructor to be used when retrieving the list of encoded terms from the cache.
      */
-    public CachedTermsByQueryActionListener(final byte[] encodedTerms, int size, boolean isPruned, boolean cacheHit,
+    public CachedTermsByQueryActionListener(final BytesRef encodedTerms, int size, boolean isPruned, boolean cacheHit,
                                             final FilterJoinNode node) {
       super(node);
       this.setEncodedTerms(encodedTerms);
@@ -104,8 +105,8 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
     public void onResponse(final TermsByQueryResponse termsByQueryResponse) {
       // We cache the list of encoded terms instead of the {@link TermsByQueryResponse} to save the
       // byte serialization computation
-      TermsSet termsSet = termsByQueryResponse.getTermsSet();
-      CachedFilterJoinVisitor.this.cache.put(this.getNode(), termsSet.writeToBytes(), termsSet.size(), termsSet.isPruned());
+      CachedFilterJoinVisitor.this.cache.put(this.getNode(), termsByQueryResponse.getEncodedTermsSet(),
+              termsByQueryResponse.getSize(), termsByQueryResponse.isPruned());
 
       super.onResponse(termsByQueryResponse);
     }

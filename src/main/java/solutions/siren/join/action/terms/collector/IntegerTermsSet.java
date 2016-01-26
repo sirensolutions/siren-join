@@ -3,6 +3,9 @@ package solutions.siren.join.action.terms.collector;
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntScatterSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
+import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
@@ -11,6 +14,7 @@ import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 
 public class IntegerTermsSet extends TermsSet {
@@ -38,8 +42,8 @@ public class IntegerTermsSet extends TermsSet {
    * Constructor based on a byte array containing the encoded set of terms.
    * Used in {@link solutions.siren.join.index.query.FieldDataTermsQuery}.
    */
-  public IntegerTermsSet(byte[] bytes, int offset) {
-    this.readFromBytes(bytes, offset);
+  public IntegerTermsSet(BytesRef bytes) {
+    this.readFromBytes(bytes);
   }
 
   @Override
@@ -66,17 +70,12 @@ public class IntegerTermsSet extends TermsSet {
   }
 
   @Override
-  public int getSizeInBytes() {
-    return HEADER_SIZE + this.set.size() * 4;
-  }
-
-  @Override
   public void readFrom(StreamInput in) throws IOException {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
     set = new IntHashSet(size);
     for (long i = 0; i < size; i++) {
-      set.add(in.readInt());
+      set.add(in.readVInt());
     }
   }
 
@@ -92,9 +91,6 @@ public class IntegerTermsSet extends TermsSet {
    */
   @Override
   public void writeTo(StreamOutput out) throws IOException {
-    byte[] buffer = new byte[1024 * 8];
-    int offset = 0;
-
     // Encode flag
     out.writeBoolean(this.isPruned());
 
@@ -102,59 +98,54 @@ public class IntegerTermsSet extends TermsSet {
     out.writeInt(set.size());
 
     // Encode ints
+    BytesRef buffer = new BytesRef(new byte[1024 * 8]);
     Iterator<IntCursor> it = set.iterator();
     while (it.hasNext()) {
-      FieldDataTermsQueryHelper.writeInt(buffer, offset, it.next().value);
-      offset += 4;
-      if (offset == buffer.length) {
-        out.write(buffer, 0, offset);
-        offset = 0;
+      FieldDataTermsQueryHelper.writeVInt(buffer, it.next().value);
+      if (buffer.offset > buffer.bytes.length - 5) {
+        out.write(buffer.bytes, 0, buffer.offset);
+        buffer.offset = 0;
       }
     }
 
     // flush the remaining bytes from the buffer
-    out.write(buffer, 0, offset);
+    out.write(buffer.bytes, 0, buffer.offset);
   }
 
   @Override
-  public byte[] writeToBytes() {
+  public BytesRef writeToBytes() {
     long start = System.nanoTime();
 
     int size = set.size();
-    byte[] bytes = new byte[this.getSizeInBytes()];
-    int offset = 0;
+    BytesRef bytesRef = new BytesRef(new byte[HEADER_SIZE + size * 5]);
 
     // Encode encoding type
-    FieldDataTermsQueryHelper.writeInt(bytes, offset, this.getEncoding().ordinal());
-    offset += 4;
+    FieldDataTermsQueryHelper.writeInt(bytesRef, this.getEncoding().ordinal());
 
     // Encode flag
-    bytes[offset] = (byte) (this.isPruned() ? 1 : 0);
-    offset += 1;
+    bytesRef.bytes[bytesRef.offset++] = (byte) (this.isPruned() ? 1 : 0);
 
     // Encode size of list
-    FieldDataTermsQueryHelper.writeInt(bytes, offset, size);
-    offset += 4;
+    FieldDataTermsQueryHelper.writeInt(bytesRef, size);
 
     // Encode ints
     for (IntCursor i : set) {
-      FieldDataTermsQueryHelper.writeInt(bytes, offset, i.value);
-      offset += 4;
+      FieldDataTermsQueryHelper.writeVInt(bytesRef, i.value);
     }
 
     logger.debug("Serialized {} terms - took {} ms", this.size(), (System.nanoTime() - start) / 1000000);
-    return bytes;
+
+    bytesRef.length = bytesRef.offset;
+    bytesRef.offset = 0;
+    return bytesRef;
   }
 
-
-  private void readFromBytes(byte[] bytes, int offset) {
+  private void readFromBytes(BytesRef bytesRef) {
     // Read pruned flag
-    this.setIsPruned(bytes[offset] == 1 ? true : false);
-    offset += 1;
+    this.setIsPruned(bytesRef.bytes[bytesRef.offset++] == 1 ? true : false);
 
     // Read size fo the set
-    int size = FieldDataTermsQueryHelper.readInt(bytes, offset);
-    offset += 4;
+    int size = FieldDataTermsQueryHelper.readInt(bytesRef);
 
     // Read terms
 
@@ -162,7 +153,7 @@ public class IntegerTermsSet extends TermsSet {
     // not for merging
     set = new IntScatterSet(size);
     for (int i = 0; i < size; i++) {
-      set.add(FieldDataTermsQueryHelper.readInt(bytes, offset + (i * 4)));
+      set.add(FieldDataTermsQueryHelper.readVInt(bytesRef));
     }
   }
 

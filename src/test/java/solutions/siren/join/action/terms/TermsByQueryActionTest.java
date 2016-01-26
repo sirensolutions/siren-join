@@ -68,10 +68,10 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
                                                                         .actionGet();
 
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsSet(), notNullValue());
-    assertThat(resp.getTermsSet().size(), is(numDocs));
-    assertThat(resp.getTermsSet() instanceof LongTermsSet, is(true));
-    TermsSet lTerms = resp.getTermsSet();
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), is(numDocs));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
     for (int i = 0; i < numDocs; i++) {
       long termHash = FieldDataTermsQueryHelper.hash(new BytesRef(Integer.toString(i)));
       assertThat(lTerms.contains(termHash), is(true));
@@ -105,10 +105,10 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
                                                                         .actionGet();
 
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsSet(), notNullValue());
-    assertThat(resp.getTermsSet().size(), is(numDocs));
-    assertThat(resp.getTermsSet() instanceof LongTermsSet, is(true));
-    TermsSet lTerms = resp.getTermsSet();
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), is(numDocs));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
     assertThat(lTerms.size(), is(numDocs));
     for (int i = 0; i < numDocs; i++) {
       assertThat(lTerms.contains(Long.valueOf(i)), is(true));
@@ -145,11 +145,10 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
 
     int expectedMaxResultSize = this.getNumShards("test").totalNumShards * 50;
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsSet(), notNullValue());
-    assertThat(resp.getTermsSet().size(), lessThanOrEqualTo(expectedMaxResultSize));
-    assertThat(resp.getTermsSet() instanceof LongTermsSet, is(true));
-    TermsSet lTerms = resp.getTermsSet();
-    assertThat(lTerms.size(), lessThanOrEqualTo(expectedMaxResultSize));
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), lessThanOrEqualTo(expectedMaxResultSize));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
   }
 
   /**
@@ -197,11 +196,10 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
 
     int expectedMaxResultSize = this.getNumShards("test").totalNumShards * 5;
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsSet(), notNullValue());
-    assertThat(resp.getTermsSet().size(), lessThanOrEqualTo(expectedMaxResultSize));
-    assertThat(resp.getTermsSet() instanceof LongTermsSet, is(true));
-    TermsSet lTerms = resp.getTermsSet();
-    assertThat(lTerms.size(), lessThanOrEqualTo(expectedMaxResultSize));
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), lessThanOrEqualTo(expectedMaxResultSize));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
 
     // If the ordering by document score worked, we should only have documents with text = aaa (even ids), and no
     // documents with text = aaa aaa (odd ids), as the first one will be ranked higher.

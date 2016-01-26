@@ -234,7 +234,7 @@ public class TermsByQueryBenchmark {
         log("Search Failures " + Arrays.toString(response.getShardFailures()));
       }
 
-      long hits = response.getTermsSet().size();
+      long hits = response.getSize();
       if (MAX_TERMS_PER_SHARD == -1 && hits != expectedHits) {
         log("[" + name + "][#" + testNum + "] Hits Mismatch:  expected [" + expectedHits + "], got [" + hits + "]");
       }
