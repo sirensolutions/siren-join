@@ -53,10 +53,11 @@ public class FieldDataTermsQueryHelper {
    * Encodes a long into the byte array dst at the given offset.
    */
   public final static void writeInt(BytesRef dst, int i) {
-    dst.bytes[dst.offset++] = ((byte) (i >> 24));
-    dst.bytes[dst.offset++] = ((byte) (i >> 16));
-    dst.bytes[dst.offset++] = ((byte) (i >> 8));
-    dst.bytes[dst.offset++] = ((byte) i);
+    dst.bytes[dst.offset] = ((byte) (i >> 24));
+    dst.bytes[dst.offset + 1] = ((byte) (i >> 16));
+    dst.bytes[dst.offset + 2] = ((byte) (i >> 8));
+    dst.bytes[dst.offset + 3] = ((byte) i);
+    dst.offset += 4;
   }
 
   /**

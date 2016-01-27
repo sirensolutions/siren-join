@@ -262,7 +262,8 @@ public class FilterJoinVisitor {
       Integer maxTermsPerShard = node.getMaxTermsPerShard();
       TermsByQueryRequest.TermsEncoding termsEncoding = node.getTermsEncoding();
 
-      return new TermsByQueryRequest(lookupIndices).field(lookupPath)
+      return new TermsByQueryRequest(lookupIndices)
+              .field(lookupPath)
               .types(lookupTypes)
               .query(lookupQuery)
               .orderBy(ordering)
