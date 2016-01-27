@@ -141,6 +141,18 @@ see example below. The object contains the following parameters:
     }
 ```
 
+## Performance Considerations
+
+* It is recommended to activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
+cache policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
+drop of performance. See issue [16529](https://github.com/elastic/elasticsearch/issues/16259) for more information.
+* Joining numeric attributes are more efficient than joining string attributes.
+* If the joined attributes of your documents contain incremental integers, switch the terms encoding to integer.
+* A badly configured `filterjoin` query can crash your system. It is recommended to configure a `maxTermsPerShard`
+limit if the attribute defined by the `path` parameter contains tens of millions of unique values. As a rule of thumb,
+the maximum amount of unique values transferred across the shards should be around 5 to 10M (~40MB to 80MB if terms
+encoding is set to long).
+
 ## Acknowledgement
 
 Part of this plugin is inspired and based on the pull request

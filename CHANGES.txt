@@ -2,6 +2,7 @@
 
 Improvements
 
+* [GH-13] Add getting started guide and documentation
 * [GH-17] Fix readme before public release
 * [GH-19] Add compatibility table in the readme
 * [GH-22] Upgraded to Elasticsearch 2.1.1
@@ -16,3 +17,4 @@ Improvements
 * [GH-7] Changed namespace from com.sirensolutions to solutions.siren
 * [GH-9] Added ossrh deployment configuration
 * [GH-11] Release fails to complete due to missing information in pom.xml
+* [GH-15] Update the Readme with the command to install the plugin from an online repository
