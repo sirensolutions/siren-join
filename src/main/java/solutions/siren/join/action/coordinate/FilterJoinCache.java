@@ -20,6 +20,7 @@ package solutions.siren.join.action.coordinate;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 
@@ -43,7 +44,7 @@ public class FilterJoinCache {
    */
   private final static FilterJoinCache instance = new FilterJoinCache();
 
-  protected static final ESLogger logger = Loggers.getLogger(FilterJoinCache.class);
+  private static final ESLogger logger = Loggers.getLogger(FilterJoinCache.class);
 
   public static FilterJoinCache getInstance() {
     return instance;
@@ -60,7 +61,8 @@ public class FilterJoinCache {
   /**
    * Caches the provided list of encoded terms for the given filter join node.
    */
-  public void put(final FilterJoinNode node, final byte[] encodedTerms, final int size, final boolean isPruned) {
+  public void put(final FilterJoinNode node, final BytesRef encodedTerms, final int size, final boolean isPruned) {
+    logger.debug("New cache entry {}", node.getCacheId());
     this.cache.put(node.getCacheId(), new CacheEntry(encodedTerms, size, isPruned));
   }
 
@@ -76,6 +78,7 @@ public class FilterJoinCache {
    * Invalidate all cache entries
    */
   public void invalidateAll() {
+    logger.debug("Invalidate all cache entries");
     this.cache.invalidateAll();
   }
 
@@ -85,11 +88,11 @@ public class FilterJoinCache {
    */
   static class CacheEntry {
 
-    final byte[] encodedTerms;
+    final BytesRef encodedTerms;
     final int size;
     final boolean isPruned;
 
-    private CacheEntry(byte[] encodedTerms, int size, boolean isPruned) {
+    private CacheEntry(BytesRef encodedTerms, int size, boolean isPruned) {
       this.encodedTerms = encodedTerms;
       this.size = size;
       this.isPruned = isPruned;

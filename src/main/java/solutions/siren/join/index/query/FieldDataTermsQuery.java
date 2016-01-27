@@ -32,6 +32,7 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 /**
  * Specialization for a disjunction over many terms, encoded in a byte array, that behaves like a
@@ -43,9 +44,14 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
   private static final long BASE_RAM_BYTES_USED = RamUsageEstimator.shallowSizeOfInstance(FieldDataTermsQuery.class);
 
   /**
-   * Reference to the encoded list of values for late decoding.
+   * Reference to the encoded list of terms for late decoding.
    */
-  protected byte[] encodedTerms;
+  private byte[] encodedTerms;
+
+  /**
+   * The set of terms after decoding
+   */
+  private TermsSet termsSet;
 
   /**
    * The field data for the field
@@ -56,6 +62,8 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
    * The cache key for this query
    */
   protected final int cacheKey;
+
+  private static final ESLogger logger = Loggers.getLogger(FieldDataTermsQuery.class);
 
   /**
    * Get a {@link FieldDataTermsQuery} that filters on non-floating point numeric terms found in a hppc
@@ -118,6 +126,20 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
     return Collections.emptyList();
   }
 
+  /**
+   * Returns the set of terms. This method will perform a late-decoding of the encoded terms, and will release the
+   * byte array. This method needs to be synchronized as each segment thread will call it concurrently.
+   */
+  protected synchronized TermsSet getTermsSet() {
+    if (encodedTerms != null) { // late decoding of the encoded terms
+      long start = System.nanoTime();
+      termsSet = TermsSet.readFrom(new BytesRef(encodedTerms));
+      logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), termsSet.size(), (System.nanoTime() - start) / 1000000 });
+      encodedTerms = null; // release reference to the byte array to be able to reclaim memory
+    }
+    return termsSet;
+  }
+
   public abstract DocIdSet getDocIdSet(LeafReaderContext context) throws IOException;
 
   @Override
@@ -164,10 +186,6 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
    */
   protected static class LongsFieldDataTermsQuery extends FieldDataTermsQuery {
 
-    private LongHashSet terms;
-
-    private final ESLogger logger = Loggers.getLogger(getClass());
-
     /**
      * Creates a new {@link FieldDataTermsQuery} from the given field data.
      *
@@ -179,29 +197,28 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public long ramBytesUsed() {
-      return BASE_RAM_BYTES_USED + (terms != null ? terms.size() * 8 : 0);
+      TermsSet termsSet = this.getTermsSet();
+      return BASE_RAM_BYTES_USED + termsSet.size() * 8;
     }
 
     @Override
     public String toString(String defaultField) {
+      TermsSet termsSet = this.getTermsSet();
       final StringBuilder sb = new StringBuilder("LongsFieldDataTermsQuery:");
       return sb
               .append(defaultField)
               .append(":")
-              // Do not serialise the full array, but instead the number of bytes - see issue #168
-              .append("[size=" + (terms != null ? terms.size() * 8 : "0") + "]")
+              // Do not serialise the full array, but instead the number of elements - see issue #168
+              .append("[size=" + termsSet.size() + "]")
               .toString();
     }
 
     @Override
     public DocIdSet getDocIdSet(LeafReaderContext context) throws IOException {
-      if (encodedTerms != null) { // late decoding of the encoded terms
-        terms = this.decodeTerms(encodedTerms);
-        encodedTerms = null; // release reference to the byte array to be able to reclaim memory
-      }
+      final TermsSet termsSet = this.getTermsSet();
 
       // make sure there are terms to filter on
-      if (terms == null || terms.isEmpty()) return null;
+      if (termsSet == null || termsSet.isEmpty()) return null;
 
       IndexNumericFieldData numericFieldData = (IndexNumericFieldData) fieldData;
       if (!numericFieldData.getNumericType().isFloatingPoint()) {
@@ -212,7 +229,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
             values.setDocument(doc);
             final int numVals = values.count();
             for (int i = 0; i < numVals; i++) {
-              if (terms.contains(values.valueAt(i))) {
+              if (termsSet.contains(values.valueAt(i))) {
                 return true;
               }
             }
@@ -227,22 +244,12 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
       return null;
     }
 
-    private final LongHashSet decodeTerms(byte[] encodedTerms) throws IOException {
-      // Decodes the values and creates the long hash set
-      long start = System.nanoTime();
-      LongHashSet longHashSet = FieldDataTermsQueryHelper.decode(encodedTerms);
-      logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), longHashSet.size(), (System.nanoTime() - start) / 1000000 });
-      return longHashSet;
-    }
-
   }
 
   /**
    * Filters on non-numeric fields. Uses Sip hash to hash byte values before comparison.
    */
   protected static class BytesFieldDataTermsQuery extends FieldDataTermsQuery {
-
-    private LongHashSet terms;
 
     private final ESLogger logger = Loggers.getLogger(getClass());
 
@@ -257,29 +264,28 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public long ramBytesUsed() {
-      return BASE_RAM_BYTES_USED + (terms != null ? terms.size() * 8 : 0);
+      TermsSet termsSet = this.getTermsSet();
+      return BASE_RAM_BYTES_USED + termsSet.size() * 8;
     }
 
     @Override
     public String toString(String defaultField) {
+      TermsSet termsSet = this.getTermsSet();
       final StringBuilder sb = new StringBuilder("BytesFieldDataTermsQuery:");
       return sb
               .append(defaultField)
               .append(":")
-              // Do not serialise the full array, but instead the number of bytes - see issue #168
-              .append("[size=" + (terms != null ? terms.size() * 8 : "0") + "]")
+              // Do not serialise the full array, but instead the number of elements - see issue #168
+              .append("[size=" + termsSet.size() * 8 + "]")
               .toString();
     }
 
     @Override
     public DocIdSet getDocIdSet(LeafReaderContext context) throws IOException {
-      if (encodedTerms != null) { // late decoding of the encoded terms
-        terms = this.decodeTerms(encodedTerms);
-        encodedTerms = null; // release reference to the byte array to be able to reclaim memory
-      }
+      final TermsSet termsSet = this.getTermsSet();
 
       // make sure there are terms to filter on
-      if (terms == null || terms.isEmpty()) return null;
+      if (termsSet == null || termsSet.isEmpty()) return null;
 
       final SortedBinaryDocValues values = fieldData.load(context).getBytesValues(); // load fielddata
       return new DocValuesDocIdSet(context.reader().maxDoc(), context.reader().getLiveDocs()) {
@@ -290,7 +296,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
           for (int i = 0; i < numVals; i++) {
             final BytesRef term = values.valueAt(i);
             long termHash = FieldDataTermsQueryHelper.hash(term);
-            if (terms.contains(termHash)) {
+            if (termsSet.contains(termHash)) {
               return true;
             }
           }
@@ -298,14 +304,6 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
           return false;
         }
       };
-    }
-
-    private final LongHashSet decodeTerms(byte[] encodedTerms) throws IOException {
-      // Decodes the values and creates the long hash set
-      long start = System.nanoTime();
-      LongHashSet longHashSet = FieldDataTermsQueryHelper.decode(encodedTerms);
-      logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), longHashSet.size(), (System.nanoTime() - start) / 1000000 });
-      return longHashSet;
     }
 
   }

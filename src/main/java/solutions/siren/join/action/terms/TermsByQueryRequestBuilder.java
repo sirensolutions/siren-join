@@ -100,6 +100,14 @@ public class TermsByQueryRequestBuilder extends BroadcastOperationRequestBuilder
     return this;
   }
 
+  /**
+   * The encoding to use for transferring terms.
+   */
+  public TermsByQueryRequestBuilder setTermsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
+    request().termsEncoding(termsEncoding);
+    return this;
+  }
+
   @Override
   public void execute(ActionListener<TermsByQueryResponse> listener) {
     client.execute(TermsByQueryAction.INSTANCE, request, listener);

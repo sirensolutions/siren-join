@@ -18,10 +18,14 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import solutions.siren.join.action.terms.collector.IntegerTermsSet;
+import solutions.siren.join.action.terms.collector.LongTermsSet;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
 import java.util.List;
@@ -34,7 +38,22 @@ public class TermsByQueryResponse extends BroadcastResponse {
   /**
    * The set of terms that has been retrieved
    */
-  private TermsResponse termsResponse;
+  private BytesRef encodedTerms;
+
+  /**
+   * The number of terms
+   */
+  private int size;
+
+  /**
+   * The type of encoding used
+   */
+  private TermsByQueryRequest.TermsEncoding termsEncoding;
+
+  /**
+   * Has the terms set been pruned ?
+   */
+  private boolean isPruned;
 
   /**
    * How long it took to retrieve the terms.
@@ -49,17 +68,20 @@ public class TermsByQueryResponse extends BroadcastResponse {
   /**
    * Main constructor
    *
-   * @param termsResponse    the merged terms
+   * @param termsSet    the merged terms
    * @param tookInMillis     the time in millis it took to retrieve the terms.
    * @param totalShards      the number of shards the request executed on
    * @param successfulShards the number of shards the request executed on successfully
    * @param failedShards     the number of failed shards
    * @param shardFailures    the failures
    */
-  TermsByQueryResponse(TermsResponse termsResponse, long tookInMillis, int totalShards, int successfulShards, int failedShards,
+  TermsByQueryResponse(TermsSet termsSet, long tookInMillis, int totalShards, int successfulShards, int failedShards,
                        List<ShardOperationFailedException> shardFailures) {
     super(totalShards, successfulShards, failedShards, shardFailures);
-    this.termsResponse = termsResponse;
+    this.encodedTerms = termsSet.writeToBytes();
+    this.termsEncoding = termsSet.getEncoding();
+    this.size = termsSet.size();
+    this.isPruned = termsSet.isPruned();
     this.tookInMillis = tookInMillis;
   }
 
@@ -75,8 +97,22 @@ public class TermsByQueryResponse extends BroadcastResponse {
    *
    * @return the terms
    */
-  public TermsResponse getTermsResponse() {
-    return termsResponse;
+  public BytesRef getEncodedTermsSet() {
+    return encodedTerms;
+  }
+
+  /**
+   * Gets the number of terms
+   */
+  public int getSize() {
+    return size;
+  }
+
+  /**
+   * Returns true if the set of terms has been pruned.
+   */
+  public boolean isPruned() {
+    return isPruned;
   }
 
   /**
@@ -88,8 +124,11 @@ public class TermsByQueryResponse extends BroadcastResponse {
   @Override
   public void readFrom(StreamInput in) throws IOException {
     super.readFrom(in);
-    termsResponse = new TermsResponse();
-    termsResponse.readFrom(in);
+
+    isPruned = in.readBoolean();
+    size = in.readVInt();
+    termsEncoding = TermsByQueryRequest.TermsEncoding.values()[in.readVInt()];
+    encodedTerms = in.readBytesRef();
   }
 
   /**
@@ -101,6 +140,15 @@ public class TermsByQueryResponse extends BroadcastResponse {
   @Override
   public void writeTo(StreamOutput out) throws IOException {
     super.writeTo(out);
-    termsResponse.writeTo(out);
+
+    // Encode flag
+    out.writeBoolean(isPruned);
+    // Encode size
+    out.writeVInt(size);
+    // Encode type of encoding
+    out.writeVInt(termsEncoding.ordinal());
+    // Encode terms
+    out.writeBytesRef(encodedTerms);
   }
+
 }

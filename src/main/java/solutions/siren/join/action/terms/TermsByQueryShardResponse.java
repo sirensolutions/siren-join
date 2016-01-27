@@ -22,6 +22,9 @@ import org.elasticsearch.action.support.broadcast.BroadcastShardResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
+import solutions.siren.join.action.terms.collector.IntegerTermsSet;
+import solutions.siren.join.action.terms.collector.LongTermsSet;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
 
@@ -30,7 +33,7 @@ import java.io.IOException;
  */
 class TermsByQueryShardResponse extends BroadcastShardResponse {
 
-  private TermsResponse termsResponse;
+  private TermsSet termsSet;
 
   /**
    * Default constructor
@@ -41,20 +44,20 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
    * Main constructor
    *
    * @param shardId       the id of the shard the request executed on
-   * @param termsResponse the terms gathered from the shard
+   * @param termsSet the terms gathered from the shard
    */
-  public TermsByQueryShardResponse(ShardId shardId, TermsResponse termsResponse) {
+  public TermsByQueryShardResponse(ShardId shardId, TermsSet termsSet) {
     super(shardId);
-    this.termsResponse = termsResponse;
+    this.termsSet = termsSet;
   }
 
   /**
    * Gets the gathered terms.
    *
-   * @return the {@link TermsResponse}
+   * @return the {@link TermsSet}
    */
-  public TermsResponse getTermsResponse() {
-    return this.termsResponse;
+  public TermsSet getTerms() {
+    return this.termsSet;
   }
 
   /**
@@ -66,8 +69,24 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
   @Override
   public void readFrom(StreamInput in) throws IOException {
     super.readFrom(in);
-    termsResponse = new TermsResponse();
-    termsResponse.readFrom(in);
+
+    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[in.readVInt()];
+    switch (termsEncoding) {
+
+      case LONG:
+        termsSet = new LongTermsSet();
+        termsSet.readFrom(in);
+        return;
+
+      case INTEGER:
+        termsSet = new IntegerTermsSet();
+        termsSet.readFrom(in);
+        return;
+
+      default:
+        throw new IOException("[termsByQuery] Invalid type of terms encoding: " + termsEncoding.name());
+
+    }
   }
 
   /**
@@ -79,6 +98,10 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
   @Override
   public void writeTo(StreamOutput out) throws IOException {
     super.writeTo(out);
-    termsResponse.writeTo(out);
+
+    // Encode type of encoding
+    out.writeVInt(termsSet.getEncoding().ordinal());
+    // Encode terms
+    termsSet.writeTo(out);
   }
 }

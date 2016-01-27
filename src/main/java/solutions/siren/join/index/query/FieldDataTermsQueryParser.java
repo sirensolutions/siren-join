@@ -45,7 +45,7 @@ public class FieldDataTermsQueryParser implements QueryParser {
 
   public static final String NAME = "fielddata_terms";
 
-  private final ESLogger logger = Loggers.getLogger(getClass());
+  private static final ESLogger logger = Loggers.getLogger(FieldDataTermsQueryParser.class);
 
   public FieldDataTermsQueryParser() {}
 

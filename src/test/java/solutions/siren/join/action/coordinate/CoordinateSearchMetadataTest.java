@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.coordinate;
 
+import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -29,6 +30,7 @@ import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.elasticsearch.test.rest.client.RestException;
 import org.elasticsearch.test.rest.client.http.HttpResponse;
 import org.junit.Test;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -129,6 +131,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
 
     key = CoordinateSearchMetadata.Action.Fields.TOOK.underscore().getValue();
     assertThat((Integer) action.get(key), greaterThan(0));
+
+    key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING.underscore().getValue();
+    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name().toLowerCase()));
   }
 
   @Test

@@ -22,6 +22,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -94,6 +95,7 @@ class CoordinateSearchMetadata {
     boolean isPruned;
     boolean cacheHit;
     long tookInMillis;
+    TermsByQueryRequest.TermsEncoding termsEncoding;
 
     static final class Fields {
       static final XContentBuilderString RELATIONS = new XContentBuilderString("relations");
@@ -104,6 +106,7 @@ class CoordinateSearchMetadata {
       static final XContentBuilderString IS_PRUNED = new XContentBuilderString("is_pruned");
       static final XContentBuilderString CACHE_HIT = new XContentBuilderString("cache_hit");
       static final XContentBuilderString TOOK = new XContentBuilderString("took");
+      static final XContentBuilderString TERMS_ENCODING = new XContentBuilderString("terms_encoding");
     }
 
     Action() {}
@@ -132,6 +135,10 @@ class CoordinateSearchMetadata {
       this.tookInMillis = tookInMillis;
     }
 
+    void setTermsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
+      this.termsEncoding = termsEncoding;
+    }
+
     public XContentBuilder toXContent(XContentBuilder builder) throws IOException {
       builder.startObject();
 
@@ -151,6 +158,7 @@ class CoordinateSearchMetadata {
       builder.field(Fields.SIZE_IN_BYTES, sizeInBytes);
       builder.field(Fields.IS_PRUNED, isPruned);
       builder.field(Fields.CACHE_HIT, cacheHit);
+      builder.field(Fields.TERMS_ENCODING, termsEncoding.name().toLowerCase());
       builder.field(Fields.TOOK, tookInMillis);
 
       builder.endObject();
@@ -168,6 +176,7 @@ class CoordinateSearchMetadata {
       this.isPruned = in.readBoolean();
       this.cacheHit = in.readBoolean();
       this.tookInMillis = in.readLong();
+      this.termsEncoding = TermsByQueryRequest.TermsEncoding.values()[in.readVInt()];
     }
 
     public void writeTo(StreamOutput out) throws IOException {
@@ -178,6 +187,7 @@ class CoordinateSearchMetadata {
       out.writeBoolean(isPruned);
       out.writeBoolean(cacheHit);
       out.writeLong(tookInMillis);
+      out.writeVInt(termsEncoding.ordinal());
     }
 
   }

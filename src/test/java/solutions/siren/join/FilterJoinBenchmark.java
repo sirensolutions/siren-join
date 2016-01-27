@@ -19,9 +19,11 @@
 package solutions.siren.join;
 
 import org.elasticsearch.Version;
+import org.elasticsearch.index.cache.IndexCacheModule;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.plugins.Plugin;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FilterJoinBuilder;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
@@ -78,7 +80,7 @@ public class FilterJoinBenchmark {
         .put("node.local", true)
         .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
         .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
-//        .put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true)
+        .put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true)
         .build();
 
       this.nodes = new MockNode[2];
@@ -268,26 +270,36 @@ public class FilterJoinBenchmark {
                 .types(CHILD_TYPE)
                 .path("num");
 
-        long tookString = 0;
-        long tookLong = 0;
-        long expected = NUM_PARENTS;
-        warmFieldData("id", "pid");     // for string fields
-        warmFieldData("num", "num");    // for long fields
+      FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("num")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
-        log("==== HAS CHILD SINGLE TERM ====");
-        for (int i = 0; i < NUM_QUERIES; i++) {
-            lookupQuery = boolQuery().filter(termQuery("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
+      long tookString = 0;
+      long tookLong = 0;
+      long tookInt = 0;
+      long expected = NUM_PARENTS;
+      warmFieldData("id", "pid");     // for string fields
+      warmFieldData("num", "num");    // for long fields
 
-            stringFilter.query(lookupQuery);
-            longFilter.query(lookupQuery);
+      log("==== HAS CHILD SINGLE TERM ====");
+      for (int i = 0; i < NUM_QUERIES; i++) {
+        lookupQuery = boolQuery().filter(termQuery("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
 
-            tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-            tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        }
+        stringFilter.query(lookupQuery);
+        longFilter.query(lookupQuery);
+        intFilter.query(lookupQuery);
 
-        log("string: " + (tookString / NUM_QUERIES) + "ms avg");
-        log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
-        log("");
+        tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
+        tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
+        tookInt += runQuery("int", i, PARENT_INDEX, expected, filteredQuery(mainQuery, intFilter));
+      }
+
+      log("string: " + (tookString / NUM_QUERIES) + "ms avg");
+      log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
+      log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("");
     }
 
     /**
@@ -300,36 +312,46 @@ public class FilterJoinBenchmark {
      * Child long field = "num"
      */
     public void benchHasChildMatchAll() {
-        QueryBuilder lookupQuery = matchAllQuery();
-        QueryBuilder mainQuery = matchAllQuery();
+      QueryBuilder lookupQuery = matchAllQuery();
+      QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("id")
-                .indices(CHILD_INDEX)
-                .types(CHILD_TYPE)
-                .path("pid")
-                .query(lookupQuery);
+      FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("id")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("pid")
+              .query(lookupQuery);
 
-        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
-                .indices(CHILD_INDEX)
-                .types(CHILD_TYPE)
-                .path("num")
-                .query(lookupQuery);
+      FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("num")
+              .query(lookupQuery);
 
-        long tookString = 0;
-        long tookLong = 0;
-        long expected = NUM_PARENTS;
-        warmFieldData("id", "pid");     // for string fields
-        warmFieldData("num", "num");    // for long fields
+      FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("num")
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
-        log("==== HAS CHILD MATCH-ALL ====");
-        for (int i = 0; i < NUM_QUERIES; i++) {
-            tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-            tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        }
+      long tookString = 0;
+      long tookLong = 0;
+      long tookInt = 0;
+      long expected = NUM_PARENTS;
+      warmFieldData("id", "pid");     // for string fields
+      warmFieldData("num", "num");    // for long fields
 
-        log("string: " + (tookString / NUM_QUERIES) + "ms avg");
-        log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
-        log("");
+      log("==== HAS CHILD MATCH-ALL ====");
+      for (int i = 0; i < NUM_QUERIES; i++) {
+        tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
+        tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
+        tookInt += runQuery("int", i, PARENT_INDEX, expected, filteredQuery(mainQuery, intFilter));
+      }
+
+      log("string: " + (tookString / NUM_QUERIES) + "ms avg");
+      log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
+      log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("");
     }
 
     /**
@@ -342,39 +364,49 @@ public class FilterJoinBenchmark {
      * Child numeric field = "num"
      */
     public void benchHasParentSingleTerm() {
-        QueryBuilder lookupQuery;
-        QueryBuilder mainQuery = matchAllQuery();
+      QueryBuilder lookupQuery;
+      QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
-                .indices(PARENT_INDEX)
-                .types(PARENT_TYPE)
-                .path("id");
+      FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("id");
 
-        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
-                .indices(PARENT_INDEX)
-                .types(PARENT_TYPE)
-                .path("num");
+      FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("num");
 
-        long tookString = 0;
-        long tookLong = 0;
-        long expected = NUM_CHILDREN_PER_PARENT;
-        warmFieldData("id", "pid");     // for string fields
-        warmFieldData("num", "num");    // for long fields
+      FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("num")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
-        log("==== HAS PARENT SINGLE TERM ====");
-        for (int i = 0; i < NUM_QUERIES; i++) {
-            lookupQuery = boolQuery().filter(termQuery("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
+      long tookString = 0;
+      long tookLong = 0;
+      long tookInt = 0;
+      long expected = NUM_CHILDREN_PER_PARENT;
+      warmFieldData("id", "pid");     // for string fields
+      warmFieldData("num", "num");    // for long fields
 
-            stringFilter.query(lookupQuery);
-            longFilter.query(lookupQuery);
+      log("==== HAS PARENT SINGLE TERM ====");
+      for (int i = 0; i < NUM_QUERIES; i++) {
+        lookupQuery = boolQuery().filter(termQuery("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
 
-            tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-            tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        }
+        stringFilter.query(lookupQuery);
+        longFilter.query(lookupQuery);
+        intFilter.query(lookupQuery);
 
-        log("string: " + (tookString / NUM_QUERIES) + "ms avg");
-        log("long: " + (tookLong / NUM_QUERIES) + "ms avg");
-        log("");
+        tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
+        tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
+        tookInt += runQuery("int", i, CHILD_INDEX, expected, filteredQuery(mainQuery, intFilter));
+      }
+
+      log("string: " + (tookString / NUM_QUERIES) + "ms avg");
+      log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
+      log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("");
     }
 
     /**
@@ -387,36 +419,46 @@ public class FilterJoinBenchmark {
      * Child long field = "num"
      */
     public void benchHasParentMatchAll() {
-        QueryBuilder lookupQuery = matchAllQuery();
-        QueryBuilder mainQuery = matchAllQuery();
+      QueryBuilder lookupQuery = matchAllQuery();
+      QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
-                .indices(PARENT_INDEX)
-                .types(PARENT_TYPE)
-                .path("id")
-                .query(lookupQuery);
+      FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("id")
+              .query(lookupQuery);
 
-        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
-                .indices(PARENT_INDEX)
-                .types(PARENT_TYPE)
-                .path("num")
-                .query(lookupQuery);
+      FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("num")
+              .query(lookupQuery);
 
-        long tookString = 0;
-        long tookLong = 0;
-        long expected = NUM_CHILDREN_PER_PARENT * NUM_PARENTS;
-        warmFieldData("id", "pid");     // for string fields
-        warmFieldData("num", "num");    // for numeric fields
+      FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("num")
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
-        log("==== HAS PARENT MATCH-ALL ====");
-        for (int i = 0; i < NUM_QUERIES; i++) {
-            tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-            tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        }
+      long tookString = 0;
+      long tookLong = 0;
+      long tookInt = 0;
+      long expected = NUM_CHILDREN_PER_PARENT * NUM_PARENTS;
+      warmFieldData("id", "pid");     // for string fields
+      warmFieldData("num", "num");    // for numeric fields
 
-        log("string: " + (tookString / NUM_QUERIES) + "ms avg");
-        log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
-        log("");
+      log("==== HAS PARENT MATCH-ALL ====");
+      for (int i = 0; i < NUM_QUERIES; i++) {
+        tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
+        tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
+        tookInt += runQuery("int", i, CHILD_INDEX, expected, filteredQuery(mainQuery, intFilter));
+      }
+
+      log("string: " + (tookString / NUM_QUERIES) + "ms avg");
+      log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
+      log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("");
     }
 
     /**

@@ -5,6 +5,7 @@ Improvements
 * [GH-17] Fix readme before public release
 * [GH-19] Add compatibility table in the readme
 * [GH-22] Upgraded to Elasticsearch 2.1.1
+* [GH-25] Option to force the encoding of terms as integer instead of long
 
 ======================= Release 1.0 =========================
 

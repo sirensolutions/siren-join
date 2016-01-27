@@ -28,6 +28,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.index.query.QueryBuilder;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -50,8 +51,17 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   @Nullable
   private String[] types = Strings.EMPTY_ARRAY;
   private String field;
+  @Nullable
   private Ordering ordering;
+  @Nullable
   private Integer maxTermsPerShard;
+  @Nullable
+  private TermsEncoding termsEncoding;
+
+  /**
+   * Default terms encoding
+   */
+  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.LONG;
 
   TermsByQueryRequest() {}
 
@@ -181,13 +191,16 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
     return this.preference;
   }
 
+  /**
+   * The types of ordering
+   */
   public enum Ordering {
     DEFAULT,
     DOC_SCORE
   }
 
   /**
-   * Set the ordering to use before performing the term cut.
+   * Sets the ordering to use before performing the term cut.
    */
   public TermsByQueryRequest orderBy(Ordering ordering) {
     this.ordering = ordering;
@@ -195,7 +208,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   }
 
   /**
-   * Return the ordering to use before performing the term cut.
+   * Returns the ordering to use before performing the term cut.
    */
   public Ordering getOrderBy() {
     return ordering;
@@ -214,6 +227,28 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    */
   public Integer maxTermsPerShard() {
     return maxTermsPerShard;
+  }
+
+  /**
+   * The types of terms encoding
+   */
+  public enum TermsEncoding {
+    LONG, INTEGER
+  }
+
+  /**
+   * Sets the encoding to use for transferring terms across shards.
+   */
+  public TermsByQueryRequest termsEncoding(TermsEncoding termsEncoding) {
+    this.termsEncoding = termsEncoding;
+    return this;
+  }
+
+  /**
+   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#LONG}.
+   */
+  public TermsEncoding termsEncoding() {
+    return termsEncoding == null ? DEFAULT_TERM_ENCODING : termsEncoding;
   }
 
   /**
@@ -243,11 +278,15 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
     nowInMillis = in.readVLong();
 
     if (in.readBoolean()) {
-      ordering = Ordering.valueOf(in.readString());
+      ordering = Ordering.values()[in.readVInt()];
     }
 
     if (in.readBoolean()) {
       maxTermsPerShard = in.readVInt();
+    }
+
+    if (in.readBoolean()) {
+      termsEncoding = TermsEncoding.values()[in.readVInt()];
     }
   }
 
@@ -285,7 +324,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
       out.writeBoolean(false);
     } else {
       out.writeBoolean(true);
-      out.writeString(ordering.name());
+      out.writeVInt(ordering.ordinal());
     }
 
     if (maxTermsPerShard == null) {
@@ -293,6 +332,13 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
     } else {
       out.writeBoolean(true);
       out.writeVInt(maxTermsPerShard);
+    }
+
+    if (termsEncoding == null) {
+      out.writeBoolean(false);
+    } else {
+      out.writeBoolean(true);
+      out.writeVInt(termsEncoding.ordinal());
     }
   }
 
