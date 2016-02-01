@@ -1,5 +1,6 @@
 package solutions.siren.join.action.admin.cache;
 
+import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.Test;
@@ -13,7 +14,7 @@ import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.Matchers.*;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0)
 public class FilterJoinCacheActionTest extends SirenJoinTestCase {
 
   @Test

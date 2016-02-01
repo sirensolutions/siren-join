@@ -17,7 +17,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.Matchers.*;
 import static org.elasticsearch.common.settings.Settings.settingsBuilder;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0)
 public class FilterJoinCacheSettingsTest extends SirenJoinTestCase {
 
   @Override
