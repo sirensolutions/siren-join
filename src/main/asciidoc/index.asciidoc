@@ -4,3 +4,5 @@
 include::introduction.asciidoc[]
 
 include::getting-started.asciidoc[]
+
+include::filter-join-cache.asciidoc[]

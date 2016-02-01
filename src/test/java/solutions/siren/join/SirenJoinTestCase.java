@@ -20,7 +20,9 @@ package solutions.siren.join;
 
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
-import solutions.siren.join.action.coordinate.FilterJoinCache;
+import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
+import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheRequestBuilder;
+import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Before;
 
@@ -51,7 +53,7 @@ public class SirenJoinTestCase extends ESIntegTestCase {
   @Before
   public void beforeTest() throws Exception {
     logger.info("Invalidate filter join cache before test");
-    FilterJoinCache.getInstance().invalidateAll();
+    ClearFilterJoinCacheResponse rsp = new ClearFilterJoinCacheRequestBuilder(client(), ClearFilterJoinCacheAction.INSTANCE).get();
   }
 
 }

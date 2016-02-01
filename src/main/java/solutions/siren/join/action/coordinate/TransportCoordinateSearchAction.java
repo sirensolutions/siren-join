@@ -31,6 +31,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
 
 import java.util.Map;
 
@@ -41,14 +42,17 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
 
   private final TransportSearchAction searchAction;
 
+  private final FilterJoinCacheService cacheService;
+
   @Inject
   public TransportCoordinateSearchAction(Settings settings, ThreadPool threadPool,
-                                         TransportService transportService, ActionFilters actionFilters,
-                                         TransportSearchAction searchAction,
+                                         TransportService transportService, FilterJoinCacheService cacheService,
+                                         ActionFilters actionFilters, TransportSearchAction searchAction,
                                          IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
     super(settings, CoordinateSearchAction.NAME, threadPool, transportService, actionFilters,
             indexNameExpressionResolver, client, SearchRequest.class);
     this.searchAction = searchAction;
+    this.cacheService = cacheService;
   }
 
   @Override
@@ -59,7 +63,7 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
     ActionListener<SearchResponse> actionListener = listener;
 
     // Retrieve the singleton instance of the filterjoin cache
-    FilterJoinCache cache = FilterJoinCache.getInstance();
+    FilterJoinCache cache = cacheService.getCacheInstance();
 
     // Parse query source
     Tuple<XContentType, Map<String, Object>> parsedSource = this.parseSource(request.source());
