@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.TermsByQueryRequest;

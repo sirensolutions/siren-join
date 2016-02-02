@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -46,7 +45,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0)
 public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
 
   @Override

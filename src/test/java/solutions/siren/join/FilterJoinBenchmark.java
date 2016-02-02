@@ -23,6 +23,7 @@ import org.elasticsearch.index.cache.IndexCacheModule;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.plugins.Plugin;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
+import solutions.siren.join.action.coordinate.FilterJoinCache;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FilterJoinBuilder;
 import org.elasticsearch.action.ListenableActionFuture;
@@ -75,6 +76,7 @@ public class FilterJoinBenchmark {
 
     FilterJoinBenchmark() {
       Settings settings = Settings.builder()
+        .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
         .put("index.engine.robin.refreshInterval", "-1")
         .put("path.home", "./target/elasticsearch-benchmark/home/")
         .put("node.local", true)
