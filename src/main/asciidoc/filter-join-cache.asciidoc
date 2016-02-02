@@ -88,3 +88,16 @@ The command should return the following response with the cache statistics for e
   }
 }
 -----------------------------------------------------------
+
+* `size`: The number of cache entries
+* `requestCount`: The number of times cache lookup methods have returned either a cached or uncached value.
+* `hitCount`: The number of times cache lookup methods have returned a cached value.
+* `hitRate`: The ratio of cache requests which were hits.
+* `missCount`: The number of times cache lookup methods have returned an uncached value.
+* `missRate`: The ratio of cache requests which were misses.
+* `loadCount`: The total number of times that cache lookup methods attempted to load new values.
+* `loadSuccessCount`: The number of times {@link Cache} lookup methods have successfully loaded a new value.
+* `loadExceptionCount`: The number of times cache lookup methods threw an exception while loading a new value.
+* `loadExceptionRate`: The ratio of cache loading attempts which threw exceptions.
+* `totalLoadTime`: The total number of nanoseconds the cache has spent loading new values.
+* `evictionCount`: The number of times an entry has been evicted.

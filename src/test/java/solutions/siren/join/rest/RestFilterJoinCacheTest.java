@@ -36,7 +36,6 @@ public class RestFilterJoinCacheTest extends SirenJoinTestCase {
 
     HttpResponse response = httpClient().method("GET").path("/_filter_join/cache/stats").execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    System.out.println(response);
     Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
     Map nodes = (Map) map.get("nodes");
     for (Object node : nodes.values()) {
@@ -46,7 +45,6 @@ public class RestFilterJoinCacheTest extends SirenJoinTestCase {
 
     response = httpClient().method("GET").path("/_filter_join/cache/clear").execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    System.out.println(response);
 
     response = httpClient().method("GET").path("/_filter_join/cache/stats").execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));

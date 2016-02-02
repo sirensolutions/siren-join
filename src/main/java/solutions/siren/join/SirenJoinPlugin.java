@@ -18,9 +18,7 @@
  */
 package solutions.siren.join;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.action.ActionModule;
-import org.elasticsearch.cluster.ClusterModule;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.indices.IndicesModule;
 import org.elasticsearch.plugins.Plugin;
