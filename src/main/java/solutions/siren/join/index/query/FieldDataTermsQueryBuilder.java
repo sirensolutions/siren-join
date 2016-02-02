@@ -18,61 +18,48 @@
  */
 package solutions.siren.join.index.query;
 
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.query.BaseFilterBuilder;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.QueryBuilder;
 
 import java.io.IOException;
 
-public class BinaryTermsFilterBuilder extends BaseFilterBuilder {
+public class FieldDataTermsQueryBuilder extends QueryBuilder {
 
+  /**
+   * The target field
+   */
   private final String name;
 
+  /**
+   * The list of long terms encoded in a byte array
+   */
   private final byte[] value;
 
-  private final String cacheKey;
+  /**
+   * A unique cache key for the query
+   */
+  private final int cacheKey;
 
-  public BinaryTermsFilterBuilder(String name, byte[] values, String cacheKey) {
+  public FieldDataTermsQueryBuilder(String name, byte[] values, int cacheKey) {
     this.name = name;
     this.value = values;
     this.cacheKey = cacheKey;
   }
 
-  public BinaryTermsFilterBuilder(String name, long[] values, String cacheKey) throws IOException {
-    this(name, BinaryTermsFilterHelper.encode(values), cacheKey);
+  public FieldDataTermsQueryBuilder(String name, long[] values, int cacheKey) throws IOException {
+    this(name, FieldDataTermsQueryHelper.encode(values), cacheKey);
   }
 
   @Override
   public void doXContent(XContentBuilder builder, ToXContent.Params params) throws IOException {
-    builder.startObject(BinaryTermsFilterParser.NAME);
+    builder.startObject(FieldDataTermsQueryParser.NAME);
       builder.startObject(name);
         builder.field("value", value);
         builder.field("_cache_key", cacheKey);
       builder.endObject();
     builder.endObject();
-  }
-
-  @Override
-  public String toString() {
-    try {
-      XContentBuilder builder = XContentFactory.jsonBuilder();
-      builder.prettyPrint();
-
-      builder.startObject(BinaryTermsFilterParser.NAME);
-        builder.startObject(name);
-          // Do not serialise the full byte array, but instead the number of bytes - see issue #168
-          builder.field("value", "[size=" + value.length + "]");
-          builder.field("_cache_key", cacheKey);
-        builder.endObject();
-      builder.endObject();
-
-      return builder.string();
-    }
-    catch (Exception e) {
-      throw new ElasticsearchException("Failed to build filter", e);
-    }
   }
 
 }

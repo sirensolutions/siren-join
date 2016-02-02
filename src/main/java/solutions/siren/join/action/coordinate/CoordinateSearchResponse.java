@@ -27,7 +27,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.Aggregations;
-import org.elasticsearch.search.facet.Facets;
 import org.elasticsearch.search.suggest.Suggest;
 
 import java.io.IOException;
@@ -65,11 +64,6 @@ public class CoordinateSearchResponse extends SearchResponse {
   @Override
   public SearchHits getHits() {
     return searchResponse.getHits();
-  }
-
-  @Override
-  public Facets getFacets() {
-    return searchResponse.getFacets();
   }
 
   @Override

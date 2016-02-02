@@ -18,39 +18,42 @@
  */
 package solutions.siren.join;
 
-import solutions.siren.join.action.coordinate.FilterJoinCache;
-import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.ESIntegTestCase;
+import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
+import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheRequestBuilder;
+import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheResponse;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.PluginsService;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Before;
 
-public class FilterJoinTestCase extends ElasticsearchIntegrationTest {
+import java.util.Arrays;
+import java.util.Collection;
+
+import static org.elasticsearch.common.settings.Settings.settingsBuilder;
+
+public class SirenJoinTestCase extends ESIntegTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
-    return ImmutableSettings.settingsBuilder()
+    return settingsBuilder()
       .put("path.data", "./target/elasticsearch-test/data/")
-      .put("plugins." + PluginsService.LOAD_PLUGIN_FROM_CLASSPATH, true)
       .put(super.nodeSettings(nodeOrdinal)).build();
   }
 
-  /**
-   * Elasticsearch test framework will randomly use a transport client instead of a node.
-   * It is necessary to explicitly tell Elasticsearch to load plugins for transport clients, otherwise
-   * tests will fail randomly.
-   */
   @Override
-  protected Settings transportClientSettings() {
-    return ImmutableSettings.settingsBuilder()
-      .put("plugins." + PluginsService.LOAD_PLUGIN_FROM_CLASSPATH, true)
-      .put(super.transportClientSettings()).build();
+  protected Collection<Class<? extends Plugin>> nodePlugins() {
+    return Arrays.<Class<? extends Plugin>> asList(SirenJoinPlugin.class);
+  }
+
+  @Override
+  protected Collection<Class<? extends Plugin>> transportClientPlugins() {
+    return nodePlugins();
   }
 
   @Before
   public void beforeTest() throws Exception {
     logger.info("Invalidate filter join cache before test");
-    FilterJoinCache.getInstance().invalidateAll();
+    ClearFilterJoinCacheResponse rsp = new ClearFilterJoinCacheRequestBuilder(client(), ClearFilterJoinCacheAction.INSTANCE).get();
   }
 
 }

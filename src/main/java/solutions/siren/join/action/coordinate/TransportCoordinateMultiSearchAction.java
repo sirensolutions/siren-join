@@ -26,6 +26,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -33,6 +34,7 @@ import org.elasticsearch.common.util.concurrent.AtomicArray;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,19 +57,19 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
 
   private final TransportSearchAction searchAction;
 
+  private final FilterJoinCacheService cacheService;
+
   @Inject
   public TransportCoordinateMultiSearchAction(Settings settings, ThreadPool threadPool,
                                               TransportService transportService, ClusterService clusterService,
+                                              FilterJoinCacheService cacheService,
                                               TransportSearchAction search, ActionFilters actionFilters,
-                                              Client client) {
-    super(settings, CoordinateMultiSearchAction.NAME, threadPool, transportService, actionFilters, client);
+                                              IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
+    super(settings, CoordinateMultiSearchAction.NAME, threadPool, transportService, actionFilters,
+            indexNameExpressionResolver, client, MultiSearchRequest.class);
     this.searchAction = search;
     this.clusterService = clusterService;
-  }
-
-  @Override
-  public MultiSearchRequest newRequestInstance() {
-    return new MultiSearchRequest();
+    this.cacheService = cacheService;
   }
 
   @Override
@@ -83,7 +85,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
 
   private void doExecuteFilterJoins(final MultiSearchRequest request,
                                     final List<CoordinateSearchMetadata> metadatas) {
-    FilterJoinCache cache = FilterJoinCache.getInstance();
+    FilterJoinCache cache = cacheService.getCacheInstance();
 
     for (int i = 0; i < request.requests().size(); i++) {
       // Parse query source

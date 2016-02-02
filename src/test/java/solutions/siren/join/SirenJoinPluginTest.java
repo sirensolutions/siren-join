@@ -19,16 +19,16 @@
 package solutions.siren.join;
 
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
-import org.elasticsearch.action.admin.cluster.node.info.PluginInfo;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
+import org.elasticsearch.plugins.PluginInfo;
+import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope=ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes=1)
-public class FilterJoinPluginTest extends FilterJoinTestCase {
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+public class SirenJoinPluginTest extends SirenJoinTestCase {
 
   @Test
   public void testPluginLoaded() {
@@ -40,7 +40,7 @@ public class FilterJoinPluginTest extends FilterJoinTestCase {
     boolean pluginFound = false;
 
     for (PluginInfo pluginInfo : nodesInfoResponse.getNodes()[0].getPlugins().getInfos()) {
-      if (pluginInfo.getName().equals("FilterJoinPlugin")) {
+      if (pluginInfo.getName().equals("SirenJoinPlugin")) {
         pluginFound = true;
         break;
       }

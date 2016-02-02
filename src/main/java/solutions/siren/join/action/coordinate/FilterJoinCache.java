@@ -20,9 +20,17 @@ package solutions.siren.join.action.coordinate;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheStats;
+import com.google.common.cache.Weigher;
+import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -34,33 +42,45 @@ public class FilterJoinCache {
 
   private final Cache<Integer, CacheEntry> cache;
 
-  // TODO: Make this configurable
-  private static final int CACHE_SIZE = 16;
-  private static final int CACHE_ENTRY_EXPIRATION = 10;
+  /**
+   * The maximum size (in bytes) of the cache. Default to 256MB.
+   */
+  private static final int DEFAULT_CACHE_SIZE = 262144;
 
   /**
-   * The singleton instance of the cache
+   * The time (in second) before a cache entry expires. Default to 360 seconds.
    */
-  private final static FilterJoinCache instance = new FilterJoinCache();
+  private static final long DEFAULT_CACHE_EXPIRE = 360;
 
-  protected static final ESLogger logger = Loggers.getLogger(FilterJoinCache.class);
+  public final static String SIREN_FILTERJOIN_CACHE_ENABLED = "siren.filterjoin.cache.enabled";
+  public final static String SIREN_FILTERJOIN_CACHE_SIZE = "siren.filterjoin.cache.size";
+  public final static String SIREN_FILTERJOIN_CACHE_EXPIRE = "siren.filterjoin.cache.expire";
 
-  public static FilterJoinCache getInstance() {
-    return instance;
-  }
+  private static final ESLogger logger = Loggers.getLogger(FilterJoinCache.class);
 
-  private FilterJoinCache() {
-    // TODO: Maybe add an eviction rule based on weight (based on the size of the bytes)
-    this.cache = CacheBuilder.newBuilder()
-            .maximumSize(CACHE_SIZE)
-            .expireAfterWrite(CACHE_ENTRY_EXPIRATION, TimeUnit.MINUTES)
-            .build();
+  public FilterJoinCache(Settings settings) {
+    boolean isEnabled = settings.getAsBoolean(SIREN_FILTERJOIN_CACHE_ENABLED, true);
+    long size = settings.getAsInt(SIREN_FILTERJOIN_CACHE_SIZE, DEFAULT_CACHE_SIZE);
+    long duration = settings.getAsLong(SIREN_FILTERJOIN_CACHE_EXPIRE, DEFAULT_CACHE_EXPIRE);
+
+    if (isEnabled) {
+      this.cache = CacheBuilder.newBuilder()
+              .recordStats()
+              .maximumWeight(size)
+              .weigher(new CacheEntryWeigher())
+              .expireAfterWrite(duration, TimeUnit.SECONDS)
+              .build();
+    }
+    else {
+      this.cache = CacheBuilder.newBuilder().maximumSize(0).build();
+    }
   }
 
   /**
    * Caches the provided list of encoded terms for the given filter join node.
    */
-  public void put(final FilterJoinNode node, final byte[] encodedTerms, final int size, final boolean isPruned) {
+  public void put(final FilterJoinNode node, final BytesRef encodedTerms, final int size, final boolean isPruned) {
+    logger.debug("{}: New cache entry {}", Thread.currentThread().getName(), node.getCacheId());
     this.cache.put(node.getCacheId(), new CacheEntry(encodedTerms, size, isPruned));
   }
 
@@ -76,7 +96,23 @@ public class FilterJoinCache {
    * Invalidate all cache entries
    */
   public void invalidateAll() {
+    logger.debug("{}: Invalidate all cache entries", Thread.currentThread().getName());
     this.cache.invalidateAll();
+  }
+
+  /**
+   * Returns a current snapshot of this cache's cumulative statistics. All stats are initialized
+   * to zero, and are monotonically increasing over the lifetime of the cache.
+   */
+  public FilterJoinCacheStats getStats() {
+    return new FilterJoinCacheStats(cache.size(), cache.stats());
+  }
+
+  /**
+   * Returns the approximate number of entries in this cache.
+   */
+  public long getSize() {
+    return cache.size();
   }
 
   /**
@@ -85,16 +121,70 @@ public class FilterJoinCache {
    */
   static class CacheEntry {
 
-    final byte[] encodedTerms;
+    final BytesRef encodedTerms;
     final int size;
     final boolean isPruned;
 
-    private CacheEntry(byte[] encodedTerms, int size, boolean isPruned) {
+    private CacheEntry(BytesRef encodedTerms, int size, boolean isPruned) {
       this.encodedTerms = encodedTerms;
       this.size = size;
       this.isPruned = isPruned;
     }
 
+  }
+
+  static class CacheEntryWeigher implements Weigher<Integer, CacheEntry> {
+
+    @Override
+    public int weigh(Integer key, CacheEntry value) {
+      return value.encodedTerms.length;
+    }
+
+  }
+
+  public static class FilterJoinCacheStats implements Streamable {
+
+    private CacheStats cacheStats;
+    private long size;
+
+    public FilterJoinCacheStats() {}
+
+    public FilterJoinCacheStats(long size, CacheStats stats) {
+      this.cacheStats = stats;
+      this.size = size;
+    }
+
+    public long getSize() {
+      return size;
+    }
+
+    public CacheStats getCacheStats() {
+      return cacheStats;
+    }
+
+    @Override
+    public void readFrom(StreamInput in) throws IOException {
+      size = in.readVLong();
+      long hitCount = in.readVLong();
+      long misscount = in.readVLong();
+      long loadSuccessCount = in.readVLong();
+      long loadExceptionCount = in.readVLong();
+      long totalLoadTime = in.readVLong();
+      long evictionCount = in.readVLong();
+      cacheStats = new CacheStats(hitCount, misscount, loadSuccessCount, loadExceptionCount, totalLoadTime, evictionCount);
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+      out.writeVLong(size);
+      out.writeVLong(cacheStats.hitCount());
+      out.writeVLong(cacheStats.missCount());
+      out.writeVLong(cacheStats.loadSuccessCount());
+      out.writeVLong(cacheStats.loadExceptionCount());
+      out.writeVLong(cacheStats.totalLoadTime());
+      out.writeVLong(cacheStats.evictionCount());
+
+    }
   }
 
 }

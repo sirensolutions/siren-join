@@ -18,14 +18,15 @@
  */
 package solutions.siren.join.action.terms;
 
-import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
 import com.carrotsearch.randomizedtesting.RandomizedTest;
-import solutions.siren.join.FilterJoinTestCase;
-import solutions.siren.join.index.query.BinaryTermsFilterHelper;
+import org.elasticsearch.test.ESIntegTestCase;
+import solutions.siren.join.SirenJoinTestCase;
+import solutions.siren.join.action.terms.collector.LongTermsSet;
+import solutions.siren.join.action.terms.collector.TermsSet;
+import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.junit.Test;
 
@@ -37,8 +38,8 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.*;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope=ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes=1)
-public class TermsByQueryActionTest extends FilterJoinTestCase {
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+public class TermsByQueryActionTest extends SirenJoinTestCase {
 
   /**
    * Tests that the terms by query action returns the correct terms against string fields
@@ -60,20 +61,19 @@ public class TermsByQueryActionTest extends FilterJoinTestCase {
     client().admin().indices().prepareRefresh("test").execute().actionGet();
 
     logger.info("--> lookup terms in field [str]");
-    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client()).setIndices("test")
+    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
                                                                         .setField("str")
                                                                         .setQuery(QueryBuilders.matchAllQuery())
                                                                         .execute()
                                                                         .actionGet();
 
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsResponse(), notNullValue());
-    assertThat(resp.getTermsResponse().size(), is(numDocs));
-    assertThat(resp.getTermsResponse().getTerms() instanceof LongHashSet, is(true));
-    LongHashSet lTerms = resp.getTermsResponse().getTerms();
-    assertThat(lTerms.size(), is(numDocs));
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), is(numDocs));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
     for (int i = 0; i < numDocs; i++) {
-      long termHash = BinaryTermsFilterHelper.hash(new BytesRef(Integer.toString(i)));
+      long termHash = FieldDataTermsQueryHelper.hash(new BytesRef(Integer.toString(i)));
       assertThat(lTerms.contains(termHash), is(true));
     }
   }
@@ -98,17 +98,17 @@ public class TermsByQueryActionTest extends FilterJoinTestCase {
     client().admin().indices().prepareRefresh("test").execute().actionGet();
 
     logger.info("--> lookup terms in field [int]");
-    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client()).setIndices("test")
+    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
                                                                         .setField("int")
                                                                         .setQuery(QueryBuilders.matchAllQuery())
                                                                         .execute()
                                                                         .actionGet();
 
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsResponse(), notNullValue());
-    assertThat(resp.getTermsResponse().size(), is(numDocs));
-    assertThat(resp.getTermsResponse().getTerms() instanceof LongHashSet, is(true));
-    LongHashSet lTerms = resp.getTermsResponse().getTerms();
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), is(numDocs));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
     assertThat(lTerms.size(), is(numDocs));
     for (int i = 0; i < numDocs; i++) {
       assertThat(lTerms.contains(Long.valueOf(i)), is(true));
@@ -135,7 +135,7 @@ public class TermsByQueryActionTest extends FilterJoinTestCase {
     client().admin().indices().prepareRefresh("test").execute().actionGet();
 
     logger.info("--> lookup terms in field [int]");
-    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client()).setIndices("test")
+    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
                                                                         .setField("int")
                                                                         .setQuery(QueryBuilders.matchAllQuery())
                                                                         .setOrderBy(TermsByQueryRequest.Ordering.DEFAULT)
@@ -145,11 +145,10 @@ public class TermsByQueryActionTest extends FilterJoinTestCase {
 
     int expectedMaxResultSize = this.getNumShards("test").totalNumShards * 50;
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsResponse(), notNullValue());
-    assertThat(resp.getTermsResponse().size(), lessThanOrEqualTo(expectedMaxResultSize));
-    assertThat(resp.getTermsResponse().getTerms() instanceof LongHashSet, is(true));
-    LongHashSet lTerms = resp.getTermsResponse().getTerms();
-    assertThat(lTerms.size(), lessThanOrEqualTo(expectedMaxResultSize));
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), lessThanOrEqualTo(expectedMaxResultSize));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
   }
 
   /**
@@ -187,7 +186,7 @@ public class TermsByQueryActionTest extends FilterJoinTestCase {
     client().admin().indices().prepareRefresh("test").execute().actionGet();
 
     logger.info("--> lookup terms in field [int]");
-    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client()).setIndices("test")
+    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
                                                                         .setField("int")
                                                                         .setQuery(QueryBuilders.termQuery("text", "aaa"))
                                                                         .setOrderBy(TermsByQueryRequest.Ordering.DOC_SCORE)
@@ -197,16 +196,15 @@ public class TermsByQueryActionTest extends FilterJoinTestCase {
 
     int expectedMaxResultSize = this.getNumShards("test").totalNumShards * 5;
     ElasticsearchAssertions.assertNoFailures(resp);
-    assertThat(resp.getTermsResponse(), notNullValue());
-    assertThat(resp.getTermsResponse().size(), lessThanOrEqualTo(expectedMaxResultSize));
-    assertThat(resp.getTermsResponse().getTerms() instanceof LongHashSet, is(true));
-    LongHashSet lTerms = resp.getTermsResponse().getTerms();
-    assertThat(lTerms.size(), lessThanOrEqualTo(expectedMaxResultSize));
+    assertThat(resp.getEncodedTermsSet(), notNullValue());
+    assertThat(resp.getSize(), lessThanOrEqualTo(expectedMaxResultSize));
+    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    assertThat(lTerms instanceof LongTermsSet, is(true));
 
     // If the ordering by document score worked, we should only have documents with text = aaa (even ids), and no
     // documents with text = aaa aaa (odd ids), as the first one will be ranked higher.
 
-    Iterator<LongCursor> it = lTerms.iterator();
+    Iterator<LongCursor> it = ((LongTermsSet) lTerms).getLongHashSet().iterator();
     while (it.hasNext()) {
       long value = it.next().value;
       assertThat(value % 2 == 0, is(true));

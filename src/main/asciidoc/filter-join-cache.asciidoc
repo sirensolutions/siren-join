@@ -1,0 +1,103 @@
+[[siren-join-cache]]
+== Caching
+
+The SIREn Join plugin caches the computation of a `filterjoin` query at an index and node levels in order to optimise
+the performance.
+
+=== Index Level Caching
+
+A `filterjoin` query will be cached by the index query cache as any other queries. However, it is recommended to
+activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
+cache policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
+drop of performance. See https://github.com/elastic/elasticsearch/issues/16259[issue 16529] for more information.
+
+=== Node Level Caching
+
+The coordinating node relies on a node level cache to reuse the list of terms computed in previously seen `filterjoin`
+queries.
+
+The cache entries are not invalidated on an index update, and therefore can lead to stale results if your index
+is updated quite frequently. You should reduce the cache entry expiration time or clear the cache if your
+application requires up-to-date results.
+
+=== Settings
+
+You can configure the node level cache with the following Elasticsearch's settings:
+
+* `siren.filterjoin.cache.enabled`: Enable or disable the node level cache. Default to `true`.
+* `siren.filterjoin.cache.size`: The maximum size (in bytes) of the cache. Default to `262144` bytes (256MB).
+* `siren.filterjoin.cache.expire`: The time (in second) before a cache entry expires. Default to `360` seconds.
+
+==== Clearing the Cache
+
+You can clear the cache on demand by using the following REST API call:
+[source,bash]
+-----------------------------------------------------------
+$ curl -XGET 'http://localhost:9200/_filter_join/cache/clear
+-----------------------------------------------------------
+
+==== Cache Statistics
+
+You can retrieve statistics about the cache by using the following REST API call:
+[source,bash]
+-----------------------------------------------------------
+$ curl -XGET 'http://localhost:9200/_filter_join/cache/stats
+-----------------------------------------------------------
+
+The command should return the following response with the cache statistics for each of the node of the cluster:
+
+[source,bash]
+-----------------------------------------------------------
+{
+  "cluster_name": "SUITE-CHILD_VM=[0]-CLUSTER_SEED=[-1571129176277525407]-HASH=[190DB2914D5D]-cluster",
+  "nodes": {
+    "node_s1": {
+      "timestamp": 1454348350849,
+      "stats": {
+        "size": 1,
+        "requestCount": 4,
+        "hitCount": 3,
+        "hitRate": 0.75,
+        "missCount": 1,
+        "missRate": 0.25,
+        "loadCount": 0,
+        "loadSuccessCount": 0,
+        "loadExceptionCount": 0,
+        "loadExceptionRate": 0.0,
+        "totalLoadTime": 0,
+        "evictionCount": 0
+      }
+    },
+    "node_s0": {
+      "timestamp": 1454348350849,
+      "stats": {
+        "size": 1,
+        "requestCount": 7,
+        "hitCount": 6,
+        "hitRate": 0.8571428571428571,
+        "missCount": 1,
+        "missRate": 0.14285714285714285,
+        "loadCount": 0,
+        "loadSuccessCount": 0,
+        "loadExceptionCount": 0,
+        "loadExceptionRate": 0.0,
+        "totalLoadTime": 0,
+        "evictionCount": 0
+      }
+    }
+  }
+}
+-----------------------------------------------------------
+
+* `size`: The number of cache entries
+* `requestCount`: The number of times cache lookup methods have returned either a cached or uncached value.
+* `hitCount`: The number of times cache lookup methods have returned a cached value.
+* `hitRate`: The ratio of cache requests which were hits.
+* `missCount`: The number of times cache lookup methods have returned an uncached value.
+* `missRate`: The ratio of cache requests which were misses.
+* `loadCount`: The total number of times that cache lookup methods attempted to load new values.
+* `loadSuccessCount`: The number of times {@link Cache} lookup methods have successfully loaded a new value.
+* `loadExceptionCount`: The number of times cache lookup methods threw an exception while loading a new value.
+* `loadExceptionRate`: The ratio of cache loading attempts which threw exceptions.
+* `totalLoadTime`: The total number of nanoseconds the cache has spent loading new values.
+* `evictionCount`: The number of times an entry has been evicted.

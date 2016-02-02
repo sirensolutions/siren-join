@@ -18,23 +18,19 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import com.carrotsearch.randomizedtesting.annotations.Seed;
-import solutions.siren.join.FilterJoinTestCase;
-import solutions.siren.join.index.query.FilterBuilders;
+import org.elasticsearch.test.ESIntegTestCase;
+import solutions.siren.join.SirenJoinTestCase;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
+import solutions.siren.join.index.query.QueryBuilders;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Test;
 
-import static org.elasticsearch.index.query.FilterBuilders.andFilter;
-import static org.elasticsearch.index.query.FilterBuilders.termsFilter;
 import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 
-@Seed("F7C727D76E60A49A:D5702AB501E938A")
-@ElasticsearchIntegrationTest.ClusterScope(scope=ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes=1)
-public class CoordinateSearchActionTest extends FilterJoinTestCase {
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithStringFields() throws Exception {
@@ -57,8 +53,8 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
     // Joining index1.foreign_key with index2.id
     SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
       filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                      filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
+                    QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                      boolQuery().filter(termQuery("tag", "aaa"))
                     ))
     ).get();
     assertHitCount(searchResponse, 3L);
@@ -67,8 +63,8 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
     // Joining index1.foreign_key with empty index2 relation
     searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
       filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                      filteredQuery(matchAllQuery(), termsFilter("tag", "ddd"))
+                    QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                      boolQuery().filter(termQuery("tag", "ddd"))
                     ))
     ).get();
     assertHitCount(searchResponse, 0L);
@@ -76,8 +72,8 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
     // Joining index2.id with index1.foreign_key
     searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
       filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
-                      filteredQuery(matchAllQuery(), termsFilter("id", "1"))
+                    QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+                      boolQuery().filter(termQuery("id", "1"))
                     ))
     ).get();
     assertHitCount(searchResponse, 2L);
@@ -86,8 +82,8 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
     // Joining index2.id with empty index1.foreign_key
     searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
       filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
-                      filteredQuery(matchAllQuery(), termsFilter("id", "2"))
+                    QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+                      boolQuery().filter(termQuery("id", "2"))
                     ))
     ).get();
     assertHitCount(searchResponse, 0L);
@@ -113,46 +109,42 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
 
     // Joining index1.foreign_key with index2.id
     SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                      filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
-                    ))
+      QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+        boolQuery().filter(termQuery("tag", "aaa"))
+      )
     ).get();
     assertHitCount(searchResponse, 3L);
     assertSearchHits(searchResponse, "1", "3", "4");
 
     // Joining index1.foreign_key with empty index2 relation
     searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                      filteredQuery(matchAllQuery(), termsFilter("tag", "ddd"))
-                    ))
+      QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+        boolQuery().filter(termQuery("tag", "ddd"))
+      )
     ).get();
     assertHitCount(searchResponse, 0L);
 
     // Joining index2.id with index1.foreign_key
-    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
-                      filteredQuery(matchAllQuery(), termsFilter("id", "1"))
-                    ))
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
+      QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+        boolQuery().filter(termQuery("id", "1"))
+      )
     ).get();
     assertHitCount(searchResponse, 2L);
     assertSearchHits(searchResponse, "1", "3");
 
     // Joining index2.id with empty index1.foreign_key
-    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    FilterBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
-                      filteredQuery(matchAllQuery(), termsFilter("id", "2"))
-                    ))
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
+      QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+        boolQuery().filter(termQuery("id", "2"))
+      )
     ).get();
     assertHitCount(searchResponse, 0L);
   }
 
   @Test
   public void testNestedJoinWithIntegerFields() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -177,38 +169,38 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
       client().prepareIndex("index3", "type", "4").setSource("id", "4", "tag", "ccc"));
 
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    andFilter(
-                      FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                        filteredQuery(matchAllQuery(),
-                          FilterBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
-                            filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
-                          )
+      boolQuery().filter(
+                    QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                      boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
+                          boolQuery().filter(termQuery("tag", "aaa"))
                         )
-                      ),
-                      termsFilter("id", "1")
+                      )
                     )
-      )
+                  )
+                  .filter(
+                    termQuery("id", "1")
+                  )
     ).execute().actionGet();
 
     assertHitCount(rsp, 1L);
     assertSearchHits(rsp, "1");
 
     // Run the request a second time to hit the filter cache and check that there is
-    // no issues with the cached FieldDataTermsFilter
+    // no issues with the cached FieldDataTermsQuery
     rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    andFilter(
-                      FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                        filteredQuery(matchAllQuery(),
-                          FilterBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
-                            filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
-                          )
+      boolQuery().filter(
+                    QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                      boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
+                          boolQuery().filter(termQuery("tag", "aaa"))
                         )
-                      ),
-                      termsFilter("id", "1")
+                      )
                     )
-      )
+                  )
+                  .filter(
+                    termQuery("id", "1")
+                  )
     ).execute().actionGet();
 
     assertHitCount(rsp, 1L);
@@ -220,7 +212,7 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
    */
   @Test
   public void testNestedJoinWithOrderByDocScore() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -245,38 +237,37 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
       client().prepareIndex("index3", "type", "4").setSource("id", "4", "tag", "ccc"));
 
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    andFilter(
-                      FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                        filteredQuery(matchAllQuery(),
-                          FilterBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
-                            filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
-                          )
+      boolQuery().filter(
+                    QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                      boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
+                          boolQuery().filter(termQuery("tag", "aaa"))
                         )
-                      ),
-                      termsFilter("id", "1")
+                      )
                     )
-      )
+                  )
+                  .filter(
+                    termQuery("id", "1")
+                  )
     ).execute().actionGet();
 
     assertHitCount(rsp, 1L);
     assertSearchHits(rsp, "1");
 
-    // Run the request a second time to hit the filter cache and check that there is
-    // no issues with the cached FieldDataTermsFilter
+    // Run the request a second time ordered by doc score
     rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
-                    andFilter(
-                      FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                        filteredQuery(matchAllQuery(),
-                          FilterBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
-                            filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
-                          )
+      boolQuery().filter(
+                    QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                      boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
+                          boolQuery().filter(termQuery("tag", "aaa"))
                         )
-                      ).orderBy("doc_score").maxTermsPerShard(1),
-                      termsFilter("id", "1")
-                    )
-      )
+                      )
+                    ).orderBy("doc_score").maxTermsPerShard(1)
+                  )
+                  .filter(
+                    termQuery("id", "1")
+                  )
     ).execute().actionGet();
 
     assertHitCount(rsp, 1L);
@@ -288,7 +279,7 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
    */
   @Test
   public void testSimpleJoinNoTypeSpecified() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -313,18 +304,18 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
       client().prepareIndex("index3", "type", "4").setSource("id", "4", "tag", "ccc"));
 
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-            filteredQuery(matchAllQuery(),
-                    andFilter(
-                            FilterBuilders.filterJoin("foreign_key").indices("index2").path("id").query(
-                                    filteredQuery(matchAllQuery(),
-                                            FilterBuilders.filterJoin("foreign_key").indices("index3").path("id").query(
-                                                    termsQuery("tag", "aaa")
-                                            )
-                                    )
-                            ),
-                            termsFilter("id", "1")
+      boolQuery().filter(
+                    QueryBuilders.filterJoin("foreign_key").indices("index2").path("id").query(
+                      boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").indices("index3").path("id").query(
+                          boolQuery().filter(termQuery("tag", "aaa"))
+                        )
+                      )
                     )
-            )
+                  )
+                  .filter(
+                    termQuery("id", "1")
+                  )
     ).execute().actionGet();
 
     assertHitCount(rsp, 1L);
@@ -336,7 +327,7 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
    */
   @Test
   public void testSimpleJoinMoreThanOneTypesSpecified() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type1", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type2", "id", "type=integer", "tag", "type=string")
@@ -361,13 +352,11 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
     // In order to query all the indices, we need to call setIndices() without argument to set an empty array,
     // otherwise we will get NPE. This behaviour is identical to Elasticsearch SearchRequestBuilder's behaviour.
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setTypes("type1").setQuery(
-            filteredQuery(matchAllQuery(),
-                    andFilter(
-                            FilterBuilders.filterJoin("foreign_key").indices("index2").types("type2", "type4").path("id").query(
-                                    termsQuery("tag", "aaa")
-                            )
-                    )
-            )
+      boolQuery().filter(
+        QueryBuilders.filterJoin("foreign_key").indices("index2").types("type2", "type4").path("id").query(
+          termQuery("tag", "aaa")
+        )
+      )
     ).execute().actionGet();
 
     assertHitCount(rsp, 2L);
@@ -384,7 +373,7 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
    */
   @Test
   public void testSimpleJoinNoIndexSpecified() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type1", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type2", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -411,18 +400,18 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
     // In order to query all the indices, we need to call setIndices() without argument to set an empty array,
     // otherwise we will get NPE. This behaviour is identical to Elasticsearch SearchRequestBuilder's behaviour.
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices().setTypes("type1").setQuery(
-      filteredQuery(matchAllQuery(),
-        andFilter(
-          FilterBuilders.filterJoin("foreign_key").types("type2").path("id").query(
-            filteredQuery(matchAllQuery(),
-              FilterBuilders.filterJoin("foreign_key").types("type3").path("id").query(
-                termsQuery("tag", "aaa")
-              )
-            )
-          ),
-          termsFilter("id", "1")
-        )
-      )
+      boolQuery().filter(
+                    QueryBuilders.filterJoin("foreign_key").path("id").query(
+                      boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").path("id").query(
+                          boolQuery().filter(termQuery("tag", "aaa"))
+                        )
+                      )
+                    )
+                  )
+                  .filter(
+                    termQuery("id", "1")
+                  )
     ).execute().actionGet();
 
     assertHitCount(rsp, 1L);
@@ -434,7 +423,7 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
    */
   @Test
   public void testSimpleJoinMoreThanOneIndexSpecified() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type1", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type2", "id", "type=integer", "tag", "type=string"));
@@ -461,11 +450,9 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
     // In order to query all the indices, we need to call setIndices() without argument to set an empty array,
     // otherwise we will get NPE. This behaviour is identical to Elasticsearch SearchRequestBuilder's behaviour.
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setTypes("type1").setQuery(
-      filteredQuery(matchAllQuery(),
-        andFilter(
-          FilterBuilders.filterJoin("foreign_key").indices("index2", "index3").types("type2").path("id").query(
-            termsQuery("tag", "aaa")
-          )
+      boolQuery().filter(
+        QueryBuilders.filterJoin("foreign_key").indices("index2", "index3").types("type2").path("id").query(
+          termQuery("tag", "aaa")
         )
       )
     ).execute().actionGet();
@@ -479,7 +466,7 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
    */
   @Test
   public void testIndirectSelfJoin() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "tag", "type=string"));
@@ -498,19 +485,72 @@ public class CoordinateSearchActionTest extends FilterJoinTestCase {
             client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc"));
 
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-            filteredQuery(matchAllQuery(),
-                          FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                                  filteredQuery(matchAllQuery(),
-                                          FilterBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
-                                                  filteredQuery(matchAllQuery(), termsFilter("id", "1"))
-                                          )
-                                  )
-                          )
+      boolQuery().filter(
+        QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+          boolQuery().filter(
+            QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+              boolQuery().filter(termQuery("id", "1"))
             )
+          )
+        )
+      )
     ).execute().actionGet();
 
     assertHitCount(rsp, 2L);
     assertSearchHits(rsp, "1", "4");
+  }
+
+  @Test
+  public void testSimpleJoinWithIntegerEncoding() throws Exception {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string"));
+
+    ensureGreen();
+
+    indexRandom(true,
+            client().prepareIndex("index1", "type", "1").setSource("id", "1", "foreign_key", new String[]{"1", "3"}),
+            client().prepareIndex("index1", "type", "2").setSource("id", "2"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3", "foreign_key", new String[]{"2"}),
+            client().prepareIndex("index1", "type", "4").setSource("id", "4", "foreign_key", new String[]{"1", "4"}),
+
+            client().prepareIndex("index2", "type", "1").setSource("id", "1", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "2").setSource("id", "2", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
+            client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc") );
+
+    // Joining index1.foreign_key with index2.id
+    SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                    boolQuery().filter(termQuery("tag", "aaa"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 3L);
+    assertSearchHits(searchResponse, "1", "3", "4");
+
+    // Joining index1.foreign_key with empty index2 relation
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                    boolQuery().filter(termQuery("tag", "ddd"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 0L);
+
+    // Joining index2.id with index1.foreign_key
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
+            QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+                    boolQuery().filter(termQuery("id", "1"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 2L);
+    assertSearchHits(searchResponse, "1", "3");
+
+    // Joining index2.id with empty index1.foreign_key
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
+            QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
+                    boolQuery().filter(termQuery("id", "2"))
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 0L);
   }
 
 }

@@ -18,17 +18,18 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import solutions.siren.join.FilterJoinTestCase;
-import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.node.Node;
+import org.elasticsearch.test.ESIntegTestCase;
+import solutions.siren.join.SirenJoinTestCase;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.elasticsearch.test.rest.client.RestException;
 import org.elasticsearch.test.rest.client.http.HttpResponse;
 import org.junit.Test;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,24 +38,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import static solutions.siren.join.index.query.FilterBuilders.filterJoin;
-import static org.elasticsearch.index.query.FilterBuilders.andFilter;
-import static org.elasticsearch.index.query.FilterBuilders.termFilter;
-import static org.elasticsearch.index.query.FilterBuilders.termsFilter;
-import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
-import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
+import static org.elasticsearch.index.query.QueryBuilders.*;
+import static solutions.siren.join.index.query.QueryBuilders.filterJoin;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope=ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes=1)
-public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0)
+public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
-    return ImmutableSettings.builder()
-            .put(InternalNode.HTTP_ENABLED, true) // enable http for these tests
+    return Settings.builder()
+            .put(Node.HTTP_ENABLED, true) // enable http for these tests
             .put(super.nodeSettings(nodeOrdinal)).build();
   }
 
@@ -77,15 +74,15 @@ public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
             client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc"));
 
     // Check body search query with filter join
-    String q = filteredQuery(matchAllQuery(),
-            filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                    filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
-            )).toString();
+    String q = boolQuery().filter(
+                filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                  boolQuery().filter(termQuery("tag", "aaa"))
+                )).toString();
     String body = "{ \"query\" : " + q + "}";
 
     HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(response.getBody().getBytes("UTF-8"), false).v2();
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
 
     String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
     assertTrue(map.containsKey(key));
@@ -133,6 +130,9 @@ public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
 
     key = CoordinateSearchMetadata.Action.Fields.TOOK.underscore().getValue();
     assertThat((Integer) action.get(key), greaterThan(0));
+
+    key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING.underscore().getValue();
+    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name().toLowerCase()));
   }
 
   @Test
@@ -160,22 +160,23 @@ public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
             client().prepareIndex("index3", "type", "4").setSource("id", "4", "tag", "ccc"));
 
     // Check body search query with filter join
-    String q = filteredQuery(matchAllQuery(),
-                              andFilter(
-                                filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                                  filteredQuery(matchAllQuery(),
-                                    filterJoin("foreign_key").indices("index3").types("type").path("id").query(
-                                      filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
-                                    )
-                                  )
-                                ),
-                                termsFilter("id", "1")
-                              )).toString();
+    String q = boolQuery().filter(
+                    filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                      boolQuery().filter(
+                        filterJoin("foreign_key").indices("index3").types("type").path("id").query(
+                          boolQuery().filter(termQuery("tag", "aaa"))
+                        )
+                      )
+                    )
+                  )
+                  .filter(
+                    termQuery("id", "1")
+                  ).toString();
     String body = "{ \"query\" : " + q + "}";
 
     HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(response.getBody().getBytes("UTF-8"), false).v2();
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
 
     String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
     assertTrue(map.containsKey(key));
@@ -211,23 +212,23 @@ public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
 
     // Order by doc score, and take only the first element of the index2 shard
     // It should therefore pick only odd document ids (with tag:aaa) due to scoring.
-    String q = filteredQuery(matchAllQuery(),
+    String q = boolQuery().filter(
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                    filteredQuery(matchAllQuery(), termFilter("tag", "aaa"))
+                    boolQuery().filter(termQuery("tag", "aaa"))
             ).orderBy("doc_score").maxTermsPerShard(1)).toString();
     String body = "{ \"query\" : " + q + "}";
 
     // Execute a first time to add the action to the cache
     HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(response.getBody().getBytes("UTF-8"), false).v2();
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
     // Only one document contains a odd document id as foreign key.
     assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(1));
 
     // Execute a second time to hit the cache
     response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    map = XContentHelper.convertToMap(response.getBody().getBytes("UTF-8"), false).v2();
+    map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
     // Only one document contains a odd document id as foreign key.
     assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(1));
 
@@ -290,9 +291,9 @@ public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
             client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
             client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc"));
 
-    String q = filteredQuery(matchAllQuery(),
+    String q = boolQuery().filter(
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                    filteredQuery(matchAllQuery(), termsFilter("tag", "aaa"))
+                    boolQuery().filter(termQuery("tag", "aaa"))
             )).toString().replace('\n', ' ');
     String body = "{\"index\" : \"index1\"}\n";
     body += "{ \"query\" : " + q + "}\n";
@@ -301,7 +302,7 @@ public class CoordinateSearchMetadataTest extends FilterJoinTestCase {
 
     HttpResponse response = httpClient().method("GET").path("/_coordinate_msearch").body(body).execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(response.getBody().getBytes("UTF-8"), false).v2();
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
     ArrayList responses = (ArrayList) map.get("responses");
     assertThat(responses.size(), equalTo(2));
     assertThat((Integer) ((Map) ((Map) responses.get(0)).get("hits")).get("total"), equalTo(3));

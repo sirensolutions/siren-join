@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
@@ -31,21 +32,22 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.plugins.Plugin;
+import solutions.siren.join.SirenJoinPlugin;
+import solutions.siren.join.action.coordinate.FilterJoinCache;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Random;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_SHARDS;
-import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.index.query.FilterBuilders.*;
-import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
-import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
-import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
+import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
 
 /**
@@ -68,27 +70,28 @@ public class TermsByQueryBenchmark {
   public static final int BATCH_SIZE = 100;
   public static final int NUM_QUERIES = 50;
 
-  public static final int MAX_TERMS_PER_SHARD = 100000;
-  public static final TermsByQueryRequest.Ordering ORDERING = TermsByQueryRequest.Ordering.DOC_SCORE;
-
+  public static final int MAX_TERMS_PER_SHARD = -1;
+  public static final TermsByQueryRequest.Ordering ORDERING = TermsByQueryRequest.Ordering.DEFAULT;
 
   private final Node[] nodes;
   private final Client client;
   private final Random random;
 
     TermsByQueryBenchmark() {
-      Settings settings = settingsBuilder()
+      Settings settings = Settings.builder()
+        .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
         .put("index.engine.robin.refreshInterval", "-1")
-        .put("path.data", "./target/elasticsearch-benchmark/data/")
-        .put("gateway.type", "local")
-//        .put("transport.tcp.compress", "true")
+        .put("path.home", "./target/elasticsearch-benchmark/home/")
+        .put("node.local", true)
         .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
         .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
         .build();
 
-      this.nodes = new Node[2];
-      this.nodes[0] = nodeBuilder().settings(settingsBuilder().put(settings).put("name", "node1")).node();
-      this.nodes[1] = nodeBuilder().settings(settingsBuilder().put(settings).put("name", "node2")).node();
+      this.nodes = new MockNode[2];
+      this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(),
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
+      this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(),
+              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
       this.client = nodes[0].client();
       this.random = new Random(System.currentTimeMillis());
     }
@@ -125,14 +128,14 @@ public class TermsByQueryBenchmark {
 
     public void memStatus() throws IOException {
       NodeStats[] nodeStats = client.admin().cluster().prepareNodesStats()
-        .setJvm(true).setIndices(true).setNetwork(true).setTransport(true)
+        .setJvm(true).setIndices(true).setTransport(true)
         .execute().actionGet().getNodes();
 
       log("==== MEMORY ====");
       log("Committed heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapCommitted());
       log("Used heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapUsed());
       log("FieldData cache size: [0]=" + nodeStats[0].getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getFieldData().getMemorySize());
-      log("Filter cache size: [0]=" + nodeStats[0].getIndices().getFilterCache().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getFilterCache().getMemorySize());
+      log("Query cache size: [0]=" + nodeStats[0].getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getQueryCache().getMemorySize());
       log("");
       log("==== NETWORK ====");
       log("Transport: [0]=" + nodeStats[0].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats[1].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
@@ -233,7 +236,7 @@ public class TermsByQueryBenchmark {
         log("Search Failures " + Arrays.toString(response.getShardFailures()));
       }
 
-      long hits = response.getTermsResponse().size();
+      long hits = response.getSize();
       if (MAX_TERMS_PER_SHARD == -1 && hits != expectedHits) {
         log("[" + name + "][#" + testNum + "] Hits Mismatch:  expected [" + expectedHits + "], got [" + hits + "]");
       }
@@ -271,7 +274,7 @@ public class TermsByQueryBenchmark {
 
       log("==== HAS CHILD SINGLE TERM ====");
       for (int i = 0; i < NUM_QUERIES; i++) {
-          lookupQuery = filteredQuery(matchAllQuery(), termFilter("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
+          lookupQuery = boolQuery().filter(termQuery("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
 
           stringFilter.setQuery(lookupQuery);
           longFilter.setQuery(lookupQuery);
@@ -352,7 +355,7 @@ public class TermsByQueryBenchmark {
 
       log("==== HAS PARENT SINGLE TERM ====");
       for (int i = 0; i < NUM_QUERIES; i++) {
-        lookupQuery = filteredQuery(matchAllQuery(), termFilter("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
+        lookupQuery = boolQuery().filter(termQuery("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
 
         stringFilter.setQuery(lookupQuery);
         longFilter.setQuery(lookupQuery);
@@ -404,7 +407,7 @@ public class TermsByQueryBenchmark {
     }
 
   private TermsByQueryRequestBuilder newTermsByQueryRequestBuilder() {
-    TermsByQueryRequestBuilder builder = new TermsByQueryRequestBuilder(client);
+    TermsByQueryRequestBuilder builder = new TermsByQueryRequestBuilder(client, TermsByQueryAction.INSTANCE);
     builder.setOrderBy(ORDERING);
     if (MAX_TERMS_PER_SHARD != -1) builder.setMaxTermsPerShard(MAX_TERMS_PER_SHARD);
     return builder;

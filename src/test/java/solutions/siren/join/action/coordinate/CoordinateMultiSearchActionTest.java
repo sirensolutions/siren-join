@@ -18,25 +18,22 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import solutions.siren.join.FilterJoinTestCase;
+import org.elasticsearch.test.ESIntegTestCase;
+import solutions.siren.join.SirenJoinTestCase;
 import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Test;
-import solutions.siren.join.index.query.FilterBuilders;
+import solutions.siren.join.index.query.QueryBuilders;
 
-import static org.elasticsearch.index.query.FilterBuilders.andFilter;
-import static org.elasticsearch.index.query.FilterBuilders.termsFilter;
 import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope=ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes=1)
-public class CoordinateMultiSearchActionTest extends FilterJoinTestCase {
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+public class CoordinateMultiSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithIntegerFields() throws Exception {
-    Settings settings = ImmutableSettings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -63,31 +60,31 @@ public class CoordinateMultiSearchActionTest extends FilterJoinTestCase {
     MultiSearchResponse rsp = new CoordinateMultiSearchRequestBuilder(client())
       .add(
         client().prepareSearch("index1").setQuery(
-          filteredQuery(matchAllQuery(),
-                        andFilter(
-                          FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                            filteredQuery(matchAllQuery(),
-                              FilterBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
-                                termsQuery("tag", "aaa")
-                              )
+          boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                          boolQuery().filter(
+                            QueryBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
+                              boolQuery().filter(termQuery("tag", "aaa"))
                             )
-                          ),
-                          termsFilter("id", "1")
+                          )
                         )
-          )
+                      )
+                      .filter(
+                        termQuery("id", "1")
+                      )
         )
       )
       .add(
         client().prepareSearch("index1").setQuery(
-          filteredQuery(matchAllQuery(),
-                        FilterBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
-                          filteredQuery(
-                            matchAllQuery(),
-                            FilterBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
-                              termsQuery("tag", "aaa")
+          boolQuery().filter(
+                        QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                          boolQuery().filter(
+                            QueryBuilders.filterJoin("foreign_key").indices("index3").types("type").path("id").query(
+                              boolQuery().filter(termQuery("tag", "aaa"))
                             )
                           )
-                        ))
+                        )
+                      )
         )
       ).execute().actionGet();
 

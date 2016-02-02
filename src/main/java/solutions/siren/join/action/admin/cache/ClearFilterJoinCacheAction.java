@@ -16,35 +16,28 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.node;
+package solutions.siren.join.action.admin.cache;
 
-import org.elasticsearch.action.ClientAction;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.action.Action;
+import org.elasticsearch.client.ElasticsearchClient;
 
-public class NodesSimpleAction extends ClientAction<NodesSimpleRequest, NodesSimpleResponse, NodesSimpleRequestBuilder> {
+public class ClearFilterJoinCacheAction extends Action<ClearFilterJoinCacheRequest, ClearFilterJoinCacheResponse, ClearFilterJoinCacheRequestBuilder> {
 
-  public static final NodesSimpleAction INSTANCE = new NodesSimpleAction();
-  public static final String NAME = "nodes:simple";
+  public static final ClearFilterJoinCacheAction INSTANCE = new ClearFilterJoinCacheAction();
+  public static final String NAME = "cluster:admin/filterjoin/cache/clear";
 
-  private NodesSimpleAction() {
-    super(NodesSimpleAction.NAME);
+  protected ClearFilterJoinCacheAction() {
+    super(NAME);
   }
 
-  /**
-   * Creates a new request builder given the client provided as argument
-   *
-   * @param client
-   */
   @Override
-  public NodesSimpleRequestBuilder newRequestBuilder(final Client client) {
-    return new NodesSimpleRequestBuilder(client);
+  public ClearFilterJoinCacheRequestBuilder newRequestBuilder(ElasticsearchClient client) {
+    return new ClearFilterJoinCacheRequestBuilder(client, this);
   }
 
-  /**
-   * Creates a new response instance.
-   */
   @Override
-  public NodesSimpleResponse newResponse() {
-    return new NodesSimpleResponse();
+  public ClearFilterJoinCacheResponse newResponse() {
+    return new ClearFilterJoinCacheResponse();
   }
+
 }

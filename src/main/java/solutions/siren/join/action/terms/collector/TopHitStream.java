@@ -18,7 +18,7 @@
  */
 package solutions.siren.join.action.terms.collector;
 
-import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.PriorityQueue;
 
@@ -109,9 +109,6 @@ public class TopHitStream extends HitStream {
     /** The priority queue */
     private ScoreHit pqTop;
 
-    /** The scorer */
-    private Scorer scorer;
-
     public TopHitCollector(HitQueue hq) {
       super(hq);
       // HitQueue implements getSentinelObject to return a ScoreHit, so we know
@@ -120,40 +117,45 @@ public class TopHitStream extends HitStream {
     }
 
     @Override
-    public void setScorer(Scorer scorer) throws IOException {
-      this.scorer = scorer;
-    }
-
-    @Override
-    public void collect(int doc) throws IOException {
-      float score = scorer.score();
-
-      // This collector cannot handle these scores:
-      assert score != Float.NEGATIVE_INFINITY;
-      assert !Float.isNaN(score);
-
-      totalHits++;
-
-      if (score <= pqTop.score) {
-        // Since docs are returned in-order (i.e., increasing doc Id), a document
-        // with equal score to pqTop.score cannot compete since HitQueue favors
-        // documents with lower doc Ids. Therefore reject those docs too.
-        return;
-      }
-      pqTop.atomicReaderId = currentAtomicReaderId;
-      pqTop.doc = doc;
-      pqTop.score = score;
-      pqTop = pq.updateTop();
-    }
-
-    @Override
-    public void setNextReader(AtomicReaderContext context) throws IOException {
-      currentAtomicReaderId = context.ord;
-    }
-
-    @Override
-    public boolean acceptsDocsOutOfOrder() {
+    public boolean needsScores() {
       return true;
+    }
+
+    @Override
+    public LeafCollector getLeafCollector(LeafReaderContext context) throws IOException {
+      currentAtomicReaderId = context.ord;
+      final int docBase = context.docBase;
+      return new LeafCollector() {
+
+        Scorer scorer;
+
+        @Override
+        public void setScorer(Scorer scorer) throws IOException {
+          this.scorer = scorer;
+        }
+
+        @Override
+        public void collect(int doc) throws IOException {
+          float score = scorer.score();
+
+          // This collector cannot handle these scores:
+          assert score != Float.NEGATIVE_INFINITY;
+          assert !Float.isNaN(score);
+
+          totalHits++;
+          if (score <= pqTop.score) {
+            // Since docs are returned in-order (i.e., increasing doc Id), a document
+            // with equal score to pqTop.score cannot compete since HitQueue favors
+            // documents with lower doc Ids. Therefore reject those docs too.
+            return;
+          }
+          pqTop.atomicReaderId = currentAtomicReaderId;
+          pqTop.doc = doc;
+          pqTop.score = score;
+          pqTop = pq.updateTop();
+        }
+
+      };
     }
 
   }

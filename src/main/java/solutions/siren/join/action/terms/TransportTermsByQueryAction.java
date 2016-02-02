@@ -18,10 +18,18 @@
  */
 package solutions.siren.join.action.terms;
 
-import solutions.siren.join.action.terms.collector.HitStream;
-import solutions.siren.join.action.terms.collector.TermsCollector;
-import solutions.siren.join.action.terms.collector.BitSetHitStream;
-import solutions.siren.join.action.terms.collector.TopHitStream;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
+import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.action.fieldstats.FieldStats;
+import org.elasticsearch.action.fieldstats.FieldStatsResponse;
+import org.elasticsearch.action.support.broadcast.TransportBroadcastAction;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.index.engine.Engine;
+import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.search.SearchService;
+import solutions.siren.join.action.terms.collector.*;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionListener;
@@ -29,8 +37,6 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastShardOperationFailedException;
-import org.elasticsearch.action.support.broadcast.TransportBroadcastOperationAction;
-import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.cache.recycler.PageCacheRecycler;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.ClusterState;
@@ -39,7 +45,6 @@ import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.routing.GroupShardsIterator;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Lists;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
@@ -47,7 +52,6 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.fielddata.IndexFieldData;
-import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.query.QueryParseContext;
 import org.elasticsearch.index.shard.IndexShard;
@@ -64,22 +68,19 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * The terms by query transport operation
  */
-public class TransportTermsByQueryAction extends TransportBroadcastOperationAction<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryShardRequest, TermsByQueryShardResponse> {
+public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryShardRequest, TermsByQueryShardResponse> {
 
   private final IndicesService indicesService;
   private final ScriptService scriptService;
-  private final CacheRecycler cacheRecycler;
   private final PageCacheRecycler pageCacheRecycler;
   private final BigArrays bigArrays;
+  private final Client client;
 
   /**
    * Constructor
@@ -87,15 +88,18 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
   @Inject
   public TransportTermsByQueryAction(Settings settings, ThreadPool threadPool, ClusterService clusterService,
                                      TransportService transportService, IndicesService indicesService,
-                                     ScriptService scriptService, CacheRecycler cacheRecycler,
-                                     PageCacheRecycler pageCacheRecycler, BigArrays bigArrays,
-                                     ActionFilters actionFilters) {
-    super(settings, TermsByQueryAction.NAME, threadPool, clusterService, transportService, actionFilters);
+                                     ScriptService scriptService, PageCacheRecycler pageCacheRecycler,
+                                     BigArrays bigArrays, ActionFilters actionFilters,
+                                     IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
+    super(settings, TermsByQueryAction.NAME, threadPool, clusterService, transportService, actionFilters,
+            indexNameExpressionResolver, TermsByQueryRequest.class, TermsByQueryShardRequest.class,
+            // Use the generic threadpool which is cached, as we can end up with deadlock with the SEARCH threadpool
+            ThreadPool.Names.GENERIC);
     this.indicesService = indicesService;
     this.scriptService = scriptService;
-    this.cacheRecycler = cacheRecycler;
     this.pageCacheRecycler = pageCacheRecycler;
     this.bigArrays = bigArrays;
+    this.client = client;
   }
 
   /**
@@ -108,36 +112,11 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
   }
 
   /**
-   * The threadpool this request will execute against
-   */
-  @Override
-  protected String executor() {
-    // Use the generic threadpool which is cached, as we can end up with deadlock with the SEARCH threadpool
-    return ThreadPool.Names.GENERIC;
-  }
-
-  /**
-   * Creates a new {@link TermsByQueryRequest}
-   */
-  @Override
-  protected TermsByQueryRequest newRequest() {
-    return new TermsByQueryRequest();
-  }
-
-  /**
-   * Creates a new {@link TermsByQueryShardRequest}
-   */
-  @Override
-  protected TermsByQueryShardRequest newShardRequest() {
-    return new TermsByQueryShardRequest();
-  }
-
-  /**
    * Creates a new {@link TermsByQueryShardRequest}
    */
   @Override
   protected TermsByQueryShardRequest newShardRequest(int numShards, ShardRouting shard, TermsByQueryRequest request) {
-    String[] filteringAliases = clusterService.state().metaData().filteringAliases(shard.index(), request.indices());
+    String[] filteringAliases = indexNameExpressionResolver.filteringAliases(clusterService.state(), shard.index(), request.indices());
     return new TermsByQueryShardRequest(shard.shardId(), filteringAliases, request);
   }
 
@@ -154,8 +133,8 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
    */
   @Override
   protected GroupShardsIterator shards(ClusterState clusterState, TermsByQueryRequest request, String[] concreteIndices) {
-    Map<String, Set<String>> routingMap = clusterState.metaData().resolveSearchRouting(request.routing(), request.indices());
-    return clusterService.operationRouting().searchShards(clusterState, request.indices(), concreteIndices, routingMap, request.preference());
+    Map<String, Set<String>> routingMap = indexNameExpressionResolver.resolveSearchRouting(clusterState, request.routing(), request.indices());
+    return clusterService.operationRouting().searchShards(clusterState, concreteIndices, routingMap, request.preference());
   }
 
   @Override
@@ -176,7 +155,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
     int successfulShards = 0;
     int failedShards = 0;
     int numTerms = 0;
-    TermsResponse[] responses = new TermsResponse[shardsResponses.length()];
+    TermsSet[] termsSets = new TermsSet[shardsResponses.length()];
     List<ShardOperationFailedException> shardFailures = null;
 
     // we check each shard response
@@ -187,7 +166,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
       } else if (shardResponse instanceof BroadcastShardOperationFailedException) {
         failedShards++;
         if (shardFailures == null) {
-          shardFailures = Lists.newArrayList();
+          shardFailures = new ArrayList<>();
         }
         logger.error("Shard operation failed", (BroadcastShardOperationFailedException) shardResponse);
         shardFailures.add(new DefaultShardOperationFailedException((BroadcastShardOperationFailedException) shardResponse));
@@ -196,27 +175,27 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
         // we calculate the total number of terms gathered across each shard so we can use it during
         // initialization of the final TermsResponse below (to avoid rehashing during merging)
         TermsByQueryShardResponse shardResp = ((TermsByQueryShardResponse) shardResponse);
-        TermsResponse response = shardResp.getTermsResponse();
-        responses[i] = response;
-        numTerms += response.size();
+        TermsSet terms = shardResp.getTerms();
+        termsSets[i] = terms;
+        numTerms += terms.size();
         successfulShards++;
       }
     }
 
     // Merge the responses
 
-    // TermsResponse is responsible for the merge, set size to avoid rehashing on certain implementations.
-    TermsResponse termsResponse = new TermsResponse(numTerms);
-    for (int i = 0; i < responses.length; i++) {
-      TermsResponse response = responses[i];
-      if (response == null) {
+    // TermsSet is responsible for the merge, set size to avoid rehashing on certain implementations.
+    TermsSet termsSet = TermsSet.newTermsSet(numTerms, request.termsEncoding());
+    for (int i = 0; i < termsSets.length; i++) {
+      TermsSet terms = termsSets[i];
+      if (terms == null) {
         continue;
       }
-      termsResponse.merge(response);
+      termsSet.merge(terms);
     }
 
     long tookInMillis = System.currentTimeMillis() - request.nowInMillis();
-    return new TermsByQueryResponse(termsResponse, tookInMillis, shardsResponses.length(), successfulShards, failedShards, shardFailures);
+    return new TermsByQueryResponse(termsSet, tookInMillis, shardsResponses.length(), successfulShards, failedShards, shardFailures);
   }
 
   /**
@@ -237,18 +216,19 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
                                                                         shardRequest.filteringAliases());
 
     SearchContext context = new DefaultSearchContext(0, shardSearchRequest, shardTarget,
-      indexShard.acquireSearcher("termsByQuery"), indexService, indexShard, scriptService, cacheRecycler,
-      pageCacheRecycler, bigArrays, threadPool.estimatedTimeInMillisCounter());
+      indexShard.acquireSearcher("termsByQuery"), indexService, indexShard, scriptService,
+      pageCacheRecycler, bigArrays, threadPool.estimatedTimeInMillisCounter(), parseFieldMatcher,
+      SearchService.NO_TIMEOUT);
     SearchContext.setCurrent(context);
 
     try {
-      FieldMapper fieldMapper = context.smartNameFieldMapper(request.field());
-      if (fieldMapper == null) {
+      MappedFieldType fieldType = context.smartNameFieldType(request.field());
+      if (fieldType == null) {
         throw new SearchContextException(context, "[termsByQuery] field '" + request.field() +
                 "' not found for types " + Arrays.toString(request.types()));
       }
 
-      IndexFieldData indexFieldData = context.fieldData().getForField(fieldMapper);
+      IndexFieldData indexFieldData = context.fieldData().getForField(fieldType);
 
       BytesReference querySource = request.querySource();
       if (querySource != null && querySource.length() > 0) {
@@ -275,16 +255,15 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
       logger.debug("{}: Executes search for collecting terms {}", Thread.currentThread().getName(),
         shardRequest.shardId());
 
-      TermsCollector termsCollector = new TermsCollector(indexFieldData, context);
+      TermsCollector termsCollector = this.getTermsCollector(request.termsEncoding(), indexFieldData, context);
       if (request.maxTermsPerShard() != null) termsCollector.setMaxTerms(request.maxTermsPerShard());
       HitStream hitStream = orderByOperation.getHitStream(context);
-      TermsCollector.TermsCollection terms = termsCollector.collect(hitStream);
-      TermsResponse termsResponse = new TermsResponse(terms);
+      TermsSet terms = termsCollector.collect(hitStream);
 
       logger.debug("{}: Returns terms response with {} terms for shard {}", Thread.currentThread().getName(),
-        termsResponse.size(), shardRequest.shardId());
+        terms.size(), shardRequest.shardId());
 
-      return new TermsByQueryShardResponse(shardRequest.shardId(), termsResponse);
+      return new TermsByQueryShardResponse(shardRequest.shardId(), terms);
     }
     catch (Throwable e) {
       logger.error("[termsByQuery] Error executing shard operation", e);
@@ -294,6 +273,18 @@ public class TransportTermsByQueryAction extends TransportBroadcastOperationActi
       // this will also release the index searcher
       context.close();
       SearchContext.removeCurrent();
+    }
+  }
+
+  private TermsCollector getTermsCollector(TermsByQueryRequest.TermsEncoding termsEncoding,
+                                           IndexFieldData indexFieldData, SearchContext context) {
+    switch (termsEncoding) {
+      case LONG:
+        return new LongTermsCollector(indexFieldData, context);
+      case INTEGER:
+        return new IntegerTermsCollector(indexFieldData, context);
+      default:
+        throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
   }
 

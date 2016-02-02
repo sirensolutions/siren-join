@@ -19,15 +19,16 @@
 package solutions.siren.join.index.query;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.index.query.BaseFilterBuilder;
+import org.elasticsearch.index.query.BoostableQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
 
 /**
  * A filter for a field based on terms coming from another set of documents.
  */
-public class FilterJoinBuilder extends BaseFilterBuilder {
+public class FilterJoinBuilder extends QueryBuilder implements BoostableQueryBuilder<FilterJoinBuilder> {
 
   private final String name;
   private String[] indices;
@@ -37,10 +38,9 @@ public class FilterJoinBuilder extends BaseFilterBuilder {
   private QueryBuilder query;
   private String orderBy;
   private Integer maxTermsPerShard;
-
-  private Boolean cache;
-  private String cacheKey;
   private String filterName;
+  private TermsByQueryRequest.TermsEncoding termsEncoding;
+  private float boost = -1;
 
   public static final String NAME = "filterjoin";
 
@@ -104,28 +104,19 @@ public class FilterJoinBuilder extends BaseFilterBuilder {
     return this;
   }
 
+  /**
+   * Sets the encoding to use for transferring terms across shards.
+   */
+  public FilterJoinBuilder termsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
+    this.termsEncoding = termsEncoding;
+    return this;
+  }
 
   /**
    * Sets the filter name for the filter that can be used when searching for matched_filters per hit.
    */
   public FilterJoinBuilder filterName(String filterName) {
     this.filterName = filterName;
-    return this;
-  }
-
-  /**
-   * Sets if the resulting filter should be cached or not
-   */
-  public FilterJoinBuilder cache(boolean cache) {
-    this.cache = cache;
-    return this;
-  }
-
-  /**
-   * Sets the filter cache key
-   */
-  public FilterJoinBuilder cacheKey(String cacheKey) {
-    this.cacheKey = cacheKey;
     return this;
   }
 
@@ -151,18 +142,25 @@ public class FilterJoinBuilder extends BaseFilterBuilder {
     if (maxTermsPerShard != null) {
       builder.field("maxTermsPerShard", maxTermsPerShard);
     }
+    if (termsEncoding != null) {
+      builder.field("termsEncoding", termsEncoding);
+    }
     builder.endObject();
 
     if (filterName != null) {
       builder.field("_name", filterName);
     }
-    if (cache != null) {
-      builder.field("_cache", cache);
-    }
-    if (cacheKey != null) {
-      builder.field("_cache_key", cacheKey);
+    if (boost != -1) {
+      builder.field("boost", boost);
     }
 
     builder.endObject();
   }
+
+  @Override
+  public FilterJoinBuilder boost(float boost) {
+    this.boost = boost;
+    return this;
+  }
+
 }

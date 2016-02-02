@@ -27,7 +27,7 @@ import java.io.IOException;
 /**
  * Collects terms for a given field based on a {@link HitStream}.
  */
-public class TermsCollector {
+public abstract class TermsCollector {
 
   private final SearchContext context;
   private final IndexFieldData indexFieldData;
@@ -43,13 +43,15 @@ public class TermsCollector {
     this.maxTerms = maxTerms;
   }
 
+  protected abstract TermsSet newTermsSet(int expectedElements);
+
   /**
    * Collects the terms into a {@link LongHashSet}.
    */
-  public TermsCollection collect(HitStream hitStream) throws IOException {
+  public TermsSet collect(HitStream hitStream) throws IOException {
     hitStream.initialize(); // initialise the stream
     int nHits = hitStream.getHits();
-    LongHashSet terms = new LongHashSet(this.maxTerms < nHits ? this.maxTerms : nHits);
+    TermsSet terms = this.newTermsSet(this.maxTerms < nHits ? this.maxTerms : nHits);
     TermStream reusableTermStream = TermStream.get(context.searcher().getIndexReader(), indexFieldData);
 
     while (terms.size() < this.maxTerms && hitStream.hasNext()) {
@@ -63,50 +65,8 @@ public class TermsCollector {
 
     boolean isPruned = hitStream.getTotalHits() > hitStream.getHits();
     isPruned |= this.maxTerms < nHits;
-    return new TermsCollection(terms, isPruned);
-  }
-
-  /**
-   * Represents a collection of terms
-   */
-  public static class TermsCollection {
-
-    /**
-     * The set of terms
-     */
-    private LongHashSet termsHash;
-
-    /**
-     * A flag to indicate if the set of terms has been pruned
-     */
-    private boolean isPruned = false;
-
-    public TermsCollection(LongHashSet terms, boolean isPruned) {
-      this.termsHash = terms;
-      this.isPruned = isPruned;
-    }
-
-    public TermsCollection(int numTerms) {
-      this.termsHash = new LongHashSet(numTerms);
-    }
-
-    public LongHashSet getTermsHash() {
-      return this.termsHash;
-    }
-
-    public boolean isPruned() {
-      return isPruned;
-    }
-
-    public void merge(TermsCollection other) {
-      if (termsHash == null) {
-        // probably never hit this since we init terms to known size before merge
-        termsHash = new LongHashSet(other.termsHash.size());
-      }
-      termsHash.addAll(other.termsHash);
-      this.isPruned |= other.isPruned;
-    }
-
+    terms.setIsPruned(isPruned);
+    return terms;
   }
 
 }

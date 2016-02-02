@@ -1,0 +1,50 @@
+[[siren-join-introduction]]
+== Introduction
+
+The SIREn Join plugin is an open-source plugin for Elasticsearch that adds join capabilities across indices.
+Currently one type of join is implemented which we call ``Filter Join'', but our objective is to add more
+type of joins in the future.
+
+The Filter Join is basically a (left) semi-join between two set of documents based on a common attribute, where
+the result only contains the attributes of one of the joined set of documents. This join is
+used to filter one document set based on a second document set, hence its name. It is equivalent
+to the `EXISTS()` operator in SQL.
+
+The Filter Join supports joins on both numerical and textual fields, but the joined attributes must be of the
+same type. You can also freely combine and nest multiple Filter Joins using boolean operators (conjunction,
+disjunction, negation) to create
+complex query plans. It is fully integrated with the Elasticsearch API and is compatible with distributed
+environments.
+
+=== How Does It Compare With Parent-Child
+
+The Filter Join is similar in nature to the
+https://www.elastic.co/guide/en/elasticsearch/guide/current/parent-child.html[Parent-Child] feature of
+Elasticsearch: they perform a join at query-time. However, there are important differences between them:
+
+* The parent document and all of its children must live on the same shard, which limits its flexibility. Filter Join
+removes this constraint and is therefore more flexible: it allows to join documents across shards and across indices.
+* Thanks to the data locality of the Parent-Child model, joins are faster and more scalable. The Filter Join
+on the contrary needs to transfer data across the network to compute joins across shards, limiting its scalability
+and performance.
+
+There is no ``one size fits all'' solution to this problem, and you need to understand your requirements to choose
+the proper solution. As a basic rule, if your data model and data relationships are purely hierarchical (or can be
+mapped to a purely hierarchical model), then the
+Parent-Child model might be more appropriate. If on the contrary you need to query both directions of a data
+relationship, then the Filter Join might be more appropriate.
+
+=== On Which Data Model It Operates
+
+The most important requirement for the Filter Join is to have a common shared attribute between two indices.
+For example, let's take a simple relational data model composed of two tables, `Articles` and `Companies`, and of one
+junction table `ArticlesMentionCompanies` to encode the many-to-many relationships between them.
+
+This model can be mapped to two Elasticsearch indices, `Articles` and `Companies`. An article document will have
+a multi-valued field `mentions` with the unique identifiers of the companies mentioned in the article.
+In other words, the field `mentions` is a foreign key in the `Articles` table that refers to the primary key of
+the `Companies` table.
+
+It should be straightforward for someone to write an SQL statement to flatten and map relationships into a
+single multi-valued field. We can see that, compared to a traditional database model where a junction table is necessary,
+the model is simplified by leveraging multi-valued fields.

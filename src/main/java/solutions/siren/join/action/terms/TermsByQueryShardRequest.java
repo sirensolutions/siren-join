@@ -18,7 +18,7 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.elasticsearch.action.support.broadcast.BroadcastShardOperationRequest;
+import org.elasticsearch.action.support.broadcast.BroadcastShardRequest;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -29,7 +29,7 @@ import java.io.IOException;
 /**
  * Internal terms by query request executed directly against a specific index shard.
  */
-class TermsByQueryShardRequest extends BroadcastShardOperationRequest {
+class TermsByQueryShardRequest extends BroadcastShardRequest {
 
   @Nullable
   private String[] filteringAliases;

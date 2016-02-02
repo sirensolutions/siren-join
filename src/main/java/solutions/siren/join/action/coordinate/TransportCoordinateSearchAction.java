@@ -24,12 +24,14 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
 
 import java.util.Map;
 
@@ -40,17 +42,17 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
 
   private final TransportSearchAction searchAction;
 
+  private final FilterJoinCacheService cacheService;
+
   @Inject
   public TransportCoordinateSearchAction(Settings settings, ThreadPool threadPool,
-                                         TransportService transportService, ActionFilters actionFilters,
-                                         TransportSearchAction searchAction, Client client) {
-    super(settings, CoordinateSearchAction.NAME, threadPool, transportService, actionFilters, client);
+                                         TransportService transportService, FilterJoinCacheService cacheService,
+                                         ActionFilters actionFilters, TransportSearchAction searchAction,
+                                         IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
+    super(settings, CoordinateSearchAction.NAME, threadPool, transportService, actionFilters,
+            indexNameExpressionResolver, client, SearchRequest.class);
     this.searchAction = searchAction;
-  }
-
-  @Override
-  public SearchRequest newRequestInstance() {
-    return this.searchAction.newRequestInstance();
+    this.cacheService = cacheService;
   }
 
   @Override
@@ -61,7 +63,7 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
     ActionListener<SearchResponse> actionListener = listener;
 
     // Retrieve the singleton instance of the filterjoin cache
-    FilterJoinCache cache = FilterJoinCache.getInstance();
+    FilterJoinCache cache = cacheService.getCacheInstance();
 
     // Parse query source
     Tuple<XContentType, Map<String, Object>> parsedSource = this.parseSource(request.source());

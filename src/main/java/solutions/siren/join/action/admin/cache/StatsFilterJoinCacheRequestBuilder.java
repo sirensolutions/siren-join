@@ -16,26 +16,15 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.node;
+package solutions.siren.join.action.admin.cache;
 
-import org.elasticsearch.action.support.nodes.NodeOperationResponse;
-import org.elasticsearch.action.support.nodes.NodesOperationResponse;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.action.ActionRequestBuilder;
+import org.elasticsearch.client.ElasticsearchClient;
 
-import java.io.IOException;
+public class StatsFilterJoinCacheRequestBuilder extends ActionRequestBuilder<StatsFilterJoinCacheRequest, StatsFilterJoinCacheResponse, StatsFilterJoinCacheRequestBuilder> {
 
-public class NodeSimpleResponse extends NodeOperationResponse {
-
-  public NodeSimpleResponse() {}
-
-  @Override
-  public void readFrom(StreamInput in) throws IOException {
-    super.readFrom(in);
-  }
-  @Override
-  public void writeTo(StreamOutput out) throws IOException {
-    super.writeTo(out);
+  public StatsFilterJoinCacheRequestBuilder(ElasticsearchClient client, StatsFilterJoinCacheAction action) {
+    super(client, action, new StatsFilterJoinCacheRequest());
   }
 
 }

@@ -66,8 +66,7 @@ public class RestCoordinateSearchAction extends BaseRestHandler {
   @Override
   public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) {
     SearchRequest searchRequest;
-    searchRequest = RestSearchAction.parseSearchRequest(request);
-    searchRequest.listenerThreaded(false);
+    searchRequest = RestSearchAction.parseSearchRequest(request, parseFieldMatcher);
     client.execute(CoordinateSearchAction.INSTANCE, searchRequest, new RestStatusToXContentListener<SearchResponse>(channel));
   }
 

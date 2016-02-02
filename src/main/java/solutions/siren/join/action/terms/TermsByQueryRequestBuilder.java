@@ -20,16 +20,16 @@ package solutions.siren.join.action.terms;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.broadcast.BroadcastOperationRequestBuilder;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.index.query.QueryBuilder;
 
 /**
  * A terms by query action request builder. This is an internal api.
  */
-public class TermsByQueryRequestBuilder extends BroadcastOperationRequestBuilder<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryRequestBuilder, Client> {
+public class TermsByQueryRequestBuilder extends BroadcastOperationRequestBuilder<TermsByQueryRequest, TermsByQueryResponse, TermsByQueryRequestBuilder> {
 
-  public TermsByQueryRequestBuilder(Client client) {
-    super(client, new TermsByQueryRequest());
+  public TermsByQueryRequestBuilder(ElasticsearchClient client, TermsByQueryAction action) {
+    super(client, action, new TermsByQueryRequest());
   }
 
   /**
@@ -101,10 +101,16 @@ public class TermsByQueryRequestBuilder extends BroadcastOperationRequestBuilder
   }
 
   /**
-   * Executes the the request
+   * The encoding to use for transferring terms.
    */
+  public TermsByQueryRequestBuilder setTermsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
+    request().termsEncoding(termsEncoding);
+    return this;
+  }
+
   @Override
-  protected void doExecute(ActionListener<TermsByQueryResponse> listener) {
+  public void execute(ActionListener<TermsByQueryResponse> listener) {
     client.execute(TermsByQueryAction.INSTANCE, request, listener);
   }
+
 }

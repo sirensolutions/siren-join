@@ -16,20 +16,15 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.node;
+package solutions.siren.join.action.admin.cache;
 
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestBuilder;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.ElasticsearchClient;
 
-public class NodesSimpleRequestBuilder extends ActionRequestBuilder<NodesSimpleRequest, NodesSimpleResponse, NodesSimpleRequestBuilder, Client> {
+public class ClearFilterJoinCacheRequestBuilder extends ActionRequestBuilder<ClearFilterJoinCacheRequest, ClearFilterJoinCacheResponse, ClearFilterJoinCacheRequestBuilder> {
 
-  public NodesSimpleRequestBuilder(Client client) {
-    super(client, new NodesSimpleRequest());
+  public ClearFilterJoinCacheRequestBuilder(ElasticsearchClient client, ClearFilterJoinCacheAction action) {
+    super(client, action, new ClearFilterJoinCacheRequest());
   }
 
-  @Override
-  protected void doExecute(final ActionListener<NodesSimpleResponse> listener) {
-    client.execute(NodesSimpleAction.INSTANCE, request, listener);
-  }
 }

@@ -18,10 +18,12 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import solutions.siren.join.action.terms.TermsByQueryAction;
-import solutions.siren.join.action.terms.TermsByQueryRequest;
+import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
 import org.elasticsearch.client.Client;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 /**
  * This visitor will cache the filter join and their resulting terms. This is useful when traversing
@@ -35,30 +37,29 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
    */
   private final FilterJoinCache cache;
 
+  private static final ESLogger logger = Loggers.getLogger(CachedFilterJoinVisitor.class);
+
   public CachedFilterJoinVisitor(Client client, RootNode root, FilterJoinCache cache) {
     super(client, root);
     this.cache = cache;
   }
 
-  /**
-   * Execute a terms by query action
-   */
   @Override
   protected void executeAsyncOperation(FilterJoinNode node) {
     // Check cache
     FilterJoinCache.CacheEntry cacheEntry = this.cache.get(node);
 
     if (cacheEntry == null) { // if cache miss
-      logger.debug("Executing async terms by query action");
+      logger.debug("Cache miss for terms by query action: {}", node.getCacheId());
+      logger.debug("Executing async actions");
+      node.setState(FilterJoinNode.State.RUNNING); // set state before execution to avoid race conditions
       // Create term by query request (can be an expensive operation - do it only if cache miss)
-      final TermsByQueryRequest termsByQueryReq = this.getTermsByQueryRequest(node);
       TermsByQueryActionListener listener = new CachedTermsByQueryActionListener(node);
       node.setActionListener(listener);
-      node.setState(FilterJoinNode.State.RUNNING); // set state before execution to avoid race conditions
-      client.execute(TermsByQueryAction.INSTANCE, termsByQueryReq, listener);
+      new AsyncFilterJoinVisitorAction(client, node, listener).start();
     }
     else { // if cache hit
-      logger.debug("Cache hit for terms by query action");
+      logger.debug("Cache hit for terms by query action: {}", node.getCacheId());
       TermsByQueryActionListener listener = new CachedTermsByQueryActionListener(cacheEntry.encodedTerms, cacheEntry.size, cacheEntry.isPruned, true, node);
       node.setActionListener(listener);
       node.setState(FilterJoinNode.State.COMPLETED); // set state before unblocking the queue to avoid race conditions
@@ -91,7 +92,7 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
     /**
      * Constructor to be used when retrieving the list of encoded terms from the cache.
      */
-    public CachedTermsByQueryActionListener(final byte[] encodedTerms, int size, boolean isPruned, boolean cacheHit,
+    public CachedTermsByQueryActionListener(final BytesRef encodedTerms, int size, boolean isPruned, boolean cacheHit,
                                             final FilterJoinNode node) {
       super(node);
       this.setEncodedTerms(encodedTerms);
@@ -102,10 +103,12 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
 
     @Override
     public void onResponse(final TermsByQueryResponse termsByQueryResponse) {
-      super.onResponse(termsByQueryResponse);
       // We cache the list of encoded terms instead of the {@link TermsByQueryResponse} to save the
       // byte serialization computation
-      CachedFilterJoinVisitor.this.cache.put(this.getNode(), this.getEncodedTerms(), this.getSize(), this.isPruned());
+      CachedFilterJoinVisitor.this.cache.put(this.getNode(), termsByQueryResponse.getEncodedTermsSet(),
+              termsByQueryResponse.getSize(), termsByQueryResponse.isPruned());
+
+      super.onResponse(termsByQueryResponse);
     }
 
   }
