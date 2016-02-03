@@ -2,6 +2,12 @@
 
 Improvements
 
+* [GH-30] Upgraded to Elasticsearch 2.1.2
+
+======================= Release 2.1.1 =========================
+
+Improvements
+
 * [GH-13] Add getting started guide and documentation
 * [GH-17] Fix readme before public release
 * [GH-19] Add compatibility table in the readme
