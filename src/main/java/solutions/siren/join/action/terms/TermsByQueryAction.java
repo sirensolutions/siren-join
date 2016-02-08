@@ -57,9 +57,9 @@ public class TermsByQueryAction extends Action<TermsByQueryRequest, TermsByQuery
    */
   @Override
   public TransportRequestOptions transportOptions(Settings settings) {
-    TransportRequestOptions opts = new TransportRequestOptions();
-    opts.withType(TransportRequestOptions.Type.REG);
-    return opts;
+    return TransportRequestOptions.builder()
+            .withType(TransportRequestOptions.Type.REG)
+            .build();
   }
 
   /**

@@ -10,7 +10,7 @@ public class StatsFilterJoinCacheNodeRequest extends BaseNodeRequest {
 
   private StatsFilterJoinCacheRequest request;
 
-  StatsFilterJoinCacheNodeRequest() {}
+  public StatsFilterJoinCacheNodeRequest() {}
 
   public StatsFilterJoinCacheNodeRequest(String nodeId, StatsFilterJoinCacheRequest request) {
     super(request, nodeId);

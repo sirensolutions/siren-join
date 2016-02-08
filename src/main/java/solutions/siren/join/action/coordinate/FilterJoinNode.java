@@ -25,6 +25,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -132,7 +133,7 @@ public class FilterJoinNode extends AbstractNode {
     if (ordering == null) {
       return null;
     }
-    return TermsByQueryRequest.Ordering.valueOf(ordering.toUpperCase());
+    return TermsByQueryRequest.Ordering.valueOf(ordering.toUpperCase(Locale.ROOT));
   }
 
   public Integer getMaxTermsPerShard() {
@@ -146,7 +147,7 @@ public class FilterJoinNode extends AbstractNode {
     if (termsEncoding == null) {
       return TermsByQueryRequest.DEFAULT_TERM_ENCODING;
     }
-    return TermsByQueryRequest.TermsEncoding.valueOf(termsEncoding.toUpperCase());
+    return TermsByQueryRequest.TermsEncoding.valueOf(termsEncoding.toUpperCase(Locale.ROOT));
   }
 
   private XContentBuilder buildQuery(Map query) {

@@ -36,7 +36,6 @@ public class SirenJoinTestCase extends ESIntegTestCase {
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
     return settingsBuilder()
-      .put("path.data", "./target/elasticsearch-test/data/")
       .put(super.nodeSettings(nodeOrdinal)).build();
   }
 

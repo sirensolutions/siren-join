@@ -39,7 +39,7 @@ public class TransportClearFilterJoinCacheAction extends TransportNodesAction<Cl
   private final FilterJoinCacheService cacheService;
 
   @Inject
-  protected TransportClearFilterJoinCacheAction(Settings settings, ClusterName clusterName, ThreadPool threadPool,
+  public TransportClearFilterJoinCacheAction(Settings settings, ClusterName clusterName, ThreadPool threadPool,
                                                 ClusterService clusterService, FilterJoinCacheService cacheService,
                                                 TransportService transportService, ActionFilters actionFilters,
                                                 IndexNameExpressionResolver indexNameExpressionResolver) {

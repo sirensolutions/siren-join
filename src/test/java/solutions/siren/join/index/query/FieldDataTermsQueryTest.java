@@ -88,7 +88,7 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
     long[] ids = new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 };
     long[] hashIds = new long[ids.length];
     for (int i = 0; i < ids.length; i++) {
-      hashIds[i] = Hashing.sipHash24().hashBytes(Long.toString(ids[i]).getBytes()).asLong();
+      hashIds[i] = Hashing.sipHash24().hashBytes(Long.toString(ids[i]).getBytes("UTF-8")).asLong();
     }
 
     SearchResponse searchResponse = client().prepareSearch("index1").setQuery(
