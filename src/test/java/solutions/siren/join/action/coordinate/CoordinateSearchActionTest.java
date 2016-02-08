@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.coordinate;
 
+import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
@@ -549,6 +550,59 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
             QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
                     boolQuery().filter(termQuery("id", "2"))
             ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)
+    ).get();
+    assertHitCount(searchResponse, 0L);
+  }
+
+  @Test(expected=SearchPhaseExecutionException.class)
+  public void testInvalidTargetField() throws Exception {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string"));
+
+    ensureGreen();
+
+    indexRandom(true,
+            client().prepareIndex("index1", "type", "1").setSource("id", "1", "foreign_key", new String[]{"1", "3"}),
+            client().prepareIndex("index1", "type", "2").setSource("id", "2"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3", "foreign_key", new String[]{"2"}),
+            client().prepareIndex("index1", "type", "4").setSource("id", "4", "foreign_key", new String[]{"1", "4"}),
+
+            client().prepareIndex("index2", "type", "1").setSource("id", "1", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "2").setSource("id", "2", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
+            client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc") );
+
+    // Invalid target field
+    SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+            QueryBuilders.filterJoin("invalid_field").indices("index2").types("type").path("id").query(
+                    boolQuery().filter(termQuery("tag", "aaa"))
+            )
+    ).get();
+  }
+
+  @Test
+  public void testInvalidSourceField() throws Exception {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string"));
+
+    ensureGreen();
+
+    indexRandom(true,
+            client().prepareIndex("index1", "type", "1").setSource("id", "1", "foreign_key", new String[]{"1", "3"}),
+            client().prepareIndex("index1", "type", "2").setSource("id", "2"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3", "foreign_key", new String[]{"2"}),
+            client().prepareIndex("index1", "type", "4").setSource("id", "4", "foreign_key", new String[]{"1", "4"}),
+
+            client().prepareIndex("index2", "type", "1").setSource("id", "1", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "2").setSource("id", "2", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
+            client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc") );
+
+    // Invalid target field
+    SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("invalid_field").query(
+                    boolQuery().filter(termQuery("tag", "aaa"))
+            )
     ).get();
     assertHitCount(searchResponse, 0L);
   }

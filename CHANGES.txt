@@ -1,3 +1,10 @@
+======================= Release 2.2.0 =========================
+
+Improvements
+
+* [GH-32] Upgrade to Elasticsearch 2.2
+* [GH-33] Report error when field does not exist in the index
+
 ======================= Release 2.1.1 =========================
 
 Improvements
