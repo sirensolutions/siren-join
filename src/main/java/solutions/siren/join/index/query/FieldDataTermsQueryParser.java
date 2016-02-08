@@ -101,8 +101,9 @@ public class FieldDataTermsQueryParser implements QueryParser {
     }
 
     MappedFieldType fieldType = parseContext.fieldMapper(fieldName);
-    if (fieldType != null) {
-      fieldName = fieldType.names().indexName();
+    if (fieldType == null) {
+      throw new QueryParsingException(parseContext, "[fielddata_terms] field '" + fieldName +
+              "' does not exist in index '" + parseContext.index().getName() +"'.");
     }
 
     IndexFieldData fieldData = parseContext.getForField(fieldType);
