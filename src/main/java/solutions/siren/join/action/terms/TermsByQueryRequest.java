@@ -63,7 +63,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    */
   public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.LONG;
 
-  TermsByQueryRequest() {}
+  public TermsByQueryRequest() {}
 
   /**
    * Constructs a new terms by query request against the provided indices. No indices provided means it will run against all indices.

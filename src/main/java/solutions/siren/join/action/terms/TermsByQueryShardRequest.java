@@ -29,7 +29,7 @@ import java.io.IOException;
 /**
  * Internal terms by query request executed directly against a specific index shard.
  */
-class TermsByQueryShardRequest extends BroadcastShardRequest {
+public class TermsByQueryShardRequest extends BroadcastShardRequest {
 
   @Nullable
   private String[] filteringAliases;
@@ -38,7 +38,7 @@ class TermsByQueryShardRequest extends BroadcastShardRequest {
   /**
    * Default constructor
    */
-  TermsByQueryShardRequest() {}
+  public TermsByQueryShardRequest() {}
 
   /**
    * Main Constructor

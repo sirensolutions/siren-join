@@ -18,15 +18,9 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.MultiFields;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.action.fieldstats.FieldStats;
-import org.elasticsearch.action.fieldstats.FieldStatsResponse;
 import org.elasticsearch.action.support.broadcast.TransportBroadcastAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.search.SearchService;
 import solutions.siren.join.action.terms.collector.*;

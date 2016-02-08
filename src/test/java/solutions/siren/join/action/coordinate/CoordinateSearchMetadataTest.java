@@ -32,10 +32,7 @@ import org.junit.Test;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.index.query.QueryBuilders.*;
@@ -132,7 +129,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     assertThat((Integer) action.get(key), greaterThan(0));
 
     key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING.underscore().getValue();
-    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name().toLowerCase()));
+    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name().toLowerCase(Locale.ROOT)));
   }
 
   @Test
