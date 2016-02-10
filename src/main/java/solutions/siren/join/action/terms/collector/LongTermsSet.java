@@ -4,10 +4,12 @@ import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongScatterSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 
@@ -26,13 +28,23 @@ public class LongTermsSet extends TermsSet {
 
   private static final ESLogger logger = Loggers.getLogger(LongTermsSet.class);
 
-  /**
-   * Default constructor
-   */
-  public LongTermsSet() {}
+//  /**
+//   * Default constructor
+//   */
+//  public LongTermsSet() {}
 
-  public LongTermsSet(int expectedElements) {
+  public LongTermsSet(final CircuitBreakerService breakerService) {
+    super(breakerService);
+  }
+
+//  public LongTermsSet(final int expectedElements) {
+//    this.set = new LongHashSet(expectedElements);
+//  }
+
+  public LongTermsSet(final int expectedElements, final CircuitBreakerService breakerService) {
+    super(breakerService);
     this.set = new LongHashSet(expectedElements);
+    this.adjustBreaker(estimatedRamBytesUsed());
   }
 
   /**
@@ -40,6 +52,7 @@ public class LongTermsSet extends TermsSet {
    * Used in {@link solutions.siren.join.index.query.FieldDataTermsQuery}.
    */
   public LongTermsSet(BytesRef bytes) {
+    super(null);
     this.readFromBytes(bytes);
   }
 
@@ -65,7 +78,9 @@ public class LongTermsSet extends TermsSet {
     if (!(terms instanceof LongTermsSet)) {
       throw new UnsupportedOperationException("Invalid type: LongTermSet expected.");
     }
+    long oldMemSize = this.estimatedRamBytesUsed();
     this.set.addAll(((LongTermsSet) terms).set);
+    this.adjustBreaker(this.estimatedRamBytesUsed() - oldMemSize);
   }
 
   @Override
@@ -78,6 +93,7 @@ public class LongTermsSet extends TermsSet {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
     set = new LongHashSet(size);
+    this.adjustBreaker(estimatedRamBytesUsed());
     for (long i = 0; i < size; i++) {
       set.add(in.readLong());
     }
@@ -156,6 +172,7 @@ public class LongTermsSet extends TermsSet {
     // Scatter set is slightly more efficient than the hash set, but should be used only for lookups,
     // not for merging
     set = new LongScatterSet(size);
+    this.adjustBreaker(estimatedRamBytesUsed());
     for (int i = 0; i < size; i++) {
       set.add(FieldDataTermsQueryHelper.readLong(bytes));
     }
@@ -164,6 +181,11 @@ public class LongTermsSet extends TermsSet {
   @Override
   public TermsByQueryRequest.TermsEncoding getEncoding() {
     return TermsByQueryRequest.TermsEncoding.LONG;
+  }
+
+  @Override
+  protected long estimatedRamBytesUsed() {
+    return this.set != null ? this.set.keys.length * 8 : 0;
   }
 
 }

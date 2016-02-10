@@ -1,9 +1,11 @@
 package solutions.siren.join.action.terms.collector;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 
@@ -19,12 +21,14 @@ public abstract class TermsSet implements Streamable {
    */
   private boolean isPruned = false;
 
-  public static TermsSet newTermsSet(int expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding) {
+  private final CircuitBreakerService breakerService;
+
+  public static TermsSet newTermsSet(int expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding, CircuitBreakerService breakerService) {
     switch (termsEncoding) {
       case LONG:
-        return new LongTermsSet(expectedElements);
+        return new LongTermsSet(expectedElements, breakerService);
       case INTEGER:
-        return new IntegerTermsSet(expectedElements);
+        return new IntegerTermsSet(expectedElements, breakerService);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
@@ -40,6 +44,14 @@ public abstract class TermsSet implements Streamable {
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
+  }
+
+//  protected TermsSet() {
+//    this.breakerService = null;
+//  }
+
+  protected TermsSet(final CircuitBreakerService breakerService) {
+    this.breakerService = breakerService;
   }
 
   public void setIsPruned(boolean isPruned) {
@@ -108,5 +120,29 @@ public abstract class TermsSet implements Streamable {
    * Returns the type of encoding for the terms.
    */
   public abstract TermsByQueryRequest.TermsEncoding getEncoding();
+
+  /**
+   * Returns an estimation of the memory usage of this object in bytes.
+   */
+  protected abstract long estimatedRamBytesUsed();
+
+  /**
+   * Adjust the circuit breaker with the given delta, if the delta is
+   * negative, or checkBreaker is false, the breaker will be adjusted
+   * without tripping
+   */
+  void adjustBreaker(long delta) {
+    if (this.breakerService != null) {
+      // checking breaker means potentially tripping, but it doesn't
+      // have to if the delta is negative
+      CircuitBreaker breaker = this.breakerService.getBreaker(CircuitBreaker.REQUEST);
+      if (delta > 0) {
+        breaker.addEstimateBytesAndMaybeBreak(delta, "<terms_set>");
+      }
+      else {
+        breaker.addWithoutBreaking(delta);
+      }
+    }
+  }
 
 }

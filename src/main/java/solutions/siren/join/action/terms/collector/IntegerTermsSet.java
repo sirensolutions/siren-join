@@ -10,6 +10,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 
@@ -29,13 +30,23 @@ public class IntegerTermsSet extends TermsSet {
 
   private static final ESLogger logger = Loggers.getLogger(IntegerTermsSet.class);
 
-  /**
-   * Default constructor
-   */
-  public IntegerTermsSet() {}
+//  /**
+//   * Default constructor
+//   */
+//  public IntegerTermsSet() {}
 
-  public IntegerTermsSet(int expectedElements) {
+  public IntegerTermsSet(final CircuitBreakerService breakerService) {
+    super(breakerService);
+  }
+
+//  public IntegerTermsSet(int expectedElements) {
+//    this.set = new IntHashSet(expectedElements);
+//  }
+
+  public IntegerTermsSet(final int expectedElements, final CircuitBreakerService breakerService) {
+    super(breakerService);
     this.set = new IntHashSet(expectedElements);
+    this.adjustBreaker(estimatedRamBytesUsed());
   }
 
   /**
@@ -43,6 +54,7 @@ public class IntegerTermsSet extends TermsSet {
    * Used in {@link solutions.siren.join.index.query.FieldDataTermsQuery}.
    */
   public IntegerTermsSet(BytesRef bytes) {
+    super(null);
     this.readFromBytes(bytes);
   }
 
@@ -61,7 +73,9 @@ public class IntegerTermsSet extends TermsSet {
     if (!(terms instanceof IntegerTermsSet)) {
       throw new UnsupportedOperationException("Invalid type: IntegerTermsSet expected.");
     }
+    long oldMemSize = this.estimatedRamBytesUsed();
     this.set.addAll(((IntegerTermsSet) terms).set);
+    this.adjustBreaker(this.estimatedRamBytesUsed() - oldMemSize);
   }
 
   @Override
@@ -74,6 +88,7 @@ public class IntegerTermsSet extends TermsSet {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
     set = new IntHashSet(size);
+    this.adjustBreaker(estimatedRamBytesUsed());
     for (long i = 0; i < size; i++) {
       set.add(in.readVInt());
     }
@@ -152,6 +167,7 @@ public class IntegerTermsSet extends TermsSet {
     // Scatter set is slightly more efficient than the hash set, but should be used only for lookups,
     // not for merging
     set = new IntScatterSet(size);
+    this.adjustBreaker(estimatedRamBytesUsed());
     for (int i = 0; i < size; i++) {
       set.add(FieldDataTermsQueryHelper.readVInt(bytesRef));
     }
@@ -160,6 +176,11 @@ public class IntegerTermsSet extends TermsSet {
   @Override
   public TermsByQueryRequest.TermsEncoding getEncoding() {
     return TermsByQueryRequest.TermsEncoding.INTEGER;
+  }
+
+  @Override
+  protected long estimatedRamBytesUsed() {
+    return this.set != null ? this.set.keys.length * 4 : 0;
   }
 
 }

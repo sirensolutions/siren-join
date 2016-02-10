@@ -20,6 +20,7 @@ package solutions.siren.join.action.terms.collector;
 
 import com.carrotsearch.hppc.LongHashSet;
 import org.elasticsearch.index.fielddata.IndexFieldData;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -31,19 +32,22 @@ public abstract class TermsCollector {
 
   private final SearchContext context;
   private final IndexFieldData indexFieldData;
+  private final CircuitBreakerService breakerService;
 
   private int maxTerms = Integer.MAX_VALUE;
 
-  public TermsCollector(IndexFieldData indexFieldData, SearchContext context) {
+  public TermsCollector(final IndexFieldData indexFieldData, final SearchContext context,
+                        final CircuitBreakerService breakerService) {
     this.indexFieldData = indexFieldData;
     this.context = context;
+    this.breakerService = breakerService;
   }
 
   public void setMaxTerms(int maxTerms) {
     this.maxTerms = maxTerms;
   }
 
-  protected abstract TermsSet newTermsSet(int expectedElements);
+  protected abstract TermsSet newTermsSet(final int expectedElements, final CircuitBreakerService breakerService);
 
   /**
    * Collects the terms into a {@link LongHashSet}.
@@ -51,7 +55,7 @@ public abstract class TermsCollector {
   public TermsSet collect(HitStream hitStream) throws IOException {
     hitStream.initialize(); // initialise the stream
     int nHits = hitStream.getHits();
-    TermsSet terms = this.newTermsSet(this.maxTerms < nHits ? this.maxTerms : nHits);
+    TermsSet terms = this.newTermsSet(this.maxTerms < nHits ? this.maxTerms : nHits, breakerService);
     TermStream reusableTermStream = TermStream.get(context.searcher().getIndexReader(), indexFieldData);
 
     while (terms.size() < this.maxTerms && hitStream.hasNext()) {

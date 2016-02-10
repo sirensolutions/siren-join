@@ -22,6 +22,7 @@ import org.elasticsearch.action.support.broadcast.TransportBroadcastAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.search.SearchService;
 import solutions.siren.join.action.terms.collector.*;
 import org.elasticsearch.ElasticsearchException;
@@ -74,6 +75,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
   private final ScriptService scriptService;
   private final PageCacheRecycler pageCacheRecycler;
   private final BigArrays bigArrays;
+  private final CircuitBreakerService breakerService;
   private final Client client;
 
   /**
@@ -82,6 +84,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
   @Inject
   public TransportTermsByQueryAction(Settings settings, ThreadPool threadPool, ClusterService clusterService,
                                      TransportService transportService, IndicesService indicesService,
+                                     CircuitBreakerService breakerService,
                                      ScriptService scriptService, PageCacheRecycler pageCacheRecycler,
                                      BigArrays bigArrays, ActionFilters actionFilters,
                                      IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
@@ -93,6 +96,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
     this.scriptService = scriptService;
     this.pageCacheRecycler = pageCacheRecycler;
     this.bigArrays = bigArrays;
+    this.breakerService = breakerService;
     this.client = client;
   }
 
@@ -119,7 +123,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
    */
   @Override
   protected TermsByQueryShardResponse newShardResponse() {
-    return new TermsByQueryShardResponse();
+    return new TermsByQueryShardResponse(breakerService);
   }
 
   /**
@@ -179,7 +183,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
     // Merge the responses
 
     // TermsSet is responsible for the merge, set size to avoid rehashing on certain implementations.
-    TermsSet termsSet = TermsSet.newTermsSet(numTerms, request.termsEncoding());
+    TermsSet termsSet = TermsSet.newTermsSet(numTerms, request.termsEncoding(), breakerService);
     for (int i = 0; i < termsSets.length; i++) {
       TermsSet terms = termsSets[i];
       if (terms == null) {
@@ -274,9 +278,9 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
                                            IndexFieldData indexFieldData, SearchContext context) {
     switch (termsEncoding) {
       case LONG:
-        return new LongTermsCollector(indexFieldData, context);
+        return new LongTermsCollector(indexFieldData, context, breakerService);
       case INTEGER:
-        return new IntegerTermsCollector(indexFieldData, context);
+        return new IntegerTermsCollector(indexFieldData, context, breakerService);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }

@@ -34,7 +34,7 @@ public class FieldDataTermsQueryHelper {
    * Encodes the list of longs into a serialised {@link LongTermsSet}.
    */
   public final static byte[] encode(long[] values) throws IOException {
-    LongTermsSet termsSet = new LongTermsSet(values.length);
+    LongTermsSet termsSet = new LongTermsSet(values.length, null);
     for (int i = 0; i < values.length; i++) {
       termsSet.add(values[i]);
     }

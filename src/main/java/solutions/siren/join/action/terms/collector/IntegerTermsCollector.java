@@ -19,6 +19,7 @@
 package solutions.siren.join.action.terms.collector;
 
 import org.elasticsearch.index.fielddata.IndexFieldData;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.search.internal.SearchContext;
 
 /**
@@ -26,13 +27,14 @@ import org.elasticsearch.search.internal.SearchContext;
  */
 public class IntegerTermsCollector extends TermsCollector {
 
-  public IntegerTermsCollector(IndexFieldData indexFieldData, SearchContext context) {
-    super(indexFieldData, context);
+  public IntegerTermsCollector(final IndexFieldData indexFieldData, final SearchContext context,
+                               final CircuitBreakerService breakerService) {
+    super(indexFieldData, context, breakerService);
   }
 
   @Override
-  protected TermsSet newTermsSet(int expectedElements) {
-    return new IntegerTermsSet(expectedElements);
+  protected TermsSet newTermsSet(final int expectedElements, final CircuitBreakerService breakerService) {
+    return new IntegerTermsSet(expectedElements, breakerService);
   }
 
 }

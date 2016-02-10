@@ -19,9 +19,11 @@
 package solutions.siren.join.action.terms;
 
 import org.elasticsearch.action.support.broadcast.BroadcastShardResponse;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import solutions.siren.join.action.terms.collector.IntegerTermsSet;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
 import solutions.siren.join.action.terms.collector.TermsSet;
@@ -34,21 +36,25 @@ import java.io.IOException;
 class TermsByQueryShardResponse extends BroadcastShardResponse {
 
   private TermsSet termsSet;
+  private final CircuitBreakerService breakerService;
 
   /**
    * Default constructor
    */
-  TermsByQueryShardResponse() {}
+  TermsByQueryShardResponse(final CircuitBreakerService breakerService) {
+    this.breakerService = breakerService;
+  }
 
   /**
    * Main constructor
    *
-   * @param shardId       the id of the shard the request executed on
+   * @param shardId the id of the shard the request executed on
    * @param termsSet the terms gathered from the shard
    */
   public TermsByQueryShardResponse(ShardId shardId, TermsSet termsSet) {
     super(shardId);
     this.termsSet = termsSet;
+    this.breakerService = null;
   }
 
   /**
@@ -74,12 +80,12 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
     switch (termsEncoding) {
 
       case LONG:
-        termsSet = new LongTermsSet();
+        termsSet = new LongTermsSet(breakerService);
         termsSet.readFrom(in);
         return;
 
       case INTEGER:
-        termsSet = new IntegerTermsSet();
+        termsSet = new IntegerTermsSet(breakerService);
         termsSet.readFrom(in);
         return;
 
