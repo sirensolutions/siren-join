@@ -3,7 +3,11 @@
 Improvements
 
 * [GH-32] Upgrade to Elasticsearch 2.2
+
+Bugs
+
 * [GH-33] Report error when field does not exist in the index
+* [GH-36] Incompatible javadoc flag with java 1.7 in maven build
 
 ======================= Release 2.1.1 =========================
 
