@@ -82,8 +82,8 @@
             <goals>
               <goal>jar</goal>
             </goals>
-            <configuration> <!-- disable checking -->
-              <additionalparam>-Xdoclint:none</additionalparam>
+            <configuration>
+              <additionalparam>${javadoc.opts}</additionalparam>
             </configuration>
           </execution>
         </executions>
@@ -228,6 +228,18 @@
   </dependencies>
 
   <profiles>
+
+    <profile>
+      <id>doclint-java8-disable</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <properties>
+        <!-- disable checking -->
+        <javadoc.opts>-Xdoclint:none</javadoc.opts>
+      </properties>
+    </profile>
+
     <!-- To deploy to OSSRH -->
     <profile>
       <id>release</id>
