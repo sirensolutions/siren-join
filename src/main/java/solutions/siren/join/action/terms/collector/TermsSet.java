@@ -5,7 +5,8 @@ import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
-import org.elasticsearch.indices.breaker.CircuitBreakerService;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 
@@ -21,19 +22,27 @@ public abstract class TermsSet implements Streamable {
    */
   private boolean isPruned = false;
 
-  private final CircuitBreakerService breakerService;
+  protected final CircuitBreaker breaker;
 
-  public static TermsSet newTermsSet(int expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding, CircuitBreakerService breakerService) {
+  private static final ESLogger logger = Loggers.getLogger(LongTermsSet.class);
+
+  /**
+   * Used by {@link solutions.siren.join.action.terms.TransportTermsByQueryAction}
+   */
+  public static TermsSet newTermsSet(int expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding, CircuitBreaker breaker) {
     switch (termsEncoding) {
       case LONG:
-        return new LongTermsSet(expectedElements, breakerService);
+        return new LongTermsSet(expectedElements, breaker);
       case INTEGER:
-        return new IntegerTermsSet(expectedElements, breakerService);
+        return new IntegerTermsSet(expectedElements, breaker);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
   }
 
+  /**
+   * Used by {@link solutions.siren.join.index.query.FieldDataTermsQuery} to decode encoded terms.
+   */
   public static TermsSet readFrom(BytesRef in) {
     TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[FieldDataTermsQueryHelper.readInt(in)];
     switch (termsEncoding) {
@@ -46,12 +55,8 @@ public abstract class TermsSet implements Streamable {
     }
   }
 
-//  protected TermsSet() {
-//    this.breakerService = null;
-//  }
-
-  protected TermsSet(final CircuitBreakerService breakerService) {
-    this.breakerService = breakerService;
+  protected TermsSet(final CircuitBreaker breaker) {
+    this.breaker = breaker;
   }
 
   public void setIsPruned(boolean isPruned) {
@@ -112,7 +117,7 @@ public abstract class TermsSet implements Streamable {
   /**
    * Encodes the set of terms into a byte array. The first four bytes should be the ordinal of the
    * {@link solutions.siren.join.action.terms.TermsByQueryRequest.TermsEncoding} returned by
-   * {@link #getEncoding()}.
+   * {@link #getEncoding()}. Used by {@link solutions.siren.join.action.terms.TermsByQueryResponse}.
    */
   public abstract BytesRef writeToBytes();
 
@@ -122,27 +127,8 @@ public abstract class TermsSet implements Streamable {
   public abstract TermsByQueryRequest.TermsEncoding getEncoding();
 
   /**
-   * Returns an estimation of the memory usage of this object in bytes.
+   * Removes all elements from the set and additionally releases any internal buffers.
    */
-  protected abstract long estimatedRamBytesUsed();
-
-  /**
-   * Adjust the circuit breaker with the given delta, if the delta is
-   * negative, or checkBreaker is false, the breaker will be adjusted
-   * without tripping
-   */
-  void adjustBreaker(long delta) {
-    if (this.breakerService != null) {
-      // checking breaker means potentially tripping, but it doesn't
-      // have to if the delta is negative
-      CircuitBreaker breaker = this.breakerService.getBreaker(CircuitBreaker.REQUEST);
-      if (delta > 0) {
-        breaker.addEstimateBytesAndMaybeBreak(delta, "<terms_set>");
-      }
-      else {
-        breaker.addWithoutBreaking(delta);
-      }
-    }
-  }
+  public abstract void release();
 
 }

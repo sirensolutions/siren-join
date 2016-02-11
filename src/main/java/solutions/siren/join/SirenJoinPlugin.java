@@ -21,6 +21,7 @@ package solutions.siren.join;
 import org.elasticsearch.action.ActionModule;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.indices.IndicesModule;
+import org.elasticsearch.indices.breaker.CircuitBreakerModule;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestModule;
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;

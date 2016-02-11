@@ -20,6 +20,7 @@ package solutions.siren.join.action.terms;
 
 import org.elasticsearch.action.Action;
 import org.elasticsearch.client.ElasticsearchClient;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.transport.TransportRequestOptions;
 
@@ -34,6 +35,7 @@ public class TermsByQueryAction extends Action<TermsByQueryRequest, TermsByQuery
   /**
    * Default constructor
    */
+  @Inject
   private TermsByQueryAction() {
     super(NAME);
   }

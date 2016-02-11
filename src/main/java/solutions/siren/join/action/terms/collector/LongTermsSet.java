@@ -1,15 +1,15 @@
 package solutions.siren.join.action.terms.collector;
 
+import com.carrotsearch.hppc.BufferAllocationException;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongScatterSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 
@@ -28,23 +28,16 @@ public class LongTermsSet extends TermsSet {
 
   private static final ESLogger logger = Loggers.getLogger(LongTermsSet.class);
 
-//  /**
-//   * Default constructor
-//   */
-//  public LongTermsSet() {}
-
-  public LongTermsSet(final CircuitBreakerService breakerService) {
-    super(breakerService);
+  /**
+   * Constructor used by {@link solutions.siren.join.action.terms.TermsByQueryShardResponse}
+   */
+  public LongTermsSet(final CircuitBreaker breaker) {
+    super(breaker);
   }
 
-//  public LongTermsSet(final int expectedElements) {
-//    this.set = new LongHashSet(expectedElements);
-//  }
-
-  public LongTermsSet(final int expectedElements, final CircuitBreakerService breakerService) {
+  public LongTermsSet(final int expectedElements, final CircuitBreaker breakerService) {
     super(breakerService);
-    this.set = new LongHashSet(expectedElements);
-    this.adjustBreaker(estimatedRamBytesUsed());
+    this.set = new CircuitBreakerLongHashSet(expectedElements);
   }
 
   /**
@@ -78,9 +71,7 @@ public class LongTermsSet extends TermsSet {
     if (!(terms instanceof LongTermsSet)) {
       throw new UnsupportedOperationException("Invalid type: LongTermSet expected.");
     }
-    long oldMemSize = this.estimatedRamBytesUsed();
     this.set.addAll(((LongTermsSet) terms).set);
-    this.adjustBreaker(this.estimatedRamBytesUsed() - oldMemSize);
   }
 
   @Override
@@ -92,8 +83,7 @@ public class LongTermsSet extends TermsSet {
   public void readFrom(StreamInput in) throws IOException {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
-    set = new LongHashSet(size);
-    this.adjustBreaker(estimatedRamBytesUsed());
+    set = new CircuitBreakerLongHashSet(size);
     for (long i = 0; i < size; i++) {
       set.add(in.readLong());
     }
@@ -137,6 +127,7 @@ public class LongTermsSet extends TermsSet {
     long start = System.nanoTime();
     int size = set.size();
 
+//    this.adjustBreaker(HEADER_SIZE + 8 * size);
     BytesRef bytes = new BytesRef(new byte[HEADER_SIZE + 8 * size]);
 
     // Encode encoding type
@@ -172,7 +163,6 @@ public class LongTermsSet extends TermsSet {
     // Scatter set is slightly more efficient than the hash set, but should be used only for lookups,
     // not for merging
     set = new LongScatterSet(size);
-    this.adjustBreaker(estimatedRamBytesUsed());
     for (int i = 0; i < size; i++) {
       set.add(FieldDataTermsQueryHelper.readLong(bytes));
     }
@@ -184,8 +174,58 @@ public class LongTermsSet extends TermsSet {
   }
 
   @Override
-  protected long estimatedRamBytesUsed() {
-    return this.set != null ? this.set.keys.length * 8 : 0;
+  public void release() {
+    if (set != null) {
+      set.release();
+    }
+  }
+
+  /**
+   * A {@link LongHashSet} integrated with the {@link CircuitBreaker}. It will adjust the circuit breaker
+   * for every new call to {@link #allocateBuffers(int)}.
+   * <p>
+   * This set must not be reused after a call to {@link #release()}.
+   */
+  private final class CircuitBreakerLongHashSet extends LongHashSet {
+
+    public CircuitBreakerLongHashSet(int expectedElements) {
+      super(expectedElements);
+    }
+
+    @Override
+    protected void allocateBuffers(int arraySize) {
+      long newMemSize = (arraySize + 1) * 8l; // array size + emptyElementSlot
+      long oldMemSize = keys == null ? 0 : keys.length * 8l;
+
+      // Adjust the breaker with the new memory size
+      breaker.addEstimateBytesAndMaybeBreak(newMemSize, "<terms_set>");
+
+      try {
+        // Allocate the new buffer
+        super.allocateBuffers(arraySize);
+        // Adjust the breaker by removing old memory size
+        breaker.addWithoutBreaking(-oldMemSize);
+      }
+      catch (BufferAllocationException e) {
+        // If the allocation failed, remove
+        breaker.addWithoutBreaking(-newMemSize);
+        throw e;
+      }
+    }
+
+    @Override
+    public void release() {
+      long memSize = keys == null ? 0 : keys.length * 8l;
+
+      // Release - do not allocate a new minimal buffer
+      assigned = 0;
+      hasEmptyKey = false;
+      keys = null;
+
+      // Adjust breaker
+      breaker.addWithoutBreaking(-memSize);
+    }
+
   }
 
 }

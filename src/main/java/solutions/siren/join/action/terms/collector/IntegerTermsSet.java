@@ -1,21 +1,19 @@
 package solutions.siren.join.action.terms.collector;
 
+import com.carrotsearch.hppc.BufferAllocationException;
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntScatterSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 
 public class IntegerTermsSet extends TermsSet {
@@ -30,23 +28,13 @@ public class IntegerTermsSet extends TermsSet {
 
   private static final ESLogger logger = Loggers.getLogger(IntegerTermsSet.class);
 
-//  /**
-//   * Default constructor
-//   */
-//  public IntegerTermsSet() {}
-
-  public IntegerTermsSet(final CircuitBreakerService breakerService) {
-    super(breakerService);
+  public IntegerTermsSet(final CircuitBreaker breaker) {
+    super(breaker);
   }
 
-//  public IntegerTermsSet(int expectedElements) {
-//    this.set = new IntHashSet(expectedElements);
-//  }
-
-  public IntegerTermsSet(final int expectedElements, final CircuitBreakerService breakerService) {
-    super(breakerService);
-    this.set = new IntHashSet(expectedElements);
-    this.adjustBreaker(estimatedRamBytesUsed());
+  public IntegerTermsSet(final int expectedElements, final CircuitBreaker breaker) {
+    super(breaker);
+    this.set = new CircuitBreakerIntHashSet(expectedElements);
   }
 
   /**
@@ -73,9 +61,7 @@ public class IntegerTermsSet extends TermsSet {
     if (!(terms instanceof IntegerTermsSet)) {
       throw new UnsupportedOperationException("Invalid type: IntegerTermsSet expected.");
     }
-    long oldMemSize = this.estimatedRamBytesUsed();
     this.set.addAll(((IntegerTermsSet) terms).set);
-    this.adjustBreaker(this.estimatedRamBytesUsed() - oldMemSize);
   }
 
   @Override
@@ -87,8 +73,7 @@ public class IntegerTermsSet extends TermsSet {
   public void readFrom(StreamInput in) throws IOException {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
-    set = new IntHashSet(size);
-    this.adjustBreaker(estimatedRamBytesUsed());
+    set = new CircuitBreakerIntHashSet(size);
     for (long i = 0; i < size; i++) {
       set.add(in.readVInt());
     }
@@ -130,8 +115,9 @@ public class IntegerTermsSet extends TermsSet {
   @Override
   public BytesRef writeToBytes() {
     long start = System.nanoTime();
-
     int size = set.size();
+
+//    this.adjustBreaker(HEADER_SIZE + 5 * size);
     BytesRef bytesRef = new BytesRef(new byte[HEADER_SIZE + size * 5]);
 
     // Encode encoding type
@@ -167,7 +153,6 @@ public class IntegerTermsSet extends TermsSet {
     // Scatter set is slightly more efficient than the hash set, but should be used only for lookups,
     // not for merging
     set = new IntScatterSet(size);
-    this.adjustBreaker(estimatedRamBytesUsed());
     for (int i = 0; i < size; i++) {
       set.add(FieldDataTermsQueryHelper.readVInt(bytesRef));
     }
@@ -179,8 +164,57 @@ public class IntegerTermsSet extends TermsSet {
   }
 
   @Override
-  protected long estimatedRamBytesUsed() {
-    return this.set != null ? this.set.keys.length * 4 : 0;
+  public void release() {
+    if (set != null) {
+      set.release();
+    }
+  }
+
+  /**
+   * A {@link IntHashSet} integrated with the {@link CircuitBreaker}. It will adjust the circuit breaker
+   * for every new call to {@link #allocateBuffers(int)}.
+   * <p>
+   * This set must not be reused after a call to {@link #release()}.
+   */
+  private final class CircuitBreakerIntHashSet extends IntHashSet {
+
+    public CircuitBreakerIntHashSet(int expectedElements) {
+      super(expectedElements);
+    }
+
+    @Override
+    protected void allocateBuffers(int arraySize) {
+      long newMemSize = (arraySize + 1) * 4l; // array size + emtpyElementSlot
+      long oldMemSize = keys == null ? 0 : keys.length * 4l;
+
+      // Adjust the breaker with the new memory size
+      breaker.addEstimateBytesAndMaybeBreak(newMemSize, "<terms_set>");
+
+      try {
+        // Allocate the new buffer
+        super.allocateBuffers(arraySize);
+        // Adjust the breaker by removing old memory size
+        breaker.addWithoutBreaking(-oldMemSize);
+      }
+      catch (BufferAllocationException e) {
+        // If the allocation failed, remove
+        breaker.addWithoutBreaking(-newMemSize);
+      }
+    }
+
+    @Override
+    public void release() {
+      long memSize = keys == null ? 0 : keys.length * 4l;
+
+      // Release - do not allocate a new minimal buffer
+      assigned = 0;
+      hasEmptyKey = false;
+      keys = null;
+
+      // Adjust breaker
+      breaker.addWithoutBreaking(-memSize);
+    }
+
   }
 
 }
