@@ -117,7 +117,6 @@ public class IntegerTermsSet extends TermsSet {
     long start = System.nanoTime();
     int size = set.size();
 
-//    this.adjustBreaker(HEADER_SIZE + 5 * size);
     BytesRef bytesRef = new BytesRef(new byte[HEADER_SIZE + size * 5]);
 
     // Encode encoding type

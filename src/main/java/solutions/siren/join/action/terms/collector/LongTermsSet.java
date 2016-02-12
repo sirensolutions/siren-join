@@ -127,7 +127,6 @@ public class LongTermsSet extends TermsSet {
     long start = System.nanoTime();
     int size = set.size();
 
-//    this.adjustBreaker(HEADER_SIZE + 8 * size);
     BytesRef bytes = new BytesRef(new byte[HEADER_SIZE + 8 * size]);
 
     // Encode encoding type
