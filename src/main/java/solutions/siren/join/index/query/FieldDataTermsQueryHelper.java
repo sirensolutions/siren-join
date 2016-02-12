@@ -20,7 +20,7 @@ package solutions.siren.join.index.query;
 
 import com.google.common.hash.Hashing;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.breaker.NoopCircuitBreaker;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
 
 import java.io.IOException;
@@ -34,7 +34,7 @@ public class FieldDataTermsQueryHelper {
    * Encodes the list of longs into a serialised {@link LongTermsSet}.
    */
   public final static byte[] encode(long[] values) throws IOException {
-    LongTermsSet termsSet = new LongTermsSet(values.length);
+    LongTermsSet termsSet = new LongTermsSet(values.length, new NoopCircuitBreaker("<term_set>"));
     for (int i = 0; i < values.length; i++) {
       termsSet.add(values[i]);
     }

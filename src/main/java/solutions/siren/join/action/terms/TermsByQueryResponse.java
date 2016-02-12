@@ -23,8 +23,6 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import solutions.siren.join.action.terms.collector.IntegerTermsSet;
-import solutions.siren.join.action.terms.collector.LongTermsSet;
 import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
@@ -149,6 +147,8 @@ public class TermsByQueryResponse extends BroadcastResponse {
     out.writeVInt(termsEncoding.ordinal());
     // Encode terms
     out.writeBytesRef(encodedTerms);
+    // Release terms
+    encodedTerms = null;
   }
 
 }

@@ -1,9 +1,11 @@
 package solutions.siren.join.action.terms.collector;
 
+import com.carrotsearch.hppc.BufferAllocationException;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongScatterSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
@@ -27,12 +29,15 @@ public class LongTermsSet extends TermsSet {
   private static final ESLogger logger = Loggers.getLogger(LongTermsSet.class);
 
   /**
-   * Default constructor
+   * Constructor used by {@link solutions.siren.join.action.terms.TermsByQueryShardResponse}
    */
-  public LongTermsSet() {}
+  public LongTermsSet(final CircuitBreaker breaker) {
+    super(breaker);
+  }
 
-  public LongTermsSet(int expectedElements) {
-    this.set = new LongHashSet(expectedElements);
+  public LongTermsSet(final int expectedElements, final CircuitBreaker breakerService) {
+    super(breakerService);
+    this.set = new CircuitBreakerLongHashSet(expectedElements);
   }
 
   /**
@@ -40,6 +45,7 @@ public class LongTermsSet extends TermsSet {
    * Used in {@link solutions.siren.join.index.query.FieldDataTermsQuery}.
    */
   public LongTermsSet(BytesRef bytes) {
+    super(null);
     this.readFromBytes(bytes);
   }
 
@@ -77,7 +83,7 @@ public class LongTermsSet extends TermsSet {
   public void readFrom(StreamInput in) throws IOException {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
-    set = new LongHashSet(size);
+    set = new CircuitBreakerLongHashSet(size);
     for (long i = 0; i < size; i++) {
       set.add(in.readLong());
     }
@@ -164,6 +170,61 @@ public class LongTermsSet extends TermsSet {
   @Override
   public TermsByQueryRequest.TermsEncoding getEncoding() {
     return TermsByQueryRequest.TermsEncoding.LONG;
+  }
+
+  @Override
+  public void release() {
+    if (set != null) {
+      set.release();
+    }
+  }
+
+  /**
+   * A {@link LongHashSet} integrated with the {@link CircuitBreaker}. It will adjust the circuit breaker
+   * for every new call to {@link #allocateBuffers(int)}.
+   * <p>
+   * This set must not be reused after a call to {@link #release()}.
+   */
+  private final class CircuitBreakerLongHashSet extends LongHashSet {
+
+    public CircuitBreakerLongHashSet(int expectedElements) {
+      super(expectedElements);
+    }
+
+    @Override
+    protected void allocateBuffers(int arraySize) {
+      long newMemSize = (arraySize + 1) * 8l; // array size + emptyElementSlot
+      long oldMemSize = keys == null ? 0 : keys.length * 8l;
+
+      // Adjust the breaker with the new memory size
+      breaker.addEstimateBytesAndMaybeBreak(newMemSize, "<terms_set>");
+
+      try {
+        // Allocate the new buffer
+        super.allocateBuffers(arraySize);
+        // Adjust the breaker by removing old memory size
+        breaker.addWithoutBreaking(-oldMemSize);
+      }
+      catch (BufferAllocationException e) {
+        // If the allocation failed, remove
+        breaker.addWithoutBreaking(-newMemSize);
+        throw e;
+      }
+    }
+
+    @Override
+    public void release() {
+      long memSize = keys == null ? 0 : keys.length * 8l;
+
+      // Release - do not allocate a new minimal buffer
+      assigned = 0;
+      hasEmptyKey = false;
+      keys = null;
+
+      // Adjust breaker
+      breaker.addWithoutBreaking(-memSize);
+    }
+
   }
 
 }

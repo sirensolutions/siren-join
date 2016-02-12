@@ -20,7 +20,9 @@ package solutions.siren.join;
 
 import org.elasticsearch.action.ActionModule;
 import org.elasticsearch.common.inject.Module;
+import org.elasticsearch.index.cache.IndexCacheModule;
 import org.elasticsearch.indices.IndicesModule;
+import org.elasticsearch.indices.breaker.CircuitBreakerModule;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestModule;
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
@@ -51,7 +53,8 @@ import java.util.Collection;
 public class SirenJoinPlugin extends Plugin {
 
   @Inject
-  public SirenJoinPlugin(Settings settings) {}
+  public SirenJoinPlugin(Settings settings) {
+  }
 
   public void onModule(ActionModule module) {
     module.registerAction(TermsByQueryAction.INSTANCE, TransportTermsByQueryAction.class);
@@ -87,6 +90,11 @@ public class SirenJoinPlugin extends Plugin {
   @Override
   public String description() {
     return "SIREn plugin that adds join capabilities to Elasticsearch";
+  }
+
+  @Override
+  public Settings additionalSettings() {
+    return Settings.builder().put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true).build();
   }
 
 }

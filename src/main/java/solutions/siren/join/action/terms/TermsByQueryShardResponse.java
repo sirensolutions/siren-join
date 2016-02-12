@@ -19,6 +19,8 @@
 package solutions.siren.join.action.terms;
 
 import org.elasticsearch.action.support.broadcast.BroadcastShardResponse;
+import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
@@ -27,6 +29,7 @@ import solutions.siren.join.action.terms.collector.LongTermsSet;
 import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * Internal terms by query response of a shard terms by query request executed directly against a specific shard.
@@ -34,21 +37,25 @@ import java.io.IOException;
 class TermsByQueryShardResponse extends BroadcastShardResponse {
 
   private TermsSet termsSet;
+  private final CircuitBreaker breaker;
 
   /**
    * Default constructor
    */
-  TermsByQueryShardResponse() {}
+  TermsByQueryShardResponse(final CircuitBreaker breaker) {
+    this.breaker = breaker;
+  }
 
   /**
    * Main constructor
    *
-   * @param shardId       the id of the shard the request executed on
+   * @param shardId the id of the shard the request executed on
    * @param termsSet the terms gathered from the shard
    */
   public TermsByQueryShardResponse(ShardId shardId, TermsSet termsSet) {
     super(shardId);
     this.termsSet = termsSet;
+    this.breaker = null;
   }
 
   /**
@@ -62,9 +69,6 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
 
   /**
    * Deserialize
-   *
-   * @param in the input
-   * @throws IOException
    */
   @Override
   public void readFrom(StreamInput in) throws IOException {
@@ -74,12 +78,12 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
     switch (termsEncoding) {
 
       case LONG:
-        termsSet = new LongTermsSet();
+        termsSet = new LongTermsSet(breaker);
         termsSet.readFrom(in);
         return;
 
       case INTEGER:
-        termsSet = new IntegerTermsSet();
+        termsSet = new IntegerTermsSet(breaker);
         termsSet.readFrom(in);
         return;
 
@@ -90,18 +94,24 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
   }
 
   /**
-   * Serialize
-   *
-   * @param out the output
-   * @throws IOException
+   * Serialize and release the terms set.
+   * <p>
+   * If the response is sent through a {@link org.elasticsearch.transport.TransportService.DirectResponseChannel},
+   * this method will not be called and the {@link #termsSet} will be released by the receiver, i.e.,
+   * {@link TransportTermsByQueryAction#newResponse(TermsByQueryRequest, AtomicReferenceArray, ClusterState)}.
    */
   @Override
   public void writeTo(StreamOutput out) throws IOException {
-    super.writeTo(out);
-
-    // Encode type of encoding
-    out.writeVInt(termsSet.getEncoding().ordinal());
-    // Encode terms
-    termsSet.writeTo(out);
+    try {
+      super.writeTo(out);
+      // Encode type of encoding
+      out.writeVInt(termsSet.getEncoding().ordinal());
+      // Encode terms
+      termsSet.writeTo(out);
+    }
+    finally {
+      // Releases the resources and adjust the circuit breaker
+      termsSet.release();
+    }
   }
 }

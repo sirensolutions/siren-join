@@ -2,6 +2,7 @@
 
 Improvements
 
+* [GH-29] Integrate a circuit breaker in the terms set computation
 * [GH-32] Upgrade to Elasticsearch 2.2
 
 Bugs
