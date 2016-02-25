@@ -247,7 +247,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   }
 
   /**
-   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#LONG}.
+   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#BLOOM}.
    */
   public TermsEncoding termsEncoding() {
     return termsEncoding == null ? DEFAULT_TERM_ENCODING : termsEncoding;
