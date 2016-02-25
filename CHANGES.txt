@@ -6,6 +6,7 @@ Improvements
 * [GH-32] Upgrade to Elasticsearch 2.2
 * [GH-39] Bloom filter term encoding
 * [GH-43] Readme improvement for building the plugin
+* [GH-44] Review license header
 
 Bugs
 
