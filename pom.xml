@@ -31,7 +31,7 @@
 
   <scm>
     <url>https://github.com/sirensolutions/siren-join</url>
-    <connection>git@github.com:sirensolutions/siren-join.git</connection>
+    <connection>scm:git@github.com:sirensolutions/siren-join.git</connection>
   </scm>
 
   <properties>
