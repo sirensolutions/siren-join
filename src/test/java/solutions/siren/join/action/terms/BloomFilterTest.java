@@ -69,7 +69,7 @@ public class BloomFilterTest {
       }
 
       double ratio = f / tests;
-      assertThat(ratio, closeTo(0.01, 0.001));
+      assertThat(ratio, closeTo(0.01, 0.002));
     }
   }
 

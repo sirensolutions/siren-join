@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.broadcast.BroadcastRequest;
 import org.elasticsearch.common.Nullable;
@@ -66,6 +67,16 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.BLOOM;
 
   public TermsByQueryRequest() {}
+
+  /**
+   * Constructor used internally to execute a terms by query request that originates from a parent request.
+   * This is required for Shield compatibility. This will copy the context and headers (which contain the Shield tokens)
+   * of the original request to the new request.
+   */
+  public TermsByQueryRequest(ActionRequest originalRequest, String... indices) {
+    super(originalRequest);
+    this.indices(indices);
+  }
 
   /**
    * Constructs a new terms by query request against the provided indices. No indices provided means it will run against all indices.

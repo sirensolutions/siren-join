@@ -19,12 +19,14 @@
 package solutions.siren.join.action.coordinate;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.ConstantScoreQueryParser;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
@@ -51,6 +53,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class FilterJoinVisitor {
 
+  protected final ActionRequest parentRequest;
   private final RootNode root;
   protected final Client client;
   protected final BlockingQueue<Integer> blockingQueue = new LinkedBlockingQueue<>();
@@ -58,7 +61,8 @@ public class FilterJoinVisitor {
 
   private static final ESLogger logger = Loggers.getLogger(FilterJoinVisitor.class);
 
-  public FilterJoinVisitor(Client client, RootNode root) {
+  public FilterJoinVisitor(Client client, RootNode root, ActionRequest parentRequest) {
+    this.parentRequest = parentRequest;
     this.client = client;
     this.root = root;
     this.metadata = new CoordinateSearchMetadata();
@@ -163,7 +167,7 @@ public class FilterJoinVisitor {
     node.setState(FilterJoinNode.State.RUNNING); // set state before execution to avoid race conditions with listener
     TermsByQueryActionListener listener = new TermsByQueryActionListener(node);
     node.setActionListener(listener);
-    new AsyncCardinalityEstimationAction(client, node, listener).start();
+    new AsyncCardinalityEstimationAction(client, node, listener, parentRequest).start();
   }
 
   /**
@@ -240,13 +244,16 @@ public class FilterJoinVisitor {
     protected final Client client;
     protected final FilterJoinNode node;
     protected final TermsByQueryActionListener listener;
+    protected final ActionRequest parentRequest;
 
     protected static final ESLogger logger = Loggers.getLogger(AsyncFilterJoinVisitorAction.class);
 
-    protected AsyncFilterJoinVisitorAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener) {
+    protected AsyncFilterJoinVisitorAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener,
+                                           ActionRequest parentRequest) {
       this.client = client;
       this.node = node;
       this.listener = listener;
+      this.parentRequest = parentRequest;
     }
 
     protected void start() {
@@ -268,7 +275,7 @@ public class FilterJoinVisitor {
       Integer maxTermsPerShard = node.getMaxTermsPerShard();
       TermsByQueryRequest.TermsEncoding termsEncoding = node.getTermsEncoding();
 
-      TermsByQueryRequest request = new TermsByQueryRequest(lookupIndices)
+      TermsByQueryRequest request = new TermsByQueryRequest(parentRequest, lookupIndices)
               .field(lookupPath)
               .types(lookupTypes)
               .query(lookupQuery)
@@ -293,13 +300,16 @@ public class FilterJoinVisitor {
     protected final Client client;
     protected final FilterJoinNode node;
     protected final TermsByQueryActionListener listener;
+    protected final ActionRequest parentRequest;
 
     protected static final ESLogger logger = Loggers.getLogger(AsyncFilterJoinVisitorAction.class);
 
-    protected AsyncCardinalityEstimationAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener) {
+    protected AsyncCardinalityEstimationAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener,
+                                               ActionRequest parentRequest) {
       this.client = client;
       this.node = node;
       this.listener = listener;
+      this.parentRequest = parentRequest;
     }
 
     protected void start() {
@@ -332,7 +342,7 @@ public class FilterJoinVisitor {
     }
 
     protected void nextStep() {
-      new AsyncFilterJoinVisitorAction(client, node, listener).start();
+      new AsyncFilterJoinVisitorAction(client, node, listener, parentRequest).start();
     }
 
     protected SearchRequest getCardinalityRequest(FilterJoinNode node) {
@@ -340,9 +350,15 @@ public class FilterJoinVisitor {
       String[] lookupTypes = node.getLookupTypes();
       String lookupPath = node.getLookupPath();
 
-      return client.prepareSearch(lookupIndices).setTypes(lookupTypes).setSize(0).addAggregation(
-        AggregationBuilders.cardinality(lookupPath).field(lookupPath)
-      ).request();
+      // Build the search source with the aggregate definition
+      SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+      sourceBuilder.size(0).aggregation(AggregationBuilders.cardinality(lookupPath).field(lookupPath));
+
+      // Build search request with reference to the parent request
+      SearchRequest searchRequest = new SearchRequest(parentRequest);
+      searchRequest.indices(lookupIndices).types(lookupTypes).source(sourceBuilder);
+
+      return searchRequest;
     }
 
   }
