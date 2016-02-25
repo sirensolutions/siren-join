@@ -16,19 +16,19 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.index.query;
+package solutions.siren.join.common;
 
-import com.google.common.hash.Hashing;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.breaker.NoopCircuitBreaker;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
+import solutions.siren.join.index.query.FieldDataTermsQueryParser;
 
 import java.io.IOException;
 
 /**
- * Helper class for {@link FieldDataTermsQueryParser} to encode, decode and hash terms.
+ * Helper class for byte encoding and decoding of values.
  */
-public class FieldDataTermsQueryHelper {
+public class Bytes {
 
   /**
    * Encodes the list of longs into a serialised {@link LongTermsSet}.
@@ -39,14 +39,6 @@ public class FieldDataTermsQueryHelper {
       termsSet.add(values[i]);
     }
     return termsSet.writeToBytes().bytes;
-  }
-
-  /**
-   * Hash the given terms using Sip hash.
-   * @see Hashing#sipHash24()
-   */
-  public final static long hash(BytesRef term) {
-    return Hashing.sipHash24().hashBytes(term.bytes, term.offset, term.length).asLong();
   }
 
   /**
