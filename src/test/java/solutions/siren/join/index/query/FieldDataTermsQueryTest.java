@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.index.query;
 
-import com.google.common.hash.Hashing;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.index.cache.IndexCacheModule;
