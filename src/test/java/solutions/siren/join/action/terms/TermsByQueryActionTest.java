@@ -22,9 +22,9 @@ import com.carrotsearch.hppc.cursors.LongCursor;
 import com.carrotsearch.randomizedtesting.RandomizedTest;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
+import solutions.siren.join.action.terms.collector.LongBloomFilter;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
 import solutions.siren.join.action.terms.collector.TermsSet;
-import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
@@ -64,6 +64,7 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
                                                                         .setField("str")
                                                                         .setQuery(QueryBuilders.matchAllQuery())
+                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                                                                         .execute()
                                                                         .actionGet();
 
@@ -73,7 +74,8 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
     assertThat(lTerms instanceof LongTermsSet, is(true));
     for (int i = 0; i < numDocs; i++) {
-      long termHash = FieldDataTermsQueryHelper.hash(new BytesRef(Integer.toString(i)));
+      BytesRef bytesRef = new BytesRef(Integer.toString(i));
+      long termHash = LongBloomFilter.hash3_x64_128(bytesRef.bytes, bytesRef.offset, bytesRef.length, 0);
       assertThat(lTerms.contains(termHash), is(true));
     }
   }
@@ -101,6 +103,7 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
                                                                         .setField("int")
                                                                         .setQuery(QueryBuilders.matchAllQuery())
+                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                                                                         .execute()
                                                                         .actionGet();
 
@@ -140,6 +143,7 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
                                                                         .setQuery(QueryBuilders.matchAllQuery())
                                                                         .setOrderBy(TermsByQueryRequest.Ordering.DEFAULT)
                                                                         .setMaxTermsPerShard(50)
+                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                                                                         .execute()
                                                                         .actionGet();
 
@@ -191,6 +195,7 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
                                                                         .setQuery(QueryBuilders.termQuery("text", "aaa"))
                                                                         .setOrderBy(TermsByQueryRequest.Ordering.DOC_SCORE)
                                                                         .setMaxTermsPerShard(5)
+                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                                                                         .execute()
                                                                         .actionGet();
 

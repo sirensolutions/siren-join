@@ -51,6 +51,12 @@ public class FilterJoinNode extends AbstractNode {
    */
   private final int cacheId;
 
+  /**
+   * An estimation of the cardinality of the join.
+   */
+  private long cardinality = 0;
+  private boolean hasCardinality = false;
+
   private State state;
   private FilterJoinVisitor.TermsByQueryActionListener listener;
 
@@ -81,6 +87,19 @@ public class FilterJoinNode extends AbstractNode {
    */
   int getCacheId() {
     return cacheId;
+  }
+
+  void setCardinality(long cardinality) {
+    this.cardinality = cardinality;
+    this.hasCardinality = true;
+  }
+
+  boolean hasCardinality() {
+    return hasCardinality;
+  }
+
+  long getCardinality() {
+    return cardinality;
   }
 
   public String getField() {

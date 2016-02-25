@@ -57,11 +57,13 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   private Integer maxTermsPerShard;
   @Nullable
   private TermsEncoding termsEncoding;
+  @Nullable
+  private Long expectedTerms;
 
   /**
    * Default terms encoding
    */
-  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.LONG;
+  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.BLOOM;
 
   public TermsByQueryRequest() {}
 
@@ -233,7 +235,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    * The types of terms encoding
    */
   public enum TermsEncoding {
-    LONG, INTEGER
+    LONG, INTEGER, BLOOM
   }
 
   /**
@@ -250,6 +252,22 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   public TermsEncoding termsEncoding() {
     return termsEncoding == null ? DEFAULT_TERM_ENCODING : termsEncoding;
   }
+
+  /**
+   * The number of expected terms to collect across all shards.
+   */
+  public TermsByQueryRequest expectedTerms(Long expectedTerms) {
+    this.expectedTerms = expectedTerms;
+    return this;
+  }
+
+  /**
+   * The number of expected terms to collect across all shards.
+   */
+  public Long expectedTerms() {
+    return expectedTerms;
+  }
+
 
   /**
    * Deserialize
@@ -287,6 +305,10 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
 
     if (in.readBoolean()) {
       termsEncoding = TermsEncoding.values()[in.readVInt()];
+    }
+
+    if (in.readBoolean()) {
+      expectedTerms = in.readVLong();
     }
   }
 
@@ -339,6 +361,14 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
     } else {
       out.writeBoolean(true);
       out.writeVInt(termsEncoding.ordinal());
+    }
+
+    if (expectedTerms == null) {
+      out.writeBoolean(false);
+    }
+    else {
+      out.writeBoolean(true);
+      out.writeVLong(expectedTerms);
     }
   }
 

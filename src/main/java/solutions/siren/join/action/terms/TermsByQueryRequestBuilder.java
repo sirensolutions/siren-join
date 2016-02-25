@@ -108,6 +108,14 @@ public class TermsByQueryRequestBuilder extends BroadcastOperationRequestBuilder
     return this;
   }
 
+  /**
+   * The number of expected terms to collect across all shards.
+   */
+  public TermsByQueryRequestBuilder setExpectedTerms(long expectedTerms) {
+    request.expectedTerms(expectedTerms);
+    return this;
+  }
+
   @Override
   public void execute(ActionListener<TermsByQueryResponse> listener) {
     client.execute(TermsByQueryAction.INSTANCE, request, listener);

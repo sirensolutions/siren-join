@@ -56,7 +56,7 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
       // Create term by query request (can be an expensive operation - do it only if cache miss)
       TermsByQueryActionListener listener = new CachedTermsByQueryActionListener(node);
       node.setActionListener(listener);
-      new AsyncFilterJoinVisitorAction(client, node, listener).start();
+      new AsyncCardinalityEstimationAction(client, node, listener).start();
     }
     else { // if cache hit
       logger.debug("Cache hit for terms by query action: {}", node.getCacheId());
