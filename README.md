@@ -25,15 +25,17 @@ You can use the following command to download the plugin from the online reposit
 
     $ bin/plugin install solutions.siren/siren-join/2.2.0
 
-Alternatively, you can assemble it via Maven:
+Alternatively, you can assemble it via Maven (you must build it as a *non-root* user):
 
 ```
+$ git clone git@github.com:sirensolutions/siren-join.git
+$ cd siren-join
 $ mvn package
 ```
 
 This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
-    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PLUGIN/target/releases/siren-join-2.2.0.zip
+    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.2.0.zip
 
 You can now start Elasticsearch and see that our plugin gets loaded:
 

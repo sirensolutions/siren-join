@@ -4,13 +4,14 @@ Improvements
 
 * [GH-29] Integrate a circuit breaker in the terms set computation
 * [GH-32] Upgrade to Elasticsearch 2.2
+* [GH-43] Readme improvement for building the plugin
 
 Bugs
 
 * [GH-33] Report error when field does not exist in the index
 * [GH-36] Incompatible javadoc flag with java 1.7 in maven build
 
-======================= Release 2.1.1 =========================
+======================= Release 2.1.2 =========================
 
 Improvements
 
