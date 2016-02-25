@@ -158,6 +158,8 @@ If precision is critical, then it is recommended to switch to the terms encoding
 * The `filterjoin` includes a circuit breaker to prevent OOME when joining a field with a large number of unique values.
 As a rule of thumb, the maximum amount of unique values transferred across the shards should be around 50 to 100M when
 using bloom encoding, 5 to 10M when using long or integer encoding.
+It is recommended to configure a `maxTermsPerShard` limit if the attribute defined by the `path` parameter contains
+a larger number of values.
 
 ## Acknowledgement
 
