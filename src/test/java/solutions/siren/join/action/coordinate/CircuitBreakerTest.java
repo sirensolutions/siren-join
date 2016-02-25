@@ -48,14 +48,15 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.*;
 
-@Seed("8507589F13F69F22")
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes=1, randomDynamicTemplates=false)
 public class CircuitBreakerTest extends SirenJoinTestCase {
 
   @Before
   public void setup() throws ExecutionException, InterruptedException {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string"));
+    Settings.Builder builder = Settings.builder().put("index.number_of_shards", 1);
+    builder.put("index.number_of_replicas", 0);
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer").setSettings(builder));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string").setSettings(builder));
 
     ensureGreen();
 
@@ -82,6 +83,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
                     HierarchyCircuitBreakerService.DEFAULT_FIELDDATA_OVERHEAD_CONSTANT)
             .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING,
                     HierarchyCircuitBreakerService.DEFAULT_REQUEST_BREAKER_LIMIT)
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_TYPE_SETTING, CircuitBreaker.Type.MEMORY)
             .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_OVERHEAD_SETTING, 1.0)
             .build();
     assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(resetSettings));
@@ -91,7 +93,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
   public void testCircuitBreakerOnShard() throws Exception {
     // Update circuit breaker settings
     Settings settings = settingsBuilder()
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "80b")
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "8b")
             .build();
     assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(settings));
 
@@ -101,7 +103,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
             ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
     );
     assertFailures(searchRequest, RestStatus.INTERNAL_SERVER_ERROR,
-            containsString("Data too large, data for [<terms_set>] would be larger than limit of [80/80b]"));
+            containsString("Data too large, data for [<terms_set>] would be larger than limit of [8/8b]"));
 
     NodesStatsResponse stats = client().admin().cluster().prepareNodesStats().setBreaker(true).get();
     int breaks = 0;
@@ -116,7 +118,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
   public void testCircuitBreakerOnCoordinator() throws Exception {
     // Update circuit breaker settings
     Settings settings = settingsBuilder()
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "100b")
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "60b")
             .build();
     assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(settings));
 
@@ -126,7 +128,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
             ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
     );
     assertFailures(searchRequest, RestStatus.INTERNAL_SERVER_ERROR,
-            containsString("Data too large, data for [<terms_set>] would be larger than limit of [100/100b]"));
+            containsString("Data too large, data for [<terms_set>] would be larger than limit of [60/60b]"));
 
     NodesStatsResponse stats = client().admin().cluster().prepareNodesStats().setBreaker(true).get();
     int breaks = 0;
