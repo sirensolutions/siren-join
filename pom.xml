@@ -5,7 +5,7 @@
   <groupId>solutions.siren</groupId>
   <artifactId>siren-join</artifactId>
   <name>siren-join</name>
-  <version>2.1.2</version>
+  <version>2.2.0</version>
   <description>SIREn plugin that adds join capabilities to Elasticsearch</description>
   <url>http://github.com/sirensolutions/siren-join</url>
 
@@ -31,14 +31,17 @@
 
   <scm>
     <url>https://github.com/sirensolutions/siren-join</url>
-    <connection>git@github.com:sirensolutions/siren-join.git</connection>
+    <connection>scm:git@github.com:sirensolutions/siren-join.git</connection>
   </scm>
 
   <properties>
-    <lucene.version>5.3.1</lucene.version>
-    <elasticsearch.version>2.1.2</elasticsearch.version>
+    <lucene.version>5.4.1</lucene.version>
+    <elasticsearch.version>2.2.0</elasticsearch.version>
     <maven.compiler.target>1.7</maven.compiler.target>
-    <elasticsearch.plugin.classname>solutions.siren.join.SirenJoinPlugin</elasticsearch.plugin.classname>
+
+    <siren.tools.directory>${project.basedir}/dev-tools</siren.tools.directory>
+    <siren.license.header>${siren.tools.directory}/license-check/siren_license_header.txt</siren.license.header>
+    <siren.license.headerDefinition>${siren.tools.directory}/license-check/license_header_definition.xml</siren.license.headerDefinition>
   </properties>
 
   <build>
@@ -83,8 +86,8 @@
             <goals>
               <goal>jar</goal>
             </goals>
-            <configuration> <!-- disable checking -->
-              <additionalparam>-Xdoclint:none</additionalparam>
+            <configuration>
+              <additionalparam>${javadoc.opts}</additionalparam>
             </configuration>
           </execution>
         </executions>
@@ -127,6 +130,45 @@
         </executions>
       </plugin>
 
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>2.5</version>
+        <configuration>
+          <header>${siren.license.header}</header>
+          <headerDefinitions>
+            <headerDefinition>${siren.license.headerDefinition}</headerDefinition>
+          </headerDefinitions>
+          <includes>
+            <include>src/main/java/solutions/siren/**/*.java</include>
+            <include>src/test/java/solutions/siren/**/*.java</include>
+          </includes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>check-license-headers</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <version>3.0.3</version>
+        <configuration>
+          <xmlOutput>true</xmlOutput>
+          <xmlOutputDirectory>target/site</xmlOutputDirectory>
+          <fork>true</fork>
+          <maxHeap>2048</maxHeap>
+          <timeout>1800000</timeout>
+          <onlyAnalyze>solutions.siren.-</onlyAnalyze>
+        </configuration>
+      </plugin>
+
     </plugins>
   </build>
 
@@ -154,7 +196,7 @@
     <dependency>
       <groupId>com.carrotsearch.randomizedtesting</groupId>
       <artifactId>randomizedtesting-runner</artifactId>
-      <version>2.1.16</version>
+      <version>2.2.0</version>
       <scope>test</scope>
     </dependency>
 
@@ -226,9 +268,28 @@
       <version>1.7.12</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.carrotsearch</groupId>
+      <artifactId>junit-benchmarks</artifactId>
+      <version>0.7.2</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <profiles>
+
+    <profile>
+      <id>doclint-java8-disable</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <properties>
+        <!-- disable checking -->
+        <javadoc.opts>-Xdoclint:none</javadoc.opts>
+      </properties>
+    </profile>
+
     <!-- To deploy to OSSRH -->
     <profile>
       <id>release</id>
@@ -273,6 +334,7 @@
               </execution>
             </executions>
           </plugin>
+
         </plugins>
       </build>
     </profile>

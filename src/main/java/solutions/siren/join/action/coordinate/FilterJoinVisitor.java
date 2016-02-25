@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -19,7 +19,14 @@
 package solutions.siren.join.action.coordinate;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.search.SearchAction;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.ConstantScoreQueryParser;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
@@ -37,6 +44,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Visitor that will traverse the tree until all the filter join nodes have been converted
@@ -45,6 +53,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class FilterJoinVisitor {
 
+  protected final ActionRequest parentRequest;
   private final RootNode root;
   protected final Client client;
   protected final BlockingQueue<Integer> blockingQueue = new LinkedBlockingQueue<>();
@@ -52,7 +61,8 @@ public class FilterJoinVisitor {
 
   private static final ESLogger logger = Loggers.getLogger(FilterJoinVisitor.class);
 
-  public FilterJoinVisitor(Client client, RootNode root) {
+  public FilterJoinVisitor(Client client, RootNode root, ActionRequest parentRequest) {
+    this.parentRequest = parentRequest;
     this.client = client;
     this.root = root;
     this.metadata = new CoordinateSearchMetadata();
@@ -157,7 +167,7 @@ public class FilterJoinVisitor {
     node.setState(FilterJoinNode.State.RUNNING); // set state before execution to avoid race conditions with listener
     TermsByQueryActionListener listener = new TermsByQueryActionListener(node);
     node.setActionListener(listener);
-    new AsyncFilterJoinVisitorAction(client, node, listener).start();
+    new AsyncCardinalityEstimationAction(client, node, listener, parentRequest).start();
   }
 
   /**
@@ -234,13 +244,16 @@ public class FilterJoinVisitor {
     protected final Client client;
     protected final FilterJoinNode node;
     protected final TermsByQueryActionListener listener;
+    protected final ActionRequest parentRequest;
 
     protected static final ESLogger logger = Loggers.getLogger(AsyncFilterJoinVisitorAction.class);
 
-    protected AsyncFilterJoinVisitorAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener) {
+    protected AsyncFilterJoinVisitorAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener,
+                                           ActionRequest parentRequest) {
       this.client = client;
       this.node = node;
       this.listener = listener;
+      this.parentRequest = parentRequest;
     }
 
     protected void start() {
@@ -262,13 +275,90 @@ public class FilterJoinVisitor {
       Integer maxTermsPerShard = node.getMaxTermsPerShard();
       TermsByQueryRequest.TermsEncoding termsEncoding = node.getTermsEncoding();
 
-      return new TermsByQueryRequest(lookupIndices)
+      TermsByQueryRequest request = new TermsByQueryRequest(parentRequest, lookupIndices)
               .field(lookupPath)
               .types(lookupTypes)
               .query(lookupQuery)
               .orderBy(ordering)
               .maxTermsPerShard(maxTermsPerShard)
               .termsEncoding(termsEncoding);
+
+      if (node.hasCardinality()) {
+        request.expectedTerms(node.getCardinality());
+      }
+
+      return request;
+    }
+
+  }
+
+  /**
+   * Executes a cardinality aggregation request to estimate the number of unique values
+   */
+  protected static class AsyncCardinalityEstimationAction {
+
+    protected final Client client;
+    protected final FilterJoinNode node;
+    protected final TermsByQueryActionListener listener;
+    protected final ActionRequest parentRequest;
+
+    protected static final ESLogger logger = Loggers.getLogger(AsyncFilterJoinVisitorAction.class);
+
+    protected AsyncCardinalityEstimationAction(Client client, FilterJoinNode node, TermsByQueryActionListener listener,
+                                               ActionRequest parentRequest) {
+      this.client = client;
+      this.node = node;
+      this.listener = listener;
+      this.parentRequest = parentRequest;
+    }
+
+    protected void start() {
+      // Executes the cardinality estimation only for bloom encoding
+      if (node.getTermsEncoding().equals(TermsByQueryRequest.TermsEncoding.BLOOM)) {
+        this.executeCardinalityRequest();
+      }
+      else {
+        this.nextStep();
+      }
+    }
+
+    protected void executeCardinalityRequest() {
+      logger.debug("Executing async cardinality action");
+      final SearchRequest cardinalityRequest = this.getCardinalityRequest(node);
+      client.execute(SearchAction.INSTANCE, cardinalityRequest, new ActionListener<SearchResponse>() {
+        @Override
+        public void onResponse(SearchResponse searchResponse) {
+          Cardinality c = searchResponse.getAggregations().get(node.getLookupPath());
+          node.setCardinality(c.getValue());
+
+          nextStep();
+        }
+
+        @Override
+        public void onFailure(Throwable e) {
+          listener.onFailure(e);
+        }
+      });
+    }
+
+    protected void nextStep() {
+      new AsyncFilterJoinVisitorAction(client, node, listener, parentRequest).start();
+    }
+
+    protected SearchRequest getCardinalityRequest(FilterJoinNode node) {
+      String[] lookupIndices = node.getLookupIndices();
+      String[] lookupTypes = node.getLookupTypes();
+      String lookupPath = node.getLookupPath();
+
+      // Build the search source with the aggregate definition
+      SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+      sourceBuilder.size(0).aggregation(AggregationBuilders.cardinality(lookupPath).field(lookupPath));
+
+      // Build search request with reference to the parent request
+      SearchRequest searchRequest = new SearchRequest(parentRequest);
+      searchRequest.indices(lookupIndices).types(lookupTypes).source(sourceBuilder);
+
+      return searchRequest;
     }
 
   }

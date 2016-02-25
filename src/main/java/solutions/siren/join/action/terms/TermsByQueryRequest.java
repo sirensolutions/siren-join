@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.broadcast.BroadcastRequest;
 import org.elasticsearch.common.Nullable;
@@ -57,13 +58,25 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   private Integer maxTermsPerShard;
   @Nullable
   private TermsEncoding termsEncoding;
+  @Nullable
+  private Long expectedTerms;
 
   /**
    * Default terms encoding
    */
-  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.LONG;
+  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.BLOOM;
 
-  TermsByQueryRequest() {}
+  public TermsByQueryRequest() {}
+
+  /**
+   * Constructor used internally to execute a terms by query request that originates from a parent request.
+   * This is required for Shield compatibility. This will copy the context and headers (which contain the Shield tokens)
+   * of the original request to the new request.
+   */
+  public TermsByQueryRequest(ActionRequest originalRequest, String... indices) {
+    super(originalRequest);
+    this.indices(indices);
+  }
 
   /**
    * Constructs a new terms by query request against the provided indices. No indices provided means it will run against all indices.
@@ -233,7 +246,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    * The types of terms encoding
    */
   public enum TermsEncoding {
-    LONG, INTEGER
+    LONG, INTEGER, BLOOM
   }
 
   /**
@@ -245,11 +258,27 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   }
 
   /**
-   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#LONG}.
+   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#BLOOM}.
    */
   public TermsEncoding termsEncoding() {
     return termsEncoding == null ? DEFAULT_TERM_ENCODING : termsEncoding;
   }
+
+  /**
+   * The number of expected terms to collect across all shards.
+   */
+  public TermsByQueryRequest expectedTerms(Long expectedTerms) {
+    this.expectedTerms = expectedTerms;
+    return this;
+  }
+
+  /**
+   * The number of expected terms to collect across all shards.
+   */
+  public Long expectedTerms() {
+    return expectedTerms;
+  }
+
 
   /**
    * Deserialize
@@ -287,6 +316,10 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
 
     if (in.readBoolean()) {
       termsEncoding = TermsEncoding.values()[in.readVInt()];
+    }
+
+    if (in.readBoolean()) {
+      expectedTerms = in.readVLong();
     }
   }
 
@@ -339,6 +372,14 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
     } else {
       out.writeBoolean(true);
       out.writeVInt(termsEncoding.ordinal());
+    }
+
+    if (expectedTerms == null) {
+      out.writeBoolean(false);
+    }
+    else {
+      out.writeBoolean(true);
+      out.writeVLong(expectedTerms);
     }
   }
 

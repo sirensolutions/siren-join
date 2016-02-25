@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -32,10 +32,7 @@ import org.junit.Test;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.index.query.QueryBuilders.*;
@@ -77,7 +74,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     String q = boolQuery().filter(
                 filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                   boolQuery().filter(termQuery("tag", "aaa"))
-                )).toString();
+                ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)).toString();
     String body = "{ \"query\" : " + q + "}";
 
     HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
@@ -132,7 +129,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     assertThat((Integer) action.get(key), greaterThan(0));
 
     key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING.underscore().getValue();
-    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name().toLowerCase()));
+    assertThat((String) action.get(key), equalTo(TermsByQueryRequest.TermsEncoding.LONG.name().toLowerCase(Locale.ROOT)));
   }
 
   @Test
@@ -165,9 +162,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
                       boolQuery().filter(
                         filterJoin("foreign_key").indices("index3").types("type").path("id").query(
                           boolQuery().filter(termQuery("tag", "aaa"))
-                        )
+                        ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                       )
-                    )
+                    ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                   )
                   .filter(
                     termQuery("id", "1")
@@ -215,7 +212,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     String q = boolQuery().filter(
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
-            ).orderBy("doc_score").maxTermsPerShard(1)).toString();
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG).orderBy("doc_score").maxTermsPerShard(1)).toString();
     String body = "{ \"query\" : " + q + "}";
 
     // Execute a first time to add the action to the cache
@@ -294,7 +291,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     String q = boolQuery().filter(
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
-            )).toString().replace('\n', ' ');
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)).toString().replace('\n', ' ');
     String body = "{\"index\" : \"index1\"}\n";
     body += "{ \"query\" : " + q + "}\n";
     body += "{\"index\" : \"index1\"}\n";

@@ -1,0 +1,21 @@
+[[sire-join-circuit-breaker]]
+== Circuit Breaker
+
+To compute a join, the SIREn Join plugin has to load in memory a set of terms from one index that will be used to
+filter another index. But if the set of terms is too big, it will cause slow garbage collections or in
+the worst case an OutOfMemory exception.
+
+Elasticsearch contains multiple
+https://www.elastic.co/guide/en/elasticsearch/reference/current/circuit-breaker.html[circuit breakers] used to
+prevent operations from causing an OutOfMemoryError. Each breaker specifies a limit for how much memory it can use.
+
+The SIREn Join plugin relies on the
+https://www.elastic.co/guide/en/elasticsearch/reference/current/circuit-breaker.html#request-circuit-breaker[request circuit breaker]
+to keep track of the amount of memory used during the computation of the set of terms and to prevent it from exceeding a
+certain amount of memory. By default, the limit for the request breaker is set to 40% of the JVM heap. You can modify
+it with the setting `indices.breaker.request.limit`.
+
+The circuit breaker is more a prevention than a remedy against OutOfMemoryException. If the cardinality of the source
+field is relatively high (in the order of millions), it is recommended instead to set a limit to the maximum number of
+terms each shard should compute with the parameter `maxTermsPerShard`. You can easily estimate the cardinality of a
+field using the https://www.elastic.co/guide/en/elasticsearch/guide/current/cardinality.html[cardinality] metric.

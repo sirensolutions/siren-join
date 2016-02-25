@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -95,7 +95,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
       // Query planning and execution of filter joins
       SourceMapVisitor mapVisitor = new SourceMapVisitor(map);
       mapVisitor.traverse();
-      FilterJoinVisitor joinVisitor = new CachedFilterJoinVisitor(client, mapVisitor.getFilterJoinTree(), cache);
+      FilterJoinVisitor joinVisitor = new CachedFilterJoinVisitor(client, mapVisitor.getFilterJoinTree(), cache, request);
       joinVisitor.traverse();
       metadatas.add(joinVisitor.getMetadata());
 

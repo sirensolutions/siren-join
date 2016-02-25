@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -259,12 +259,14 @@ public class TermsByQueryBenchmark {
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(CHILD_INDEX)
                   .setTypes(CHILD_TYPE)
-                  .setField("pid");
+                  .setField("pid")
+                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
       longFilter.setIndices(CHILD_INDEX)
                 .setTypes(CHILD_TYPE)
-                .setField("num");
+                .setField("num")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       long tookString = 0;
       long tookLong = 0;
@@ -301,12 +303,14 @@ public class TermsByQueryBenchmark {
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(CHILD_INDEX)
                   .setTypes(CHILD_TYPE)
-                  .setField("pid");
+                  .setField("pid")
+                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
       longFilter.setIndices(CHILD_INDEX)
                 .setTypes(CHILD_TYPE)
-                .setField("num");
+                .setField("num")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       long tookString = 0;
       long tookLong = 0;
@@ -340,12 +344,14 @@ public class TermsByQueryBenchmark {
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(PARENT_INDEX)
                   .setTypes(PARENT_TYPE)
-                  .setField("id");
+                  .setField("id")
+                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
       longFilter.setIndices(PARENT_INDEX)
                 .setTypes(PARENT_TYPE)
-                .setField("num");
+                .setField("num")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       long tookString = 0;
       long tookLong = 0;
@@ -382,12 +388,14 @@ public class TermsByQueryBenchmark {
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(PARENT_INDEX)
                   .setTypes(PARENT_TYPE)
-                  .setField("id");
+                  .setField("id")
+                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
       longFilter.setIndices(PARENT_INDEX)
                 .setTypes(PARENT_TYPE)
-                .setField("num");
+                .setField("num")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
         long tookString = 0;
         long tookLong = 0;

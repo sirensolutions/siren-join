@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -29,7 +29,7 @@ import java.io.IOException;
 /**
  * Internal terms by query request executed directly against a specific index shard.
  */
-class TermsByQueryShardRequest extends BroadcastShardRequest {
+public class TermsByQueryShardRequest extends BroadcastShardRequest {
 
   @Nullable
   private String[] filteringAliases;
@@ -38,7 +38,7 @@ class TermsByQueryShardRequest extends BroadcastShardRequest {
   /**
    * Default constructor
    */
-  TermsByQueryShardRequest() {}
+  public TermsByQueryShardRequest() {}
 
   /**
    * Main Constructor

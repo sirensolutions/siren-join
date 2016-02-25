@@ -1,11 +1,32 @@
+/**
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
+ *
+ * This file is part of the SIREn project.
+ *
+ * SIREn is a free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ *
+ * SIREn is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public
+ * License along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 package solutions.siren.join.action.terms.collector;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
-import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
+import solutions.siren.join.common.Bytes;
 
 import java.io.IOException;
 
@@ -19,27 +40,45 @@ public abstract class TermsSet implements Streamable {
    */
   private boolean isPruned = false;
 
-  public static TermsSet newTermsSet(int expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding) {
+  protected final CircuitBreaker breaker;
+
+  private static final ESLogger logger = Loggers.getLogger(TermsSet.class);
+
+  /**
+   * Used by {@link solutions.siren.join.action.terms.TransportTermsByQueryAction}
+   */
+  public static TermsSet newTermsSet(long expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding, CircuitBreaker breaker) {
     switch (termsEncoding) {
       case LONG:
-        return new LongTermsSet(expectedElements);
+        return new LongTermsSet(expectedElements, breaker);
       case INTEGER:
-        return new IntegerTermsSet(expectedElements);
+        return new IntegerTermsSet(expectedElements, breaker);
+      case BLOOM:
+        return new BloomFilterTermsSet(expectedElements, breaker);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
   }
 
+  /**
+   * Used by {@link solutions.siren.join.index.query.FieldDataTermsQuery} to decode encoded terms.
+   */
   public static TermsSet readFrom(BytesRef in) {
-    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[FieldDataTermsQueryHelper.readInt(in)];
+    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[Bytes.readInt(in)];
     switch (termsEncoding) {
       case INTEGER:
         return new IntegerTermsSet(in);
       case LONG:
         return new LongTermsSet(in);
+      case BLOOM:
+        return new BloomFilterTermsSet(in);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
+  }
+
+  protected TermsSet(final CircuitBreaker breaker) {
+    this.breaker = breaker;
   }
 
   public void setIsPruned(boolean isPruned) {
@@ -100,7 +139,7 @@ public abstract class TermsSet implements Streamable {
   /**
    * Encodes the set of terms into a byte array. The first four bytes should be the ordinal of the
    * {@link solutions.siren.join.action.terms.TermsByQueryRequest.TermsEncoding} returned by
-   * {@link #getEncoding()}.
+   * {@link #getEncoding()}. Used by {@link solutions.siren.join.action.terms.TermsByQueryResponse}.
    */
   public abstract BytesRef writeToBytes();
 
@@ -108,5 +147,10 @@ public abstract class TermsSet implements Streamable {
    * Returns the type of encoding for the terms.
    */
   public abstract TermsByQueryRequest.TermsEncoding getEncoding();
+
+  /**
+   * Removes all elements from the set and additionally releases any internal buffers.
+   */
+  public abstract void release();
 
 }

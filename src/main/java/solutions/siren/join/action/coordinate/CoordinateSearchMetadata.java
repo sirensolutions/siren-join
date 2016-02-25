@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -27,6 +27,7 @@ import solutions.siren.join.action.terms.TermsByQueryRequest;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Holds various metadata information about the execution of a coordinate search.
@@ -158,7 +159,7 @@ class CoordinateSearchMetadata {
       builder.field(Fields.SIZE_IN_BYTES, sizeInBytes);
       builder.field(Fields.IS_PRUNED, isPruned);
       builder.field(Fields.CACHE_HIT, cacheHit);
-      builder.field(Fields.TERMS_ENCODING, termsEncoding.name().toLowerCase());
+      builder.field(Fields.TERMS_ENCODING, termsEncoding.name().toLowerCase(Locale.ROOT));
       builder.field(Fields.TOOK, tookInMillis);
 
       builder.endObject();

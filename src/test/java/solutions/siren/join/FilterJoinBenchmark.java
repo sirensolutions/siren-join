@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -259,18 +259,20 @@ public class FilterJoinBenchmark {
      * Child long field = "num"
      */
     public void benchHasChildSingleTerm() {
-        QueryBuilder lookupQuery;
-        QueryBuilder mainQuery = matchAllQuery();
+      QueryBuilder lookupQuery;
+      QueryBuilder mainQuery = matchAllQuery();
 
-        FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("id")
-                .indices(CHILD_INDEX)
-                .types(CHILD_TYPE)
-                .path("pid");
+      FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("id")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("pid")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-        FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
-                .indices(CHILD_INDEX)
-                .types(CHILD_TYPE)
-                .path("num");
+      FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("num")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
               .indices(CHILD_INDEX)
@@ -278,9 +280,23 @@ public class FilterJoinBenchmark {
               .path("num")
               .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
+      FilterJoinBuilder bloomNumFilter = QueryBuilders.filterJoin("num")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("num")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
+      FilterJoinBuilder bloomStringFilter = QueryBuilders.filterJoin("id")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("pid")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
       long tookString = 0;
       long tookLong = 0;
       long tookInt = 0;
+      long tookBloomNum = 0;
+      long tookBloomString = 0;
       long expected = NUM_PARENTS;
       warmFieldData("id", "pid");     // for string fields
       warmFieldData("num", "num");    // for long fields
@@ -292,15 +308,21 @@ public class FilterJoinBenchmark {
         stringFilter.query(lookupQuery);
         longFilter.query(lookupQuery);
         intFilter.query(lookupQuery);
+        bloomNumFilter.query(lookupQuery);
+        bloomStringFilter.query(lookupQuery);
 
         tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
         tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
         tookInt += runQuery("int", i, PARENT_INDEX, expected, filteredQuery(mainQuery, intFilter));
+        tookBloomNum += runQuery("bloom_num", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
+        tookBloomString += runQuery("bloom_string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
       log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
       log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("bloom_num   : " + (tookBloomNum / NUM_QUERIES) + "ms avg");
+      log("bloom_string   : " + (tookBloomString / NUM_QUERIES) + "ms avg");
       log("");
     }
 
@@ -321,13 +343,15 @@ public class FilterJoinBenchmark {
               .indices(CHILD_INDEX)
               .types(CHILD_TYPE)
               .path("pid")
-              .query(lookupQuery);
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
               .indices(CHILD_INDEX)
               .types(CHILD_TYPE)
               .path("num")
-              .query(lookupQuery);
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
               .indices(CHILD_INDEX)
@@ -336,9 +360,25 @@ public class FilterJoinBenchmark {
               .query(lookupQuery)
               .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
+      FilterJoinBuilder bloomNumFilter = QueryBuilders.filterJoin("num")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("num")
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
+      FilterJoinBuilder bloomStringFilter = QueryBuilders.filterJoin("id")
+              .indices(CHILD_INDEX)
+              .types(CHILD_TYPE)
+              .path("pid")
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
       long tookString = 0;
       long tookLong = 0;
       long tookInt = 0;
+      long tookBloomNum = 0;
+      long tookBloomString = 0;
       long expected = NUM_PARENTS;
       warmFieldData("id", "pid");     // for string fields
       warmFieldData("num", "num");    // for long fields
@@ -348,11 +388,15 @@ public class FilterJoinBenchmark {
         tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
         tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
         tookInt += runQuery("int", i, PARENT_INDEX, expected, filteredQuery(mainQuery, intFilter));
+        tookBloomNum += runQuery("bloom_num", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
+        tookBloomString += runQuery("bloom_string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
       log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
       log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("bloom_num   : " + (tookBloomNum / NUM_QUERIES) + "ms avg");
+      log("bloom_string   : " + (tookBloomString / NUM_QUERIES) + "ms avg");
       log("");
     }
 
@@ -372,12 +416,14 @@ public class FilterJoinBenchmark {
       FilterJoinBuilder stringFilter = QueryBuilders.filterJoin("pid")
               .indices(PARENT_INDEX)
               .types(PARENT_TYPE)
-              .path("id");
+              .path("id")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
               .indices(PARENT_INDEX)
               .types(PARENT_TYPE)
-              .path("num");
+              .path("num")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
               .indices(PARENT_INDEX)
@@ -385,9 +431,23 @@ public class FilterJoinBenchmark {
               .path("num")
               .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
+      FilterJoinBuilder bloomNumFilter = QueryBuilders.filterJoin("num")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("num")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
+      FilterJoinBuilder bloomStringFilter = QueryBuilders.filterJoin("pid")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("id")
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
       long tookString = 0;
       long tookLong = 0;
       long tookInt = 0;
+      long tookBloomNum = 0;
+      long tookBloomString = 0;
       long expected = NUM_CHILDREN_PER_PARENT;
       warmFieldData("id", "pid");     // for string fields
       warmFieldData("num", "num");    // for long fields
@@ -399,15 +459,21 @@ public class FilterJoinBenchmark {
         stringFilter.query(lookupQuery);
         longFilter.query(lookupQuery);
         intFilter.query(lookupQuery);
+        bloomNumFilter.query(lookupQuery);
+        bloomStringFilter.query(lookupQuery);
 
         tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
         tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
         tookInt += runQuery("int", i, CHILD_INDEX, expected, filteredQuery(mainQuery, intFilter));
+        tookBloomNum += runQuery("bloom_num", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
+        tookBloomString += runQuery("bloom_string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
       log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
       log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("bloom_num   : " + (tookBloomNum / NUM_QUERIES) + "ms avg");
+      log("bloom_string   : " + (tookBloomString / NUM_QUERIES) + "ms avg");
       log("");
     }
 
@@ -428,13 +494,15 @@ public class FilterJoinBenchmark {
               .indices(PARENT_INDEX)
               .types(PARENT_TYPE)
               .path("id")
-              .query(lookupQuery);
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       FilterJoinBuilder longFilter = QueryBuilders.filterJoin("num")
               .indices(PARENT_INDEX)
               .types(PARENT_TYPE)
               .path("num")
-              .query(lookupQuery);
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
       FilterJoinBuilder intFilter = QueryBuilders.filterJoin("num")
               .indices(PARENT_INDEX)
@@ -443,9 +511,25 @@ public class FilterJoinBenchmark {
               .query(lookupQuery)
               .termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER);
 
+      FilterJoinBuilder bloomNumFilter = QueryBuilders.filterJoin("num")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("num")
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
+      FilterJoinBuilder bloomStringFilter = QueryBuilders.filterJoin("pid")
+              .indices(PARENT_INDEX)
+              .types(PARENT_TYPE)
+              .path("id")
+              .query(lookupQuery)
+              .termsEncoding(TermsByQueryRequest.TermsEncoding.BLOOM);
+
       long tookString = 0;
       long tookLong = 0;
       long tookInt = 0;
+      long tookBloomNum = 0;
+      long tookBloomString = 0;
       long expected = NUM_CHILDREN_PER_PARENT * NUM_PARENTS;
       warmFieldData("id", "pid");     // for string fields
       warmFieldData("num", "num");    // for numeric fields
@@ -455,11 +539,15 @@ public class FilterJoinBenchmark {
         tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
         tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
         tookInt += runQuery("int", i, CHILD_INDEX, expected, filteredQuery(mainQuery, intFilter));
+        tookBloomNum += runQuery("bloom_num", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
+        tookBloomString += runQuery("bloom_string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
       log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
       log("int   : " + (tookInt / NUM_QUERIES) + "ms avg");
+      log("bloom_num   : " + (tookBloomNum / NUM_QUERIES) + "ms avg");
+      log("bloom_string   : " + (tookBloomString / NUM_QUERIES) + "ms avg");
       log("");
     }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -18,16 +18,12 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.MultiFields;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.action.fieldstats.FieldStats;
-import org.elasticsearch.action.fieldstats.FieldStatsResponse;
 import org.elasticsearch.action.support.broadcast.TransportBroadcastAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.index.engine.Engine;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.search.SearchService;
 import solutions.siren.join.action.terms.collector.*;
 import org.elasticsearch.ElasticsearchException;
@@ -80,6 +76,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
   private final ScriptService scriptService;
   private final PageCacheRecycler pageCacheRecycler;
   private final BigArrays bigArrays;
+  private final CircuitBreakerService breakerService;
   private final Client client;
 
   /**
@@ -88,6 +85,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
   @Inject
   public TransportTermsByQueryAction(Settings settings, ThreadPool threadPool, ClusterService clusterService,
                                      TransportService transportService, IndicesService indicesService,
+                                     CircuitBreakerService breakerService,
                                      ScriptService scriptService, PageCacheRecycler pageCacheRecycler,
                                      BigArrays bigArrays, ActionFilters actionFilters,
                                      IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
@@ -99,6 +97,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
     this.scriptService = scriptService;
     this.pageCacheRecycler = pageCacheRecycler;
     this.bigArrays = bigArrays;
+    this.breakerService = breakerService;
     this.client = client;
   }
 
@@ -125,7 +124,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
    */
   @Override
   protected TermsByQueryShardResponse newShardResponse() {
-    return new TermsByQueryShardResponse();
+    return new TermsByQueryShardResponse(breakerService.getBreaker(CircuitBreaker.REQUEST));
   }
 
   /**
@@ -184,18 +183,42 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
 
     // Merge the responses
 
-    // TermsSet is responsible for the merge, set size to avoid rehashing on certain implementations.
-    TermsSet termsSet = TermsSet.newTermsSet(numTerms, request.termsEncoding());
-    for (int i = 0; i < termsSets.length; i++) {
-      TermsSet terms = termsSets[i];
-      if (terms == null) {
-        continue;
-      }
-      termsSet.merge(terms);
-    }
+    try {
+      // TermsSet is responsible for the merge, set size to avoid rehashing on certain implementations.
+      long expectedElements = request.expectedTerms() != null ? request.expectedTerms() : numTerms;
+      TermsSet termsSet = TermsSet.newTermsSet(expectedElements, request.termsEncoding(), breakerService.getBreaker(CircuitBreaker.REQUEST));
 
-    long tookInMillis = System.currentTimeMillis() - request.nowInMillis();
-    return new TermsByQueryResponse(termsSet, tookInMillis, shardsResponses.length(), successfulShards, failedShards, shardFailures);
+      TermsByQueryResponse rsp;
+      try {
+        for (int i = 0; i < termsSets.length; i++) {
+          TermsSet terms = termsSets[i];
+          if (terms != null) {
+            termsSet.merge(terms);
+            terms.release(); // release the shard terms set and adjust the circuit breaker
+            termsSets[i] = null;
+          }
+        }
+
+        long tookInMillis = System.currentTimeMillis() - request.nowInMillis();
+
+        rsp = new TermsByQueryResponse(termsSet, tookInMillis, shardsResponses.length(), successfulShards, failedShards, shardFailures);
+      }
+      finally {
+        // we can now release the terms set and adjust the circuit breaker, since the TermsByQueryResponse holds an
+        // encoded version of the terms set
+        termsSet.release();
+      }
+
+      return rsp;
+    }
+    finally { // If something happens, release the terms sets and adjust the circuit breaker
+      for (int i = 0; i < termsSets.length; i++) {
+        TermsSet terms = termsSets[i];
+        if (terms != null) {
+          terms.release();
+        }
+      }
+    }
   }
 
   /**
@@ -256,6 +279,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
         shardRequest.shardId());
 
       TermsCollector termsCollector = this.getTermsCollector(request.termsEncoding(), indexFieldData, context);
+      if (request.expectedTerms() != null) termsCollector.setExpectedTerms(request.expectedTerms());
       if (request.maxTermsPerShard() != null) termsCollector.setMaxTerms(request.maxTermsPerShard());
       HitStream hitStream = orderByOperation.getHitStream(context);
       TermsSet terms = termsCollector.collect(hitStream);
@@ -280,9 +304,11 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
                                            IndexFieldData indexFieldData, SearchContext context) {
     switch (termsEncoding) {
       case LONG:
-        return new LongTermsCollector(indexFieldData, context);
+        return new LongTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
       case INTEGER:
-        return new IntegerTermsCollector(indexFieldData, context);
+        return new IntegerTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
+      case BLOOM:
+        return new BloomFilterTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }

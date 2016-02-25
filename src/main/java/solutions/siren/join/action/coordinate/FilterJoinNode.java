@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -25,6 +25,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -49,6 +50,12 @@ public class FilterJoinNode extends AbstractNode {
    * A unique cache id based on the source map.
    */
   private final int cacheId;
+
+  /**
+   * An estimation of the cardinality of the join.
+   */
+  private long cardinality = 0;
+  private boolean hasCardinality = false;
 
   private State state;
   private FilterJoinVisitor.TermsByQueryActionListener listener;
@@ -80,6 +87,19 @@ public class FilterJoinNode extends AbstractNode {
    */
   int getCacheId() {
     return cacheId;
+  }
+
+  void setCardinality(long cardinality) {
+    this.cardinality = cardinality;
+    this.hasCardinality = true;
+  }
+
+  boolean hasCardinality() {
+    return hasCardinality;
+  }
+
+  long getCardinality() {
+    return cardinality;
   }
 
   public String getField() {
@@ -132,7 +152,7 @@ public class FilterJoinNode extends AbstractNode {
     if (ordering == null) {
       return null;
     }
-    return TermsByQueryRequest.Ordering.valueOf(ordering.toUpperCase());
+    return TermsByQueryRequest.Ordering.valueOf(ordering.toUpperCase(Locale.ROOT));
   }
 
   public Integer getMaxTermsPerShard() {
@@ -146,7 +166,7 @@ public class FilterJoinNode extends AbstractNode {
     if (termsEncoding == null) {
       return TermsByQueryRequest.DEFAULT_TERM_ENCODING;
     }
-    return TermsByQueryRequest.TermsEncoding.valueOf(termsEncoding.toUpperCase());
+    return TermsByQueryRequest.TermsEncoding.valueOf(termsEncoding.toUpperCase(Locale.ROOT));
   }
 
   private XContentBuilder buildQuery(Map query) {

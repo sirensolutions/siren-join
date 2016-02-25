@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -57,9 +57,9 @@ public class TermsByQueryAction extends Action<TermsByQueryRequest, TermsByQuery
    */
   @Override
   public TransportRequestOptions transportOptions(Settings settings) {
-    TransportRequestOptions opts = new TransportRequestOptions();
-    opts.withType(TransportRequestOptions.Type.REG);
-    return opts;
+    return TransportRequestOptions.builder()
+            .withType(TransportRequestOptions.Type.REG)
+            .build();
   }
 
   /**

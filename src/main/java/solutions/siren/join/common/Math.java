@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -16,3 +16,26 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+package solutions.siren.join.common;
+
+/**
+ * Helper class for mathematical operations.
+ */
+public class Math {
+
+  /**
+   * Returns the value of the {@code long} argument;
+   * throwing an exception if the value overflows an {@code int}.
+   *
+   * @param value the long value
+   * @return the argument as an int
+   * @throws ArithmeticException if the {@code argument} overflows an int
+   */
+  public static int toIntExact(long value) {
+    if ((int)value != value) {
+      throw new ArithmeticException("integer overflow");
+    }
+    return (int)value;
+  }
+
+}

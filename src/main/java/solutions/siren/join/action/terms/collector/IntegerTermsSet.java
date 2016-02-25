@@ -1,20 +1,37 @@
+/**
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
+ *
+ * This file is part of the SIREn project.
+ *
+ * SIREn is a free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version.
+ *
+ * SIREn is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public
+ * License along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 package solutions.siren.join.action.terms.collector;
 
+import com.carrotsearch.hppc.BufferAllocationException;
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntScatterSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
-import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
+import solutions.siren.join.common.Bytes;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 
 public class IntegerTermsSet extends TermsSet {
@@ -29,13 +46,13 @@ public class IntegerTermsSet extends TermsSet {
 
   private static final ESLogger logger = Loggers.getLogger(IntegerTermsSet.class);
 
-  /**
-   * Default constructor
-   */
-  public IntegerTermsSet() {}
+  public IntegerTermsSet(final CircuitBreaker breaker) {
+    super(breaker);
+  }
 
-  public IntegerTermsSet(int expectedElements) {
-    this.set = new IntHashSet(expectedElements);
+  public IntegerTermsSet(final long expectedElements, final CircuitBreaker breaker) {
+    super(breaker);
+    this.set = new CircuitBreakerIntHashSet(Math.toIntExact(expectedElements));
   }
 
   /**
@@ -43,6 +60,7 @@ public class IntegerTermsSet extends TermsSet {
    * Used in {@link solutions.siren.join.index.query.FieldDataTermsQuery}.
    */
   public IntegerTermsSet(BytesRef bytes) {
+    super(null);
     this.readFromBytes(bytes);
   }
 
@@ -73,7 +91,7 @@ public class IntegerTermsSet extends TermsSet {
   public void readFrom(StreamInput in) throws IOException {
     this.setIsPruned(in.readBoolean());
     int size = in.readInt();
-    set = new IntHashSet(size);
+    set = new CircuitBreakerIntHashSet(size);
     for (long i = 0; i < size; i++) {
       set.add(in.readVInt());
     }
@@ -101,7 +119,7 @@ public class IntegerTermsSet extends TermsSet {
     BytesRef buffer = new BytesRef(new byte[1024 * 8]);
     Iterator<IntCursor> it = set.iterator();
     while (it.hasNext()) {
-      FieldDataTermsQueryHelper.writeVInt(buffer, it.next().value);
+      Bytes.writeVInt(buffer, it.next().value);
       if (buffer.offset > buffer.bytes.length - 5) {
         out.write(buffer.bytes, 0, buffer.offset);
         buffer.offset = 0;
@@ -115,22 +133,22 @@ public class IntegerTermsSet extends TermsSet {
   @Override
   public BytesRef writeToBytes() {
     long start = System.nanoTime();
-
     int size = set.size();
+
     BytesRef bytesRef = new BytesRef(new byte[HEADER_SIZE + size * 5]);
 
     // Encode encoding type
-    FieldDataTermsQueryHelper.writeInt(bytesRef, this.getEncoding().ordinal());
+    Bytes.writeInt(bytesRef, this.getEncoding().ordinal());
 
     // Encode flag
     bytesRef.bytes[bytesRef.offset++] = (byte) (this.isPruned() ? 1 : 0);
 
     // Encode size of list
-    FieldDataTermsQueryHelper.writeInt(bytesRef, size);
+    Bytes.writeInt(bytesRef, size);
 
     // Encode ints
     for (IntCursor i : set) {
-      FieldDataTermsQueryHelper.writeVInt(bytesRef, i.value);
+      Bytes.writeVInt(bytesRef, i.value);
     }
 
     logger.debug("Serialized {} terms - took {} ms", this.size(), (System.nanoTime() - start) / 1000000);
@@ -145,7 +163,7 @@ public class IntegerTermsSet extends TermsSet {
     this.setIsPruned(bytesRef.bytes[bytesRef.offset++] == 1 ? true : false);
 
     // Read size fo the set
-    int size = FieldDataTermsQueryHelper.readInt(bytesRef);
+    int size = Bytes.readInt(bytesRef);
 
     // Read terms
 
@@ -153,13 +171,67 @@ public class IntegerTermsSet extends TermsSet {
     // not for merging
     set = new IntScatterSet(size);
     for (int i = 0; i < size; i++) {
-      set.add(FieldDataTermsQueryHelper.readVInt(bytesRef));
+      set.add(Bytes.readVInt(bytesRef));
     }
   }
 
   @Override
   public TermsByQueryRequest.TermsEncoding getEncoding() {
     return TermsByQueryRequest.TermsEncoding.INTEGER;
+  }
+
+  @Override
+  public void release() {
+    if (set != null) {
+      set.release();
+    }
+  }
+
+  /**
+   * A {@link IntHashSet} integrated with the {@link CircuitBreaker}. It will adjust the circuit breaker
+   * for every new call to {@link #allocateBuffers(int)}.
+   * <p>
+   * This set must not be reused after a call to {@link #release()}.
+   */
+  private final class CircuitBreakerIntHashSet extends IntHashSet {
+
+    public CircuitBreakerIntHashSet(int expectedElements) {
+      super(expectedElements);
+    }
+
+    @Override
+    protected void allocateBuffers(int arraySize) {
+      long newMemSize = (arraySize + 1) * 4l; // array size + emtpyElementSlot
+      long oldMemSize = keys == null ? 0 : keys.length * 4l;
+
+      // Adjust the breaker with the new memory size
+      breaker.addEstimateBytesAndMaybeBreak(newMemSize, "<terms_set>");
+
+      try {
+        // Allocate the new buffer
+        super.allocateBuffers(arraySize);
+        // Adjust the breaker by removing old memory size
+        breaker.addWithoutBreaking(-oldMemSize);
+      }
+      catch (BufferAllocationException e) {
+        // If the allocation failed, remove
+        breaker.addWithoutBreaking(-newMemSize);
+      }
+    }
+
+    @Override
+    public void release() {
+      long memSize = keys == null ? 0 : keys.length * 4l;
+
+      // Release - do not allocate a new minimal buffer
+      assigned = 0;
+      hasEmptyKey = false;
+      keys = null;
+
+      // Adjust breaker
+      breaker.addWithoutBreaking(-memSize);
+    }
+
   }
 
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -19,6 +19,7 @@
 package solutions.siren.join.action.coordinate;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
@@ -39,8 +40,8 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
 
   private static final ESLogger logger = Loggers.getLogger(CachedFilterJoinVisitor.class);
 
-  public CachedFilterJoinVisitor(Client client, RootNode root, FilterJoinCache cache) {
-    super(client, root);
+  public CachedFilterJoinVisitor(Client client, RootNode root, FilterJoinCache cache, ActionRequest parentRequest) {
+    super(client, root, parentRequest);
     this.cache = cache;
   }
 
@@ -56,7 +57,7 @@ public class CachedFilterJoinVisitor extends FilterJoinVisitor {
       // Create term by query request (can be an expensive operation - do it only if cache miss)
       TermsByQueryActionListener listener = new CachedTermsByQueryActionListener(node);
       node.setActionListener(listener);
-      new AsyncFilterJoinVisitorAction(client, node, listener).start();
+      new AsyncCardinalityEstimationAction(client, node, listener, parentRequest).start();
     }
     else { // if cache hit
       logger.debug("Cache hit for terms by query action: {}", node.getCacheId());

@@ -14,6 +14,7 @@ The following table shows the compatibility between releases of Elasticsearch an
 
 Elasticsearch|SIREn Join
 ---|---
+2.2.0|2.2.0
 2.1.2|2.1.2
 2.1.1|2.1.1
 1.7.x|1.0
@@ -22,17 +23,19 @@ Elasticsearch|SIREn Join
 
 You can use the following command to download the plugin from the online repository:
 
-    $ bin/plugin install solutions.siren/siren-join/2.1.2
+    $ bin/plugin install solutions.siren/siren-join/2.2.0
 
-Alternatively, you can assemble it via Maven:
+Alternatively, you can assemble it via Maven (you must build it as a *non-root* user):
 
 ```
+$ git clone git@github.com:sirensolutions/siren-join.git
+$ cd siren-join
 $ mvn package
 ```
 
 This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
-    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PLUGIN/target/releases/siren-join-2.1.2.zip
+    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.2.0.zip
 
 You can now start Elasticsearch and see that our plugin gets loaded:
 
@@ -64,7 +67,7 @@ as the `filterjoin` filter is not supported by the original elaticsearch actions
 * `query`: the query used to lookup terms with.
 * `orderBy`: the ordering to use to lookup the maximum number of terms: default, doc_score (optional, default to default ordering).
 * `maxTermsPerShard`: the maximum number of terms per shard to lookup (optional, default to all terms).
-* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer (optional, default to long).
+* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom (optional, default to bloom).
 
 ### Example
 
@@ -145,14 +148,18 @@ see example below. The object contains the following parameters:
 ## Performance Considerations
 
 * It is recommended to activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
-cache policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
+caching policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
 drop of performance. See issue [16529](https://github.com/elastic/elasticsearch/issues/16259) for more information.
-* Joining numeric attributes are more efficient than joining string attributes.
+* Joining numeric attributes is more efficient than joining string attributes.
+* The bloom filter is the most efficient and the default encoding method for terms. It can encode 40M unique values
+in ~30MB. However, this trades precision for space, i.e., the bloom filter can lead to false-positive results.
+If precision is critical, then it is recommended to switch to the terms encoding to long.
 * If the joined attributes of your documents contain incremental integers, switch the terms encoding to integer.
-* A badly configured `filterjoin` query can crash your system. It is recommended to configure a `maxTermsPerShard`
-limit if the attribute defined by the `path` parameter contains tens of millions of unique values. As a rule of thumb,
-the maximum amount of unique values transferred across the shards should be around 5 to 10M (~40MB to 80MB if terms
-encoding is set to long).
+* The `filterjoin` includes a circuit breaker to prevent OOME when joining a field with a large number of unique values.
+As a rule of thumb, the maximum amount of unique values transferred across the shards should be around 50 to 100M when
+using bloom encoding, 5 to 10M when using long or integer encoding.
+It is recommended to configure a `maxTermsPerShard` limit if the attribute defined by the `path` parameter contains
+a larger number of values.
 
 ## Acknowledgement
 

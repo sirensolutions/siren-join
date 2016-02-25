@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -105,6 +105,14 @@ public class TermsByQueryRequestBuilder extends BroadcastOperationRequestBuilder
    */
   public TermsByQueryRequestBuilder setTermsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
     request().termsEncoding(termsEncoding);
+    return this;
+  }
+
+  /**
+   * The number of expected terms to collect across all shards.
+   */
+  public TermsByQueryRequestBuilder setExpectedTerms(long expectedTerms) {
+    request.expectedTerms(expectedTerms);
     return this;
   }
 

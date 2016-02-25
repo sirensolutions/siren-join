@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -19,7 +19,6 @@
 package solutions.siren.join.action.terms.collector;
 
 import org.apache.lucene.index.LeafReaderContext;
-import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.BytesRef;
@@ -117,7 +116,7 @@ abstract class TermStream {
   }
 
   /**
-   * A term stream for string values. It computes a Sip hash of the term.
+   * A term stream for string values. It computes a Murmur hash of the term.
    */
   private static class BytesTermStream extends TermStream {
 
@@ -155,7 +154,7 @@ abstract class TermStream {
     @Override
     public long next() {
       final BytesRef term = values.valueAt(this.count++);
-      return FieldDataTermsQueryHelper.hash(term);
+      return LongBloomFilter.hash3_x64_128(term.bytes, term.offset, term.length, 0);
     }
 
   }

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.terms.collector;
 
+import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -26,13 +27,14 @@ import org.elasticsearch.search.internal.SearchContext;
  */
 public class LongTermsCollector extends TermsCollector {
 
-  public LongTermsCollector(IndexFieldData indexFieldData, SearchContext context) {
-    super(indexFieldData, context);
+  public LongTermsCollector(final IndexFieldData indexFieldData, final SearchContext context,
+                            final CircuitBreaker breaker) {
+    super(indexFieldData, context, breaker);
   }
 
   @Override
-  protected TermsSet newTermsSet(int expectedElements) {
-    return new LongTermsSet(expectedElements);
+  protected TermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker) {
+    return new LongTermsSet(expectedElements, breaker);
   }
 
 }

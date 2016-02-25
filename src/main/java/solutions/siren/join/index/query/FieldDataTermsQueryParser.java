@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, SIREn Solutions. All Rights Reserved.
+ * Copyright (c) 2016, SIREn Solutions. All Rights Reserved.
  *
  * This file is part of the SIREn project.
  *
@@ -18,14 +18,10 @@
  */
 package solutions.siren.join.index.query;
 
-import com.carrotsearch.hppc.LongHashSet;
-import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.Weight;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.lucene.search.Queries;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
@@ -101,8 +97,9 @@ public class FieldDataTermsQueryParser implements QueryParser {
     }
 
     MappedFieldType fieldType = parseContext.fieldMapper(fieldName);
-    if (fieldType != null) {
-      fieldName = fieldType.names().indexName();
+    if (fieldType == null) {
+      throw new QueryParsingException(parseContext, "[fielddata_terms] field '" + fieldName +
+              "' does not exist in index '" + parseContext.index().getName() +"'.");
     }
 
     IndexFieldData fieldData = parseContext.getForField(fieldType);
