@@ -70,7 +70,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
 
   /**
    * Constructor used internally to execute a terms by query request that originates from a parent request.
-   * This is required for Shield compatibility. This will copy the context and headers (which contains the Shield tokens)
+   * This is required for Shield compatibility. This will copy the context and headers (which contain the Shield tokens)
    * of the original request to the new request.
    */
   public TermsByQueryRequest(ActionRequest originalRequest, String... indices) {
