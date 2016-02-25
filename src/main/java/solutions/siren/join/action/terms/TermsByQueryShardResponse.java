@@ -24,6 +24,7 @@ import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
+import solutions.siren.join.action.terms.collector.BloomFilterTermsSet;
 import solutions.siren.join.action.terms.collector.IntegerTermsSet;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
 import solutions.siren.join.action.terms.collector.TermsSet;
@@ -84,6 +85,11 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
 
       case INTEGER:
         termsSet = new IntegerTermsSet(breaker);
+        termsSet.readFrom(in);
+        return;
+
+      case BLOOM:
+        termsSet = new BloomFilterTermsSet(breaker);
         termsSet.readFrom(in);
         return;
 

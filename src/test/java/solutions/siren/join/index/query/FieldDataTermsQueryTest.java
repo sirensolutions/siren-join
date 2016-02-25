@@ -19,6 +19,7 @@
 package solutions.siren.join.index.query;
 
 import com.google.common.hash.Hashing;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.index.cache.IndexCacheModule;
 import org.elasticsearch.index.cache.query.QueryCacheStats;
@@ -27,6 +28,7 @@ import solutions.siren.join.SirenJoinTestCase;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
+import solutions.siren.join.action.terms.collector.LongBloomFilter;
 
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static solutions.siren.join.index.query.QueryBuilders.fieldDataTermsQuery;
@@ -88,7 +90,8 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
     long[] ids = new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 };
     long[] hashIds = new long[ids.length];
     for (int i = 0; i < ids.length; i++) {
-      hashIds[i] = Hashing.sipHash24().hashBytes(Long.toString(ids[i]).getBytes("UTF-8")).asLong();
+      BytesRef bytesRef = new BytesRef(Long.toString(ids[i]));
+      hashIds[i] = LongBloomFilter.hash3_x64_128(bytesRef.bytes, bytesRef.offset, bytesRef.length, 0);
     }
 
     SearchResponse searchResponse = client().prepareSearch("index1").setQuery(

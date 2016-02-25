@@ -20,8 +20,8 @@ package solutions.siren.join.index.query;
 
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
+import solutions.siren.join.common.Bytes;
 
 import java.io.IOException;
 
@@ -49,7 +49,7 @@ public class FieldDataTermsQueryBuilder extends QueryBuilder {
   }
 
   public FieldDataTermsQueryBuilder(String name, long[] values, int cacheKey) throws IOException {
-    this(name, FieldDataTermsQueryHelper.encode(values), cacheKey);
+    this(name, Bytes.encode(values), cacheKey);
   }
 
   @Override

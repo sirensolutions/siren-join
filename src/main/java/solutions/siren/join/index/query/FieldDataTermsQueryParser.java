@@ -18,14 +18,10 @@
  */
 package solutions.siren.join.index.query;
 
-import com.carrotsearch.hppc.LongHashSet;
-import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.Weight;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.lucene.search.Queries;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;

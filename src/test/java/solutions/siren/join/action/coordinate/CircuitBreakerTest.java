@@ -15,6 +15,7 @@ import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Before;
 import solutions.siren.join.SirenJoinTestCase;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.QueryBuilders;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
@@ -77,7 +78,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
     SearchRequestBuilder searchRequest = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
             QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
-            )
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
     );
     assertFailures(searchRequest, RestStatus.INTERNAL_SERVER_ERROR,
             containsString("Data too large, data for [<terms_set>] would be larger than limit of [80/80b]"));
@@ -102,7 +103,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
     SearchRequestBuilder searchRequest = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
             QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
-            )
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
     );
     assertFailures(searchRequest, RestStatus.INTERNAL_SERVER_ERROR,
             containsString("Data too large, data for [<terms_set>] would be larger than limit of [140/140b]"));

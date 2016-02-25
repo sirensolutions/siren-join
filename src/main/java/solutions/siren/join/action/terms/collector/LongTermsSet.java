@@ -11,7 +11,8 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
-import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
+import solutions.siren.join.common.Math;
+import solutions.siren.join.common.Bytes;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -35,9 +36,9 @@ public class LongTermsSet extends TermsSet {
     super(breaker);
   }
 
-  public LongTermsSet(final int expectedElements, final CircuitBreaker breakerService) {
+  public LongTermsSet(final long expectedElements, final CircuitBreaker breakerService) {
     super(breakerService);
-    this.set = new CircuitBreakerLongHashSet(expectedElements);
+    this.set = new CircuitBreakerLongHashSet(Math.toIntExact(expectedElements));
   }
 
   /**
@@ -111,7 +112,7 @@ public class LongTermsSet extends TermsSet {
     BytesRef buffer = new BytesRef(new byte[1024 * 8]);
     Iterator<LongCursor> it = set.iterator();
     while (it.hasNext()) {
-      FieldDataTermsQueryHelper.writeLong(buffer, it.next().value);
+      Bytes.writeLong(buffer, it.next().value);
       if (buffer.offset == buffer.length) {
         out.write(buffer.bytes, 0, buffer.offset);
         buffer.offset = 0;
@@ -130,17 +131,17 @@ public class LongTermsSet extends TermsSet {
     BytesRef bytes = new BytesRef(new byte[HEADER_SIZE + 8 * size]);
 
     // Encode encoding type
-    FieldDataTermsQueryHelper.writeInt(bytes, this.getEncoding().ordinal());
+    Bytes.writeInt(bytes, this.getEncoding().ordinal());
 
     // Encode flag
     bytes.bytes[bytes.offset++] = (byte) (this.isPruned() ? 1 : 0);
 
     // Encode size of the set
-    FieldDataTermsQueryHelper.writeInt(bytes, size);
+    Bytes.writeInt(bytes, size);
 
     // Encode longs
     for (LongCursor i : set) {
-      FieldDataTermsQueryHelper.writeLong(bytes, i.value);
+      Bytes.writeLong(bytes, i.value);
     }
 
     logger.debug("Serialized {} terms - took {} ms", this.size(), (System.nanoTime() - start) / 1000000);
@@ -155,7 +156,7 @@ public class LongTermsSet extends TermsSet {
     this.setIsPruned(bytes.bytes[bytes.offset++] == 1 ? true : false);
 
     // Read size fo the set
-    int size = FieldDataTermsQueryHelper.readInt(bytes);
+    int size = Bytes.readInt(bytes);
 
     // Read terms
 
@@ -163,7 +164,7 @@ public class LongTermsSet extends TermsSet {
     // not for merging
     set = new LongScatterSet(size);
     for (int i = 0; i < size; i++) {
-      set.add(FieldDataTermsQueryHelper.readLong(bytes));
+      set.add(Bytes.readLong(bytes));
     }
   }
 

@@ -11,7 +11,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
-import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
+import solutions.siren.join.common.Bytes;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -32,9 +32,9 @@ public class IntegerTermsSet extends TermsSet {
     super(breaker);
   }
 
-  public IntegerTermsSet(final int expectedElements, final CircuitBreaker breaker) {
+  public IntegerTermsSet(final long expectedElements, final CircuitBreaker breaker) {
     super(breaker);
-    this.set = new CircuitBreakerIntHashSet(expectedElements);
+    this.set = new CircuitBreakerIntHashSet(Math.toIntExact(expectedElements));
   }
 
   /**
@@ -101,7 +101,7 @@ public class IntegerTermsSet extends TermsSet {
     BytesRef buffer = new BytesRef(new byte[1024 * 8]);
     Iterator<IntCursor> it = set.iterator();
     while (it.hasNext()) {
-      FieldDataTermsQueryHelper.writeVInt(buffer, it.next().value);
+      Bytes.writeVInt(buffer, it.next().value);
       if (buffer.offset > buffer.bytes.length - 5) {
         out.write(buffer.bytes, 0, buffer.offset);
         buffer.offset = 0;
@@ -120,17 +120,17 @@ public class IntegerTermsSet extends TermsSet {
     BytesRef bytesRef = new BytesRef(new byte[HEADER_SIZE + size * 5]);
 
     // Encode encoding type
-    FieldDataTermsQueryHelper.writeInt(bytesRef, this.getEncoding().ordinal());
+    Bytes.writeInt(bytesRef, this.getEncoding().ordinal());
 
     // Encode flag
     bytesRef.bytes[bytesRef.offset++] = (byte) (this.isPruned() ? 1 : 0);
 
     // Encode size of list
-    FieldDataTermsQueryHelper.writeInt(bytesRef, size);
+    Bytes.writeInt(bytesRef, size);
 
     // Encode ints
     for (IntCursor i : set) {
-      FieldDataTermsQueryHelper.writeVInt(bytesRef, i.value);
+      Bytes.writeVInt(bytesRef, i.value);
     }
 
     logger.debug("Serialized {} terms - took {} ms", this.size(), (System.nanoTime() - start) / 1000000);
@@ -145,7 +145,7 @@ public class IntegerTermsSet extends TermsSet {
     this.setIsPruned(bytesRef.bytes[bytesRef.offset++] == 1 ? true : false);
 
     // Read size fo the set
-    int size = FieldDataTermsQueryHelper.readInt(bytesRef);
+    int size = Bytes.readInt(bytesRef);
 
     // Read terms
 
@@ -153,7 +153,7 @@ public class IntegerTermsSet extends TermsSet {
     // not for merging
     set = new IntScatterSet(size);
     for (int i = 0; i < size; i++) {
-      set.add(FieldDataTermsQueryHelper.readVInt(bytesRef));
+      set.add(Bytes.readVInt(bytesRef));
     }
   }
 

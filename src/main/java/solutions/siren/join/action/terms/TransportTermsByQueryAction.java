@@ -185,7 +185,8 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
 
     try {
       // TermsSet is responsible for the merge, set size to avoid rehashing on certain implementations.
-      TermsSet termsSet = TermsSet.newTermsSet(numTerms, request.termsEncoding(), breakerService.getBreaker(CircuitBreaker.REQUEST));
+      long expectedElements = request.expectedTerms() != null ? request.expectedTerms() : numTerms;
+      TermsSet termsSet = TermsSet.newTermsSet(expectedElements, request.termsEncoding(), breakerService.getBreaker(CircuitBreaker.REQUEST));
 
       TermsByQueryResponse rsp;
       try {
@@ -278,6 +279,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
         shardRequest.shardId());
 
       TermsCollector termsCollector = this.getTermsCollector(request.termsEncoding(), indexFieldData, context);
+      if (request.expectedTerms() != null) termsCollector.setExpectedTerms(request.expectedTerms());
       if (request.maxTermsPerShard() != null) termsCollector.setMaxTerms(request.maxTermsPerShard());
       HitStream hitStream = orderByOperation.getHitStream(context);
       TermsSet terms = termsCollector.collect(hitStream);
@@ -305,6 +307,8 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
         return new LongTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
       case INTEGER:
         return new IntegerTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
+      case BLOOM:
+        return new BloomFilterTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }

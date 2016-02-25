@@ -8,7 +8,7 @@ import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
-import solutions.siren.join.index.query.FieldDataTermsQueryHelper;
+import solutions.siren.join.common.Bytes;
 
 import java.io.IOException;
 
@@ -24,17 +24,19 @@ public abstract class TermsSet implements Streamable {
 
   protected final CircuitBreaker breaker;
 
-  private static final ESLogger logger = Loggers.getLogger(LongTermsSet.class);
+  private static final ESLogger logger = Loggers.getLogger(TermsSet.class);
 
   /**
    * Used by {@link solutions.siren.join.action.terms.TransportTermsByQueryAction}
    */
-  public static TermsSet newTermsSet(int expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding, CircuitBreaker breaker) {
+  public static TermsSet newTermsSet(long expectedElements, TermsByQueryRequest.TermsEncoding termsEncoding, CircuitBreaker breaker) {
     switch (termsEncoding) {
       case LONG:
         return new LongTermsSet(expectedElements, breaker);
       case INTEGER:
         return new IntegerTermsSet(expectedElements, breaker);
+      case BLOOM:
+        return new BloomFilterTermsSet(expectedElements, breaker);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }
@@ -44,12 +46,14 @@ public abstract class TermsSet implements Streamable {
    * Used by {@link solutions.siren.join.index.query.FieldDataTermsQuery} to decode encoded terms.
    */
   public static TermsSet readFrom(BytesRef in) {
-    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[FieldDataTermsQueryHelper.readInt(in)];
+    TermsByQueryRequest.TermsEncoding termsEncoding = TermsByQueryRequest.TermsEncoding.values()[Bytes.readInt(in)];
     switch (termsEncoding) {
       case INTEGER:
         return new IntegerTermsSet(in);
       case LONG:
         return new LongTermsSet(in);
+      case BLOOM:
+        return new BloomFilterTermsSet(in);
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }

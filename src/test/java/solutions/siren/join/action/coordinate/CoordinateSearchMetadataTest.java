@@ -74,7 +74,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     String q = boolQuery().filter(
                 filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                   boolQuery().filter(termQuery("tag", "aaa"))
-                )).toString();
+                ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)).toString();
     String body = "{ \"query\" : " + q + "}";
 
     HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
@@ -162,9 +162,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
                       boolQuery().filter(
                         filterJoin("foreign_key").indices("index3").types("type").path("id").query(
                           boolQuery().filter(termQuery("tag", "aaa"))
-                        )
+                        ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                       )
-                    )
+                    ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
                   )
                   .filter(
                     termQuery("id", "1")
@@ -212,7 +212,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     String q = boolQuery().filter(
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
-            ).orderBy("doc_score").maxTermsPerShard(1)).toString();
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG).orderBy("doc_score").maxTermsPerShard(1)).toString();
     String body = "{ \"query\" : " + q + "}";
 
     // Execute a first time to add the action to the cache
@@ -291,7 +291,7 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     String q = boolQuery().filter(
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
-            )).toString().replace('\n', ' ');
+            ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)).toString().replace('\n', ' ');
     String body = "{\"index\" : \"index1\"}\n";
     body += "{ \"query\" : " + q + "}\n";
     body += "{\"index\" : \"index1\"}\n";
