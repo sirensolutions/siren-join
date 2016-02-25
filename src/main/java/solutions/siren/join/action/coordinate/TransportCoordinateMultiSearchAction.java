@@ -95,7 +95,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
       // Query planning and execution of filter joins
       SourceMapVisitor mapVisitor = new SourceMapVisitor(map);
       mapVisitor.traverse();
-      FilterJoinVisitor joinVisitor = new CachedFilterJoinVisitor(client, mapVisitor.getFilterJoinTree(), cache);
+      FilterJoinVisitor joinVisitor = new CachedFilterJoinVisitor(client, mapVisitor.getFilterJoinTree(), cache, request);
       joinVisitor.traverse();
       metadatas.add(joinVisitor.getMetadata());
 

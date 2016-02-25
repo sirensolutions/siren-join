@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.coordinate;
 
+import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
@@ -47,6 +48,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.*;
 
+@Seed("8507589F13F69F22")
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes=1, randomDynamicTemplates=false)
 public class CircuitBreakerTest extends SirenJoinTestCase {
 
@@ -114,7 +116,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
   public void testCircuitBreakerOnCoordinator() throws Exception {
     // Update circuit breaker settings
     Settings settings = settingsBuilder()
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "140b")
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "100b")
             .build();
     assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(settings));
 
@@ -124,7 +126,7 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
             ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
     );
     assertFailures(searchRequest, RestStatus.INTERNAL_SERVER_ERROR,
-            containsString("Data too large, data for [<terms_set>] would be larger than limit of [140/140b]"));
+            containsString("Data too large, data for [<terms_set>] would be larger than limit of [100/100b]"));
 
     NodesStatsResponse stats = client().admin().cluster().prepareNodesStats().setBreaker(true).get();
     int breaks = 0;
