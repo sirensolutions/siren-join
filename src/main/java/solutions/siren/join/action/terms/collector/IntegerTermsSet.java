@@ -30,6 +30,7 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.common.Bytes;
+import solutions.siren.join.common.Math;
 
 import java.io.IOException;
 import java.util.Iterator;
