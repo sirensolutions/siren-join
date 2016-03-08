@@ -1,3 +1,7 @@
+======================= Release 2.2.0-1 =======================
+
+* [GH-49] Terms set implementation is using java 1.8 Math.toIntExact
+
 ======================= Release 2.2.0 =========================
 
 Improvements
