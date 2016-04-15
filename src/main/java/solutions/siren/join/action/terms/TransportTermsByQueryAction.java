@@ -25,6 +25,7 @@ import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.search.SearchService;
+import org.elasticsearch.tasks.Task;
 import solutions.siren.join.action.terms.collector.*;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchParseException;
@@ -105,9 +106,9 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
    * Executes the actions.
    */
   @Override
-  protected void doExecute(TermsByQueryRequest request, ActionListener<TermsByQueryResponse> listener) {
+  protected void doExecute(Task task, TermsByQueryRequest request, ActionListener<TermsByQueryResponse> listener) {
     request.nowInMillis(System.currentTimeMillis()); // set time to be used in scripts
-    super.doExecute(request, listener);
+    super.doExecute(task, request, listener);
   }
 
   /**
