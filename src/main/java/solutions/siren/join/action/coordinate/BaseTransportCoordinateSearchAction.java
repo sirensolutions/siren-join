@@ -34,6 +34,7 @@ import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportRequestHandler;
@@ -54,8 +55,9 @@ extends TransportAction<Request,Response> {
                                                 final ThreadPool threadPool, final TransportService transportService,
                                                 final ActionFilters actionFilters,
                                                 final IndexNameExpressionResolver indexNameExpressionResolver,
-                                                final Client client, Class<Request> request) {
-    super(settings, actionName, threadPool, actionFilters, indexNameExpressionResolver);
+                                                final Client client, Class<Request> request,
+                                                final TaskManager taskManager) {
+    super(settings, actionName, threadPool, actionFilters, indexNameExpressionResolver, taskManager);
     // Use the generic threadpool, as we can end up with deadlock with the SEARCH threadpool
     transportService.registerRequestHandler(actionName, request, ThreadPool.Names.GENERIC, new TransportHandler());
     this.client = client;
@@ -93,7 +95,7 @@ extends TransportAction<Request,Response> {
     }
   }
 
-  class TransportHandler implements TransportRequestHandler<Request> {
+  class TransportHandler extends TransportRequestHandler<Request> {
 
     @Override
     public final void messageReceived(final Request request, final TransportChannel channel) throws Exception {
