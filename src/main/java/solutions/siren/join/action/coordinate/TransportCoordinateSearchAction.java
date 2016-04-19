@@ -50,7 +50,7 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
                                          ActionFilters actionFilters, TransportSearchAction searchAction,
                                          IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
     super(settings, CoordinateSearchAction.NAME, threadPool, transportService, actionFilters,
-            indexNameExpressionResolver, client, SearchRequest.class, transportService.getTaskManager());
+            indexNameExpressionResolver, client, SearchRequest.class);
     this.searchAction = searchAction;
     this.cacheService = cacheService;
   }

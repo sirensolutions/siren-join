@@ -18,7 +18,6 @@
  */
 package solutions.siren.join;
 
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.ActionModule;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.index.cache.IndexCacheModule;
@@ -53,17 +52,8 @@ import java.util.Collection;
  */
 public class SirenJoinPlugin extends Plugin {
 
-  static {
-    final SecurityManager sm = System.getSecurityManager();
-
-    if (sm != null) {
-      sm.checkPermission(new SpecialPermission());
-    }
-  }
-
   @Inject
-  public SirenJoinPlugin(Settings settings) {
-  }
+  public SirenJoinPlugin(Settings settings) {}
 
   public void onModule(ActionModule module) {
     module.registerAction(TermsByQueryAction.INSTANCE, TransportTermsByQueryAction.class);
