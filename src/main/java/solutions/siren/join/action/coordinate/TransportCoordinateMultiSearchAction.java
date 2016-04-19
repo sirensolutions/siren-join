@@ -66,7 +66,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
                                               TransportSearchAction search, ActionFilters actionFilters,
                                               IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
     super(settings, CoordinateMultiSearchAction.NAME, threadPool, transportService, actionFilters,
-            indexNameExpressionResolver, client, MultiSearchRequest.class);
+            indexNameExpressionResolver, client, MultiSearchRequest.class, transportService.getTaskManager());
     this.searchAction = search;
     this.clusterService = clusterService;
     this.cacheService = cacheService;
