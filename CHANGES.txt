@@ -1,8 +1,16 @@
 ======================= Release 2.3.1 =======================
 
+Improvements
+
 * [GH-55] Upgrade to Elasticsearch 2.3.1
 
+Bugs
+
+* [GH-60] Default cache size is set to 256kb instead of 256mb
+
 ======================= Release 2.2.0-1 =======================
+
+Bugs
 
 * [GH-49] Terms set implementation is using java 1.8 Math.toIntExact
 
