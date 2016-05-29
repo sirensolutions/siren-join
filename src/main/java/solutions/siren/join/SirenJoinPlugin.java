@@ -22,9 +22,11 @@ import org.elasticsearch.action.ActionModule;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.index.cache.IndexCacheModule;
 import org.elasticsearch.indices.IndicesModule;
-import org.elasticsearch.indices.breaker.CircuitBreakerModule;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestModule;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.settings.Settings;
+
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
 import solutions.siren.join.action.admin.cache.StatsFilterJoinCacheAction;
 import solutions.siren.join.action.admin.cache.TransportClearFilterJoinCacheAction;
@@ -36,8 +38,6 @@ import solutions.siren.join.action.coordinate.TransportCoordinateSearchAction;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TransportTermsByQueryAction;
 import solutions.siren.join.index.query.FieldDataTermsQueryParser;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
 import solutions.siren.join.modules.FilterJoinCacheModule;
 import solutions.siren.join.rest.RestClearFilterJoinCacheAction;
 import solutions.siren.join.rest.RestCoordinateMultiSearchAction;
@@ -53,8 +53,7 @@ import java.util.Collection;
 public class SirenJoinPlugin extends Plugin {
 
   @Inject
-  public SirenJoinPlugin(Settings settings) {
-  }
+  public SirenJoinPlugin(Settings settings) {}
 
   public void onModule(ActionModule module) {
     module.registerAction(TermsByQueryAction.INSTANCE, TransportTermsByQueryAction.class);
