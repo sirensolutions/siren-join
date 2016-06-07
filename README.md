@@ -68,7 +68,7 @@ as the `filterjoin` filter is not supported by the original elaticsearch actions
 * `query`: the query used to lookup terms with.
 * `orderBy`: the ordering to use to lookup the maximum number of terms: default, doc_score (optional, default to default ordering).
 * `maxTermsPerShard`: the maximum number of terms per shard to lookup (optional, default to all terms).
-* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom (optional, default to bloom).
+* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom (optional, default to long).
 
 ### Example
 
@@ -151,7 +151,6 @@ see example below. The object contains the following parameters:
 * We recommend to activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
 caching policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
 drop of performance. See issue [16529](https://github.com/elastic/elasticsearch/issues/16259) for more information.
-* We recommend to activate doc values on the joined fields.
 * Joining numeric attributes is more efficient than joining string attributes.
 * The bloom filter is the most efficient and the default encoding method for terms. It can encode 40M unique values
 in ~30MB. However, this trades precision for space, i.e., the bloom filter can lead to false-positive results.
