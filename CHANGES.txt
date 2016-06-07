@@ -4,6 +4,7 @@ Improvements
 
 * [GH-55] Upgrade to Elasticsearch 2.3.1
 * [GH-64] Upgrade to Elasticsearch 2.3.3
+* [GH-65] Long encoding should be the default
 
 Bugs
 
