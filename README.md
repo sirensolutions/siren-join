@@ -14,6 +14,7 @@ The following table shows the compatibility between releases of Elasticsearch an
 
 Elasticsearch|SIREn Join
 ---|---
+2.3.3|2.3.3
 2.2.0|2.2.0-1
 2.1.2|2.1.2
 2.1.1|2.1.1
@@ -23,7 +24,7 @@ Elasticsearch|SIREn Join
 
 You can use the following command to download the plugin from the online repository:
 
-    $ bin/plugin install solutions.siren/siren-join/2.2.0-1
+    $ bin/plugin install solutions.siren/siren-join/2.3.3
 
 Alternatively, you can assemble it via Maven (you must build it as a *non-root* user):
 
@@ -35,7 +36,7 @@ $ mvn package
 
 This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
-    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.2.0-1.zip
+    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.3.3.zip
 
 You can now start Elasticsearch and see that our plugin gets loaded:
 
@@ -67,7 +68,7 @@ as the `filterjoin` filter is not supported by the original elaticsearch actions
 * `query`: the query used to lookup terms with.
 * `orderBy`: the ordering to use to lookup the maximum number of terms: default, doc_score (optional, default to default ordering).
 * `maxTermsPerShard`: the maximum number of terms per shard to lookup (optional, default to all terms).
-* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom (optional, default to bloom).
+* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom (optional, default to long).
 
 ### Example
 
@@ -147,7 +148,7 @@ see example below. The object contains the following parameters:
 
 ## Performance Considerations
 
-* It is recommended to activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
+* We recommend to activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
 caching policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
 drop of performance. See issue [16529](https://github.com/elastic/elasticsearch/issues/16259) for more information.
 * Joining numeric attributes is more efficient than joining string attributes.

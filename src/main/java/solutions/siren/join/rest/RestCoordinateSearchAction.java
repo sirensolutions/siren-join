@@ -19,6 +19,7 @@
 package solutions.siren.join.rest;
 
 import solutions.siren.join.action.coordinate.CoordinateSearchAction;
+
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
@@ -65,8 +66,8 @@ public class RestCoordinateSearchAction extends BaseRestHandler {
 
   @Override
   public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) {
-    SearchRequest searchRequest;
-    searchRequest = RestSearchAction.parseSearchRequest(request, parseFieldMatcher);
+    SearchRequest searchRequest = new SearchRequest();
+    RestSearchAction.parseSearchRequest(searchRequest, request, parseFieldMatcher, null);
     client.execute(CoordinateSearchAction.INSTANCE, searchRequest, new RestStatusToXContentListener<SearchResponse>(channel));
   }
 

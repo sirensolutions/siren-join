@@ -64,7 +64,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   /**
    * Default terms encoding
    */
-  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.BLOOM;
+  public static final TermsEncoding DEFAULT_TERM_ENCODING = TermsEncoding.LONG;
 
   public TermsByQueryRequest() {}
 
@@ -258,7 +258,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   }
 
   /**
-   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#BLOOM}.
+   * Returns the encoding to use for transferring terms across shards. Default to {@link TermsEncoding#LONG}.
    */
   public TermsEncoding termsEncoding() {
     return termsEncoding == null ? DEFAULT_TERM_ENCODING : termsEncoding;

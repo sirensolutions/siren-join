@@ -45,7 +45,7 @@ public class FilterJoinCache {
   /**
    * The maximum size (in bytes) of the cache. Default to 256MB.
    */
-  private static final int DEFAULT_CACHE_SIZE = 262144;
+  private static final int DEFAULT_CACHE_SIZE = 268435456;
 
   /**
    * The time (in second) before a cache entry expires. Default to 360 seconds.
