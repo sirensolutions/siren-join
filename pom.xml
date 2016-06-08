@@ -338,6 +338,26 @@
         </plugins>
       </build>
     </profile>
+
+    <!-- To deploy to artifactory -->
+    <profile>
+      <id>artifactory</id>
+
+      <distributionManagement>
+        <repository>
+          <id>artifactory-releases</id>
+          <name>artifactory-releases</name>
+          <url>${artifactory.url}/libs-release-local</url>
+        </repository>
+        <snapshotRepository>
+          <id>artifactory-snapshots</id>
+          <name>artifactory-snapshots</name>
+          <url>${artifactory.url}/libs-snapshot-local</url>
+        </snapshotRepository>
+      </distributionManagement>
+
+    </profile>
+
   </profiles>
 
 </project>
