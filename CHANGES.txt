@@ -1,3 +1,9 @@
+======================= Release 2.4.0 =======================
+
+Improvements
+
+* [GH-69] Add an artifactory profile to deploy to artifactory
+
 ======================= Release 2.3.3 =======================
 
 Improvements
