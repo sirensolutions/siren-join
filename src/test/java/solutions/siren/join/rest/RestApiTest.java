@@ -88,6 +88,92 @@ public class RestApiTest extends SirenJoinTestCase {
   }
 
   @Test
+  public void testCoordinateSearchAfterUpdates() throws IOException, RestException, ExecutionException, InterruptedException {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+
+    ensureGreen();
+
+    indexRandom(true,
+            client().prepareIndex("index1", "type", "1").setSource("id", "1", "foreign_key", new String[]{"1", "3"}),
+            client().prepareIndex("index1", "type", "2").setSource("id", "2"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3", "foreign_key", new String[]{"2"}),
+            client().prepareIndex("index1", "type", "4").setSource("id", "4", "foreign_key", new String[]{"1", "4"}),
+
+            client().prepareIndex("index2", "type", "1").setSource("id", "1", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "2").setSource("id", "2", "tag", "aaa"),
+            client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
+            client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc") );
+
+    // Check body search query with filter join
+    String q = boolQuery().filter(
+            filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                    boolQuery().filter(termQuery("tag", "aaa"))
+            )).toString();
+    String body = "{ \"query\" : " + q + "}";
+
+    HttpResponse response = httpClient().method("GET").path("/index1/_coordinate_search").body(body).execute();
+    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(3));
+
+    indexRandom(true,
+            client().prepareIndex("index1", "type", "5").setSource("id", "5", "foreign_key", new String[]{"5"}),
+
+            client().prepareIndex("index2", "type", "5").setSource("id", "5", "tag", "aaa"));
+
+    httpClient().method("GET").path("/_filter_join/cache/clear").execute();
+
+    response = httpClient().method("GET").path("/index1/_coordinate_search").body(body).execute();
+    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(4));
+  }
+
+  /**
+   * Ensures that that the cache id is taking into consideration the index changes. See #73.
+   */
+  @Test
+  public void testCiapiOutput() throws IOException, RestException, ExecutionException, InterruptedException {
+    assertAcked(prepareCreate("email").addMapping("email", "id", "type=string", "content_md5", "type=string"));
+    assertAcked(prepareCreate("ciapioutput").addMapping("ciapioutput", "id", "type=string", "content_md5", "type=string"));
+
+    ensureGreen();
+
+    indexRandom(true,
+            client().prepareIndex("email", "email", "1").setSource("id", "1", "content_md5", "595b6b645b7d9548c8c462e889267477"),
+            client().prepareIndex("email", "email", "2").setSource("id", "2", "content_md5", "6aa71033aef3f529926fe3840c6c0a7e"),
+
+            client().prepareIndex("ciapioutput", "ciapioutput", "1").setSource("id", "1", "content_md5", "595b6b645b7d9548c8c462e889267477") );
+
+    // Retrieves all the md5 from ciapioutput that does not appear in email
+    String q = boolQuery().must(
+                 matchAllQuery()
+               ).mustNot(
+                  filterJoin("content_md5").indices("ciapioutput").types("ciapioutput").path("content_md5").query(
+                    matchAllQuery()
+                  )
+               ).toString();
+    String body = "{ \"query\" : " + q + "}";
+
+    HttpResponse response = httpClient().method("GET").path("/email/_coordinate_search").body(body).execute();
+    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(1));
+
+    // Add missing md5 in ciapioutput
+    indexRandom(true,
+            client().prepareIndex("ciapioutput", "ciapioutput", "2").setSource("id", "2", "content_md5", "6aa71033aef3f529926fe3840c6c0a7e") );
+
+    // It should now return an empty result set
+    response = httpClient().method("GET").path("/email/_coordinate_search").body(body).execute();
+    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(0));
+  }
+
+
+  @Test
   public void testCoordinateMultiSearchApi() throws IOException, RestException, ExecutionException, InterruptedException {
     assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
     assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));

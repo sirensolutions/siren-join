@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
+package solutions.siren.join.action.coordinate.execution;
 
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.node.Node;

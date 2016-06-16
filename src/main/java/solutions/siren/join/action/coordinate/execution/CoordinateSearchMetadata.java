@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
+package solutions.siren.join.action.coordinate.execution;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -32,7 +32,7 @@ import java.util.Locale;
 /**
  * Holds various metadata information about the execution of a coordinate search.
  */
-class CoordinateSearchMetadata {
+public class CoordinateSearchMetadata {
 
   /**
    * The list of actions
@@ -44,7 +44,7 @@ class CoordinateSearchMetadata {
     static final XContentBuilderString ACTIONS = new XContentBuilderString("actions");
   }
 
-  CoordinateSearchMetadata() {}
+  public CoordinateSearchMetadata() {}
 
   Action addAction(Relation from, Relation to) {
     Action action = new Action(from, to);

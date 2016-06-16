@@ -35,6 +35,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
+import solutions.siren.join.action.coordinate.execution.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,7 +96,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
       // Query planning and execution of filter joins
       SourceMapVisitor mapVisitor = new SourceMapVisitor(map);
       mapVisitor.traverse();
-      FilterJoinVisitor joinVisitor = new CachedFilterJoinVisitor(client, mapVisitor.getFilterJoinTree(), cache, request);
+      FilterJoinVisitor joinVisitor = new FilterJoinVisitor(client, mapVisitor.getFilterJoinTree(), cache, request);
       joinVisitor.traverse();
       metadatas.add(joinVisitor.getMetadata());
 

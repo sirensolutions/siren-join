@@ -16,33 +16,28 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.admin.cache;
+package solutions.siren.join.action.coordinate.model;
 
-import org.elasticsearch.common.component.AbstractComponent;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
-import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
+import java.util.ArrayList;
+import java.util.List;
 
-public class FilterJoinCacheService extends AbstractComponent {
+/**
+ * Abstract node of the abstract syntax tree.
+ */
+public abstract class AbstractNode {
 
-  private final FilterJoinCache cache;
+  private final List<AbstractNode> children = new ArrayList<>();
 
-  @Inject
-  public FilterJoinCacheService(Settings settings) {
-    super(settings);
-    this.cache = new FilterJoinCache(settings);
+  public void addChild(AbstractNode child) {
+    this.children.add(child);
   }
 
-  public FilterJoinCache getCacheInstance() {
-    return this.cache;
+  public boolean hasChildren() {
+    return !this.children.isEmpty();
   }
 
-  public void clear() {
-    cache.invalidateAll();
-  }
-
-  public FilterJoinCache.FilterJoinCacheStats getStats() {
-    return cache.getStats();
+  public List<AbstractNode> getChildren() {
+    return this.children;
   }
 
 }

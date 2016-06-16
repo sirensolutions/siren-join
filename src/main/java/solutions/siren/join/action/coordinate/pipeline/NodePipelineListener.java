@@ -16,33 +16,22 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.admin.cache;
+package solutions.siren.join.action.coordinate.pipeline;
 
-import org.elasticsearch.common.component.AbstractComponent;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
-import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
+/**
+ * Listener interface for the {@link NodePipelineManager}. If the pipeline execution fails, it will call
+ * {@link #onFailure(Throwable)}. If the pipeline execution finishes successfully, it will call {@link #onSuccess()}.
+ */
+public interface NodePipelineListener {
 
-public class FilterJoinCacheService extends AbstractComponent {
+  /**
+   * Callback method when the pipeline execution finishes successfully.
+   */
+  void onSuccess();
 
-  private final FilterJoinCache cache;
-
-  @Inject
-  public FilterJoinCacheService(Settings settings) {
-    super(settings);
-    this.cache = new FilterJoinCache(settings);
-  }
-
-  public FilterJoinCache getCacheInstance() {
-    return this.cache;
-  }
-
-  public void clear() {
-    cache.invalidateAll();
-  }
-
-  public FilterJoinCache.FilterJoinCacheStats getStats() {
-    return cache.getStats();
-  }
+  /**
+   * Callback method when the pipeline execution fails.
+   */
+  void onFailure(Throwable e);
 
 }
