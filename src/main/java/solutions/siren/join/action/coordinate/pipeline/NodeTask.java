@@ -16,23 +16,13 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
-
-import java.util.Map;
+package solutions.siren.join.action.coordinate.pipeline;
 
 /**
- * The root node of the abstract syntax tree. It contains a reference to the source map.
+ * Interface for a task of the {@link NodePipelineManager}.
  */
-public class RootNode extends AbstractNode {
+public interface NodeTask {
 
-  private final Map<String, Object> self;
-
-  public RootNode(Map<String, Object> self) {
-    this.self = self;
-  }
-
-  public Map<String, Object> getSourceMap() {
-    return self;
-  }
+  void execute(NodeTaskContext context, NodeTaskReporter reporter);
 
 }

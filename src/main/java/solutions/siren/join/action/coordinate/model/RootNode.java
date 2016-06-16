@@ -16,33 +16,23 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.admin.cache;
+package solutions.siren.join.action.coordinate.model;
 
-import org.elasticsearch.common.component.AbstractComponent;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
-import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
+import java.util.Map;
 
-public class FilterJoinCacheService extends AbstractComponent {
+/**
+ * The root node of the abstract syntax tree. It contains a reference to the source map.
+ */
+public class RootNode extends AbstractNode {
 
-  private final FilterJoinCache cache;
+  private final Map<String, Object> self;
 
-  @Inject
-  public FilterJoinCacheService(Settings settings) {
-    super(settings);
-    this.cache = new FilterJoinCache(settings);
+  public RootNode(Map<String, Object> self) {
+    this.self = self;
   }
 
-  public FilterJoinCache getCacheInstance() {
-    return this.cache;
-  }
-
-  public void clear() {
-    cache.invalidateAll();
-  }
-
-  public FilterJoinCache.FilterJoinCacheStats getStats() {
-    return cache.getStats();
+  public Map<String, Object> getSourceMap() {
+    return self;
   }
 
 }

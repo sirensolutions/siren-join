@@ -40,15 +40,15 @@ public class FieldDataTermsQueryBuilder extends QueryBuilder {
   /**
    * A unique cache key for the query
    */
-  private final int cacheKey;
+  private final long cacheKey;
 
-  public FieldDataTermsQueryBuilder(String name, byte[] values, int cacheKey) {
+  public FieldDataTermsQueryBuilder(String name, byte[] values, long cacheKey) {
     this.name = name;
     this.value = values;
     this.cacheKey = cacheKey;
   }
 
-  public FieldDataTermsQueryBuilder(String name, long[] values, int cacheKey) throws IOException {
+  public FieldDataTermsQueryBuilder(String name, long[] values, long cacheKey) throws IOException {
     this(name, Bytes.encode(values), cacheKey);
   }
 

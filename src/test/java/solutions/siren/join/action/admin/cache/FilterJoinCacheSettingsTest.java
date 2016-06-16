@@ -24,7 +24,7 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.Test;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
-import solutions.siren.join.action.coordinate.FilterJoinCache;
+import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 import solutions.siren.join.index.query.QueryBuilders;
 
 import java.util.concurrent.ExecutionException;

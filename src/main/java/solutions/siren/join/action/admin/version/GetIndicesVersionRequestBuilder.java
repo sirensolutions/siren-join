@@ -16,16 +16,15 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.modules;
+package solutions.siren.join.action.admin.version;
 
-import org.elasticsearch.common.inject.AbstractModule;
-import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
+import org.elasticsearch.action.ActionRequestBuilder;
+import org.elasticsearch.client.ElasticsearchClient;
 
-public class FilterJoinCacheModule extends AbstractModule {
+public class GetIndicesVersionRequestBuilder extends ActionRequestBuilder<GetIndicesVersionRequest, GetIndicesVersionResponse, GetIndicesVersionRequestBuilder> {
 
-  @Override
-  protected void configure() {
-    bind(FilterJoinCacheService.class).asEagerSingleton();
+  public GetIndicesVersionRequestBuilder(ElasticsearchClient client, GetIndicesVersionAction action) {
+    super(client, action, new GetIndicesVersionRequest());
   }
 
 }

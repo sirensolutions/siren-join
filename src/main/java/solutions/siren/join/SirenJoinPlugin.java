@@ -19,6 +19,7 @@
 package solutions.siren.join;
 
 import org.elasticsearch.action.ActionModule;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.index.cache.IndexCacheModule;
 import org.elasticsearch.indices.IndicesModule;
@@ -27,10 +28,10 @@ import org.elasticsearch.rest.RestModule;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 
-import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
-import solutions.siren.join.action.admin.cache.StatsFilterJoinCacheAction;
-import solutions.siren.join.action.admin.cache.TransportClearFilterJoinCacheAction;
-import solutions.siren.join.action.admin.cache.TransportStatsFilterJoinCacheAction;
+import solutions.siren.join.action.admin.cache.*;
+import solutions.siren.join.action.admin.version.GetIndicesVersionAction;
+import solutions.siren.join.action.admin.version.IndexVersionShardService;
+import solutions.siren.join.action.admin.version.TransportGetIndicesVersionAction;
 import solutions.siren.join.action.coordinate.CoordinateMultiSearchAction;
 import solutions.siren.join.action.coordinate.CoordinateSearchAction;
 import solutions.siren.join.action.coordinate.TransportCoordinateMultiSearchAction;
@@ -38,22 +39,32 @@ import solutions.siren.join.action.coordinate.TransportCoordinateSearchAction;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TransportTermsByQueryAction;
 import solutions.siren.join.index.query.FieldDataTermsQueryParser;
-import solutions.siren.join.modules.FilterJoinCacheModule;
 import solutions.siren.join.rest.RestClearFilterJoinCacheAction;
 import solutions.siren.join.rest.RestCoordinateMultiSearchAction;
 import solutions.siren.join.rest.RestCoordinateSearchAction;
-import solutions.siren.join.rest.StatsClearFilterJoinCacheAction;
+import solutions.siren.join.rest.RestStatsFilterJoinCacheAction;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * The SIREn Join plugin.
  */
 public class SirenJoinPlugin extends Plugin {
 
+  private final boolean isEnabled;
+
   @Inject
-  public SirenJoinPlugin(Settings settings) {}
+  public SirenJoinPlugin(Settings settings) {
+    if (DiscoveryNode.clientNode(settings)) {
+      this.isEnabled = "node".equals(settings.get("client.type"));
+    }
+    else {
+      this.isEnabled = true;
+    }
+  }
 
   public void onModule(ActionModule module) {
     module.registerAction(TermsByQueryAction.INSTANCE, TransportTermsByQueryAction.class);
@@ -61,6 +72,7 @@ public class SirenJoinPlugin extends Plugin {
     module.registerAction(CoordinateMultiSearchAction.INSTANCE, TransportCoordinateMultiSearchAction.class);
     module.registerAction(ClearFilterJoinCacheAction.INSTANCE, TransportClearFilterJoinCacheAction.class);
     module.registerAction(StatsFilterJoinCacheAction.INSTANCE, TransportStatsFilterJoinCacheAction.class);
+    module.registerAction(GetIndicesVersionAction.INSTANCE, TransportGetIndicesVersionAction.class);
   }
 
   public void onModule(IndicesModule module) {
@@ -71,14 +83,29 @@ public class SirenJoinPlugin extends Plugin {
     module.addRestAction(RestCoordinateSearchAction.class);
     module.addRestAction(RestCoordinateMultiSearchAction.class);
     module.addRestAction(RestClearFilterJoinCacheAction.class);
-    module.addRestAction(StatsClearFilterJoinCacheAction.class);
+    module.addRestAction(RestStatsFilterJoinCacheAction.class);
   }
 
   @Override
   public Collection<Module> nodeModules() {
-    Collection<Module> modules = new ArrayList<>();
-    modules.add(new FilterJoinCacheModule());
-    return modules;
+    if (isEnabled) {
+      return Collections.singletonList((Module) new SirenJoinNodeModule());
+    }
+    else {
+      return Collections.emptyList();
+    }
+  }
+
+  @Override
+  public Collection<Module> shardModules(Settings indexSettings) {
+    return Collections.singletonList((Module) new SirenJoinShardModule());
+  }
+
+  @Override
+  public Collection<Class<? extends Closeable>> shardServices() {
+    Collection<Class<? extends Closeable>> services = new ArrayList<>();
+    services.add(IndexVersionShardService.class);
+    return services;
   }
 
   @Override

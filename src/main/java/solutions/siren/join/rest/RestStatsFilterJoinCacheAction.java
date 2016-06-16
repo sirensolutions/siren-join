@@ -28,10 +28,10 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.support.RestToXContentListener;
 import solutions.siren.join.action.admin.cache.*;
 
-public class StatsClearFilterJoinCacheAction extends BaseRestHandler {
+public class RestStatsFilterJoinCacheAction extends BaseRestHandler {
 
   @Inject
-  public StatsClearFilterJoinCacheAction(final Settings settings, final RestController controller, final Client client) {
+  public RestStatsFilterJoinCacheAction(final Settings settings, final RestController controller, final Client client) {
     super(settings, controller, client);
     controller.registerHandler(RestRequest.Method.POST, "/_filter_join/cache/stats", this);
     controller.registerHandler(RestRequest.Method.GET, "/_filter_join/cache/stats", this);
