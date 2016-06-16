@@ -42,13 +42,13 @@ public class IndicesVersionTask implements NodeTask {
 
   @Override
   public void execute(final NodeTaskContext context, final NodeTaskReporter reporter) {
-    logger.info("Executing async get indices version action on indices: {}", Arrays.toString(context.getNode().getLookupIndices()));
+    logger.debug("Executing async get indices version action on indices: {}", Arrays.toString(context.getNode().getLookupIndices()));
     final GetIndicesVersionRequest indicesVersionRequest = new GetIndicesVersionRequest(context.getVisitor().getParentRequest(), context.getNode().getLookupIndices());
     context.getClient().execute(GetIndicesVersionAction.INSTANCE, indicesVersionRequest, new ActionListener<GetIndicesVersionResponse>() {
 
       @Override
       public void onResponse(GetIndicesVersionResponse response) {
-        logger.info("Got version {} for indices: {}", response.getVersion(), Arrays.toString(context.getNode().getLookupIndices()));
+        logger.debug("Got version {} for indices: {}", response.getVersion(), Arrays.toString(context.getNode().getLookupIndices()));
         context.getNode().setIndicesVersion(response.getVersion());
         reporter.success(context);
       }

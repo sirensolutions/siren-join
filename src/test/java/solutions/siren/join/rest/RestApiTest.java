@@ -122,8 +122,6 @@ public class RestApiTest extends SirenJoinTestCase {
 
             client().prepareIndex("index2", "type", "5").setSource("id", "5", "tag", "aaa"));
 
-    httpClient().method("GET").path("/_filter_join/cache/clear").execute();
-
     response = httpClient().method("GET").path("/index1/_coordinate_search").body(body).execute();
     assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
     map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
