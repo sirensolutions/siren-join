@@ -33,7 +33,7 @@ import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.action.terms.TermsByQueryResponse;
 
 /**
- * Task to excute a {@link TermsByQueryRequest} to retrieve the set of terms associated to a {@link FilterJoinNode}.
+ * Task to execute a {@link TermsByQueryRequest} to retrieve the set of terms associated to a {@link FilterJoinNode}.
  * Terms will be stored in the {@link FilterJoinNode}.
  */
 public class TermsByQueryTask implements NodeTask {
