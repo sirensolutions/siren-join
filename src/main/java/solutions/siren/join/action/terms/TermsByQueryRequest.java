@@ -20,6 +20,7 @@ package solutions.siren.join.action.terms;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.broadcast.BroadcastRequest;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
@@ -29,7 +30,6 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.index.query.QueryBuilder;
-import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -93,6 +93,11 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   @Override
   public ActionRequestValidationException validate() {
     ActionRequestValidationException validationException = super.validate();
+    if (termsEncoding != null && termsEncoding.equals(TermsEncoding.BYTES)) {
+      if (maxTermsPerShard == null) {
+        validationException = ValidateActions.addValidationError("maxTermsPerShard not specified for terms encoding [bytes]", validationException);
+      }
+    }
     return validationException;
   }
 
@@ -246,7 +251,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    * The types of terms encoding
    */
   public enum TermsEncoding {
-    LONG, INTEGER, BLOOM
+    LONG, INTEGER, BLOOM, BYTES
   }
 
   /**

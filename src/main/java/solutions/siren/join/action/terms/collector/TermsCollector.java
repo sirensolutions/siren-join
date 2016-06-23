@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.terms.collector;
 
-import com.carrotsearch.hppc.LongHashSet;
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.search.internal.SearchContext;
@@ -31,12 +30,12 @@ import java.io.IOException;
  */
 public abstract class TermsCollector {
 
-  private final SearchContext context;
-  private final IndexFieldData indexFieldData;
-  private final CircuitBreaker breaker;
+  protected final SearchContext context;
+  protected final IndexFieldData indexFieldData;
+  protected final CircuitBreaker breaker;
 
-  private int expectedTerms = -1;
-  private int maxTerms = Integer.MAX_VALUE;
+  protected int expectedTerms = -1;
+  protected int maxTerms = Integer.MAX_VALUE;
 
   public TermsCollector(final IndexFieldData indexFieldData, final SearchContext context,
                         final CircuitBreaker breaker) {
@@ -59,37 +58,9 @@ public abstract class TermsCollector {
     this.maxTerms = maxTerms;
   }
 
-  protected abstract TermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker);
-
   /**
-   * Collects the terms into a {@link LongHashSet}.
+   * Collects the terms into a {@link TermsSet}.
    */
-  public TermsSet collect(HitStream hitStream) throws IOException {
-    hitStream.initialize(); // initialise the stream
-    int nHits = hitStream.getHits();
-    TermsSet terms = this.newTermsSet(this.expectedTerms != -1 ? this.expectedTerms : nHits, breaker);
-    try {
-      TermStream reusableTermStream = TermStream.get(context.searcher().getIndexReader(), indexFieldData);
-
-      while (terms.size() < this.maxTerms && hitStream.hasNext()) {
-        hitStream.next();
-        reusableTermStream = hitStream.getTermStream(reusableTermStream);
-
-        while (terms.size() < this.maxTerms && reusableTermStream.hasNext()) {
-          terms.add(reusableTermStream.next());
-        }
-      }
-
-      boolean isPruned = hitStream.getTotalHits() > hitStream.getHits();
-      isPruned |= this.maxTerms < nHits;
-      terms.setIsPruned(isPruned);
-      return terms;
-    }
-    catch (Throwable t) {
-      // If something happens during the term collection, release the terms set and adjust the circuit breaker
-      terms.release();
-      throw t;
-    }
-  }
+  public abstract TermsSet collect(HitStream hitStream) throws IOException;
 
 }

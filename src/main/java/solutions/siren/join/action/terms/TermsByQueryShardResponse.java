@@ -24,10 +24,7 @@ import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
-import solutions.siren.join.action.terms.collector.BloomFilterTermsSet;
-import solutions.siren.join.action.terms.collector.IntegerTermsSet;
-import solutions.siren.join.action.terms.collector.LongTermsSet;
-import solutions.siren.join.action.terms.collector.TermsSet;
+import solutions.siren.join.action.terms.collector.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -90,6 +87,11 @@ class TermsByQueryShardResponse extends BroadcastShardResponse {
 
       case BLOOM:
         termsSet = new BloomFilterTermsSet(breaker);
+        termsSet.readFrom(in);
+        return;
+
+      case BYTES:
+        termsSet = new BytesRefTermsSet(breaker);
         termsSet.readFrom(in);
         return;
 

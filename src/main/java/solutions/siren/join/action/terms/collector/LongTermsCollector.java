@@ -25,7 +25,7 @@ import org.elasticsearch.search.internal.SearchContext;
 /**
  * Collects long terms for a given field based on a {@link HitStream}.
  */
-public class LongTermsCollector extends TermsCollector {
+public class LongTermsCollector extends NumericTermsCollector {
 
   public LongTermsCollector(final IndexFieldData indexFieldData, final SearchContext context,
                             final CircuitBreaker breaker) {
@@ -33,7 +33,7 @@ public class LongTermsCollector extends TermsCollector {
   }
 
   @Override
-  protected TermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker) {
+  protected NumericTermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker) {
     return new LongTermsSet(expectedElements, breaker);
   }
 

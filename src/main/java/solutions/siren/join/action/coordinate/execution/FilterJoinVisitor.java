@@ -32,12 +32,14 @@ import solutions.siren.join.action.coordinate.tasks.CacheLookupTask;
 import solutions.siren.join.action.coordinate.tasks.CardinalityEstimationTask;
 import solutions.siren.join.action.coordinate.tasks.IndicesVersionTask;
 import solutions.siren.join.action.coordinate.tasks.TermsByQueryTask;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.FieldDataTermsQueryParser;
 import solutions.siren.join.index.query.FilterJoinBuilder;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import solutions.siren.join.index.query.TermsEnumTermsQueryParser;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -180,7 +182,7 @@ public class FilterJoinVisitor {
       case COMPLETED:
         this.checkForFailure(node);
         this.recordMetadata(node);
-        this.convertToFieldDataTermsQuery(node);
+        this.convertToTermsQuery(node);
         return;
     }
   }
@@ -254,9 +256,9 @@ public class FilterJoinVisitor {
   }
 
   /**
-   * Converts a filter join into a field data terms query.
+   * Converts a filter join into a terms query.
    */
-  private void convertToFieldDataTermsQuery(FilterJoinNode node) {
+  private void convertToTermsQuery(FilterJoinNode node) {
     Map<String, Object> parent = node.getParentSourceMap();
     FilterJoinTerms terms = node.getTerms();
     BytesRef bytes = terms.getEncodedTerms();
@@ -275,12 +277,18 @@ public class FilterJoinVisitor {
     field.put(node.getField(), queryParams);
 
     // Create the nested object for the field data terms query
-    Map<String, Object> fieldDataTermsQuery = new HashMap<>();
-    fieldDataTermsQuery.put(FieldDataTermsQueryParser.NAME, field);
+    Map<String, Object> termsQuery = new HashMap<>();
+    // If bytes terms encoding is used, we switch to the terms enum based terms query
+    if (node.getTermsEncoding().equals(TermsByQueryRequest.TermsEncoding.BYTES)) {
+      termsQuery.put(TermsEnumTermsQueryParser.NAME, field);
+    }
+    else {
+      termsQuery.put(FieldDataTermsQueryParser.NAME, field);
+    }
 
     // Create the object for the constant score query
     Map<String, Object> constantScoreQueryParams = new HashMap<>();
-    constantScoreQueryParams.put("filter", fieldDataTermsQuery);
+    constantScoreQueryParams.put("filter", termsQuery);
 
     // Add the constant score query to the parent
     parent.put(ConstantScoreQueryParser.NAME, constantScoreQueryParams);

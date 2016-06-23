@@ -3,6 +3,7 @@
 Improvements
 
 * [GH-69] Add an artifactory profile to deploy to artifactory
+* [GH-78] Dictionary-based terms filter for highly selective join
 
 Bugs
 

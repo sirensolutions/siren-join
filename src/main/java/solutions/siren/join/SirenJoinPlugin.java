@@ -39,6 +39,7 @@ import solutions.siren.join.action.coordinate.TransportCoordinateSearchAction;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TransportTermsByQueryAction;
 import solutions.siren.join.index.query.FieldDataTermsQueryParser;
+import solutions.siren.join.index.query.TermsEnumTermsQueryParser;
 import solutions.siren.join.rest.RestClearFilterJoinCacheAction;
 import solutions.siren.join.rest.RestCoordinateMultiSearchAction;
 import solutions.siren.join.rest.RestCoordinateSearchAction;
@@ -77,6 +78,7 @@ public class SirenJoinPlugin extends Plugin {
 
   public void onModule(IndicesModule module) {
     module.registerQueryParser(FieldDataTermsQueryParser.class);
+    module.registerQueryParser(TermsEnumTermsQueryParser.class);
   }
 
   public void onModule(RestModule module) {

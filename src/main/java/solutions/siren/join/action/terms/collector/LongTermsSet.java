@@ -35,7 +35,7 @@ import solutions.siren.join.common.Bytes;
 import java.io.IOException;
 import java.util.Iterator;
 
-public class LongTermsSet extends TermsSet {
+public class LongTermsSet extends NumericTermsSet {
 
   private transient LongHashSet set;
 
@@ -52,6 +52,14 @@ public class LongTermsSet extends TermsSet {
    */
   public LongTermsSet(final CircuitBreaker breaker) {
     super(breaker);
+  }
+
+  @Override
+  protected void addAll(TermsSet terms) {
+    if (!(terms instanceof LongTermsSet)) {
+      throw new UnsupportedOperationException("Invalid type: LongTermSet expected.");
+    }
+    this.set.addAll(((LongTermsSet) terms).set);
   }
 
   public LongTermsSet(final long expectedElements, final CircuitBreaker breakerService) {
@@ -85,13 +93,7 @@ public class LongTermsSet extends TermsSet {
     return this.set.contains(term);
   }
 
-  @Override
-  protected void addAll(TermsSet terms) {
-    if (!(terms instanceof LongTermsSet)) {
-      throw new UnsupportedOperationException("Invalid type: LongTermSet expected.");
-    }
-    this.set.addAll(((LongTermsSet) terms).set);
-  }
+
 
   @Override
   public int size() {

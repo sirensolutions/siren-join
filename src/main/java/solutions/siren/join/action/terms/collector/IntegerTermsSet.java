@@ -35,7 +35,7 @@ import solutions.siren.join.common.Math;
 import java.io.IOException;
 import java.util.Iterator;
 
-public class IntegerTermsSet extends TermsSet {
+public class IntegerTermsSet extends NumericTermsSet {
 
   private transient IntHashSet set;
 

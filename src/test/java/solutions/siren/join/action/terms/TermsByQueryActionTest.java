@@ -20,15 +20,17 @@ package solutions.siren.join.action.terms;
 
 import com.carrotsearch.hppc.cursors.LongCursor;
 import com.carrotsearch.randomizedtesting.RandomizedTest;
+import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.collector.LongBloomFilter;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
-import solutions.siren.join.action.terms.collector.TermsSet;
+import solutions.siren.join.action.terms.collector.NumericTermsSet;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.junit.Test;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -71,12 +73,12 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     ElasticsearchAssertions.assertNoFailures(resp);
     assertThat(resp.getEncodedTermsSet(), notNullValue());
     assertThat(resp.getSize(), is(numDocs));
-    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    TermsSet lTerms = NumericTermsSet.readFrom(resp.getEncodedTermsSet());
     assertThat(lTerms instanceof LongTermsSet, is(true));
     for (int i = 0; i < numDocs; i++) {
       BytesRef bytesRef = new BytesRef(Integer.toString(i));
       long termHash = LongBloomFilter.hash3_x64_128(bytesRef.bytes, bytesRef.offset, bytesRef.length, 0);
-      assertThat(lTerms.contains(termHash), is(true));
+      assertThat(((LongTermsSet) lTerms).contains(termHash), is(true));
     }
   }
 
@@ -114,7 +116,7 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     assertThat(lTerms instanceof LongTermsSet, is(true));
     assertThat(lTerms.size(), is(numDocs));
     for (int i = 0; i < numDocs; i++) {
-      assertThat(lTerms.contains(Long.valueOf(i)), is(true));
+      assertThat(((LongTermsSet) lTerms).contains(Long.valueOf(i)), is(true));
     }
   }
 
@@ -203,7 +205,7 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     ElasticsearchAssertions.assertNoFailures(resp);
     assertThat(resp.getEncodedTermsSet(), notNullValue());
     assertThat(resp.getSize(), lessThanOrEqualTo(expectedMaxResultSize));
-    TermsSet lTerms = TermsSet.readFrom(resp.getEncodedTermsSet());
+    TermsSet lTerms = NumericTermsSet.readFrom(resp.getEncodedTermsSet());
     assertThat(lTerms instanceof LongTermsSet, is(true));
 
     // If the ordering by document score worked, we should only have documents with text = aaa (even ids), and no
@@ -214,6 +216,22 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
       long value = it.next().value;
       assertThat(value % 2 == 0, is(true));
     }
+  }
+
+  /**
+   * Tests the validation of the request when terms encodign si set to bytes. If no maxTermsPerShard is specified,
+   * it should fail with a {@link ActionRequestValidationException}.
+   */
+  @Test(expected=ActionRequestValidationException.class)
+  public void testRequestValidationWithBytesTermsEncoding() throws Exception {
+    createIndex("test");
+
+    TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
+            .setField("int")
+            .setQuery(QueryBuilders.matchAllQuery())
+            .setTermsEncoding(TermsByQueryRequest.TermsEncoding.BYTES)
+            .execute()
+            .actionGet();
   }
 
 }
