@@ -18,6 +18,8 @@
  */
 package solutions.siren.join.index.query;
 
+import org.apache.lucene.util.BytesRef;
+
 import java.io.IOException;
 
 /**
@@ -45,6 +47,20 @@ public class QueryBuilders {
    */
   public static FieldDataTermsQueryBuilder fieldDataTermsQuery(String name, long[] values, int cacheKey) throws IOException {
     return new FieldDataTermsQueryBuilder(name, values, cacheKey);
+  }
+
+  /**
+   * A terms enum terms query for the provided field name.
+   */
+  public static TermsEnumTermsQueryBuilder termsEnumTermsQuery(String name, byte[] values, int cacheKey) {
+    return new TermsEnumTermsQueryBuilder(name, values, cacheKey);
+  }
+
+  /**
+   * A terms enum terms query for the provided field name.
+   */
+  public static TermsEnumTermsQueryBuilder termsEnumTermsQuery(String name, BytesRef[] values, int cacheKey) throws IOException {
+    return new TermsEnumTermsQueryBuilder(name, values, cacheKey);
   }
 
 }

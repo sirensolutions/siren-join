@@ -33,7 +33,7 @@ import solutions.siren.join.common.Math;
 import java.io.IOException;
 import java.math.RoundingMode;
 
-public class BloomFilterTermsSet extends TermsSet {
+public class BloomFilterTermsSet extends NumericTermsSet {
 
   private transient LongBloomFilter set;
 

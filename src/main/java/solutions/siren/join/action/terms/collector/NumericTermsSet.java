@@ -18,24 +18,19 @@
  */
 package solutions.siren.join.action.terms.collector;
 
-import org.apache.lucene.index.IndexReader;
+import org.elasticsearch.common.breaker.CircuitBreaker;
 
 /**
- * A stream of terms coming for a given document and field. A {@link TermStream} is a reusable object
- * used in combination with {@link HitStream#getTermStream(TermStream)}.
+ * A set of numeric terms.
  */
-abstract class TermStream {
+public abstract class NumericTermsSet extends TermsSet {
 
-  protected final IndexReader reader;
-
-  protected TermStream(IndexReader reader) {
-    this.reader = reader;
+  protected NumericTermsSet(final CircuitBreaker breaker) {
+    super(breaker);
   }
 
-  /**
-   * Set the stream to the given document.
-   * @see HitStream#getTermStream(TermStream)
-   */
-  protected abstract void set(int atomicReaderId, int atomicDocId);
+  public abstract void add(long term);
+
+  public abstract boolean contains(long term);
 
 }

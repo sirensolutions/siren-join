@@ -34,11 +34,13 @@ import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import solutions.siren.join.action.terms.collector.LongBloomFilter;
+import solutions.siren.join.action.terms.collector.NumericTermsSet;
 import solutions.siren.join.action.terms.collector.TermsSet;
 
 /**
- * Specialization for a disjunction over many terms, encoded in a byte array, that behaves like a
- * {@link ConstantScoreQuery} over a {@link BooleanQuery} containing only
+ * Specialization for a disjunction over many terms, encoded in a byte array, which scans the
+ * {@link IndexFieldData} to collect documents ids.
+ * It behaves like a {@link ConstantScoreQuery} over a {@link BooleanQuery} containing only
  * {@link org.apache.lucene.search.BooleanClause.Occur#SHOULD} clauses.
  */
 public abstract class FieldDataTermsQuery extends Query implements Accountable {
@@ -53,7 +55,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
   /**
    * The set of terms after decoding
    */
-  private TermsSet termsSet;
+  private NumericTermsSet termsSet;
 
   /**
    * The field data for the field
@@ -132,10 +134,10 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
    * Returns the set of terms. This method will perform a late-decoding of the encoded terms, and will release the
    * byte array. This method needs to be synchronized as each segment thread will call it concurrently.
    */
-  protected synchronized TermsSet getTermsSet() {
+  protected synchronized NumericTermsSet getTermsSet() {
     if (encodedTerms != null) { // late decoding of the encoded terms
       long start = System.nanoTime();
-      termsSet = TermsSet.readFrom(new BytesRef(encodedTerms));
+      termsSet = (NumericTermsSet) TermsSet.readFrom(new BytesRef(encodedTerms));
       logger.debug("{}: Deserialized {} terms - took {} ms", new Object[] { Thread.currentThread().getName(), termsSet.size(), (System.nanoTime() - start) / 1000000 });
       encodedTerms = null; // release reference to the byte array to be able to reclaim memory
     }
@@ -199,13 +201,13 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public long ramBytesUsed() {
-      TermsSet termsSet = this.getTermsSet();
+      NumericTermsSet termsSet = this.getTermsSet();
       return BASE_RAM_BYTES_USED + termsSet.size() * 8;
     }
 
     @Override
     public String toString(String defaultField) {
-      TermsSet termsSet = this.getTermsSet();
+      NumericTermsSet termsSet = this.getTermsSet();
       final StringBuilder sb = new StringBuilder("LongsFieldDataTermsQuery:");
       return sb
               .append(defaultField)
@@ -217,7 +219,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public DocIdSet getDocIdSet(LeafReaderContext context) throws IOException {
-      final TermsSet termsSet = this.getTermsSet();
+      final NumericTermsSet termsSet = this.getTermsSet();
 
       // make sure there are terms to filter on
       if (termsSet == null || termsSet.isEmpty()) return null;
@@ -266,13 +268,13 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public long ramBytesUsed() {
-      TermsSet termsSet = this.getTermsSet();
+      NumericTermsSet termsSet = this.getTermsSet();
       return BASE_RAM_BYTES_USED + termsSet.size() * 8;
     }
 
     @Override
     public String toString(String defaultField) {
-      TermsSet termsSet = this.getTermsSet();
+      NumericTermsSet termsSet = this.getTermsSet();
       final StringBuilder sb = new StringBuilder("BytesFieldDataTermsQuery:");
       return sb
               .append(defaultField)
@@ -284,7 +286,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
     @Override
     public DocIdSet getDocIdSet(LeafReaderContext context) throws IOException {
-      final TermsSet termsSet = this.getTermsSet();
+      final NumericTermsSet termsSet = this.getTermsSet();
 
       // make sure there are terms to filter on
       if (termsSet == null || termsSet.isEmpty()) return null;
