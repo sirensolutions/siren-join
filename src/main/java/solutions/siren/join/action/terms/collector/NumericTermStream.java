@@ -100,10 +100,7 @@ abstract class NumericTermStream extends TermStream {
 
     @Override
     public boolean hasNext() {
-      if (this.count < this.values.count()) {
-        return true;
-      }
-      return false;
+      return this.count < this.values.count();
     }
 
     @Override
@@ -143,10 +140,7 @@ abstract class NumericTermStream extends TermStream {
 
     @Override
     public boolean hasNext() {
-      if (this.count < this.values.count()) {
-        return true;
-      }
-      return false;
+      return this.count < this.values.count();
     }
 
     @Override

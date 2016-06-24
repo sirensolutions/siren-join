@@ -126,6 +126,11 @@ public class Bytes {
     return (((long) readInt(src)) << 32) | (readInt(src) & 0xFFFFFFFFL);
   }
 
+  /**
+   * Encodes a {@link BytesRef} into another {@link BytesRef}. Null and empty bytes arrays will be encoded
+   * with a 0.
+   * @see Bytes#readBytesRef(BytesRef, BytesRef)
+   */
   public final static void writeBytesRef(BytesRef src, BytesRef dst) {
     if (src == null) {
       Bytes.writeVInt(dst, 0);
@@ -136,6 +141,10 @@ public class Bytes {
     dst.offset += src.length;
   }
 
+  /**
+   * Decodes a {@link BytesRef} from another {@link BytesRef}.
+   * @see Bytes#writeBytesRef(BytesRef, BytesRef)
+   */
   public final static void readBytesRef(BytesRef src, BytesRef dst) {
     int length = Bytes.readVInt(src);
 
