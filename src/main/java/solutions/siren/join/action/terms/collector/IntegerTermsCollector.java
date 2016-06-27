@@ -25,7 +25,7 @@ import org.elasticsearch.search.internal.SearchContext;
 /**
  * Collects integer terms for a given field based on a {@link HitStream}.
  */
-public class IntegerTermsCollector extends TermsCollector {
+public class IntegerTermsCollector extends NumericTermsCollector {
 
   public IntegerTermsCollector(final IndexFieldData indexFieldData, final SearchContext context,
                                final CircuitBreaker breaker) {
@@ -33,7 +33,7 @@ public class IntegerTermsCollector extends TermsCollector {
   }
 
   @Override
-  protected TermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker) {
+  protected NumericTermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker) {
     return new IntegerTermsSet(expectedElements, breaker);
   }
 

@@ -1,3 +1,14 @@
+====================== Release 2.3.3-1 ======================
+
+Improvements
+
+* [GH-69] Add an artifactory profile to deploy to artifactory
+* [GH-78] Dictionary-based terms filter for highly selective join
+
+Bugs
+
+* [GH-73] Cache key must be based on a version number of the source index
+
 ======================= Release 2.3.3 =======================
 
 Improvements

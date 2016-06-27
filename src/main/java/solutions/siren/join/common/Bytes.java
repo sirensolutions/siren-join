@@ -20,6 +20,7 @@ package solutions.siren.join.common;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.breaker.NoopCircuitBreaker;
+import solutions.siren.join.action.terms.collector.BytesRefTermsSet;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
 import solutions.siren.join.index.query.FieldDataTermsQueryParser;
 
@@ -31,10 +32,21 @@ import java.io.IOException;
 public class Bytes {
 
   /**
-   * Encodes the list of longs into a serialised {@link LongTermsSet}.
+   * Encodes a list of longs into a serialised {@link LongTermsSet}.
    */
   public final static byte[] encode(long[] values) throws IOException {
     LongTermsSet termsSet = new LongTermsSet(values.length, new NoopCircuitBreaker("<term_set>"));
+    for (int i = 0; i < values.length; i++) {
+      termsSet.add(values[i]);
+    }
+    return termsSet.writeToBytes().bytes;
+  }
+
+  /**
+   * Encodes a list of {@link BytesRef} into a serialised {@link solutions.siren.join.action.terms.collector.BytesRefTermsSet}.
+   */
+  public final static byte[] encode(BytesRef[] values) throws IOException {
+    BytesRefTermsSet termsSet = new BytesRefTermsSet(new NoopCircuitBreaker("<term_set>"));
     for (int i = 0; i < values.length; i++) {
       termsSet.add(values[i]);
     }
@@ -113,5 +125,44 @@ public class Bytes {
   public final static long readLong(BytesRef src) {
     return (((long) readInt(src)) << 32) | (readInt(src) & 0xFFFFFFFFL);
   }
+
+  /**
+   * Encodes a {@link BytesRef} into another {@link BytesRef}. Null and empty bytes arrays will be encoded
+   * with a 0.
+   * @see Bytes#readBytesRef(BytesRef, BytesRef)
+   */
+  public final static void writeBytesRef(BytesRef src, BytesRef dst) {
+    if (src == null) {
+      Bytes.writeVInt(dst, 0);
+      return;
+    }
+    Bytes.writeVInt(dst, src.length);
+    System.arraycopy(src.bytes, src.offset, dst.bytes, dst.offset, src.length);
+    dst.offset += src.length;
+  }
+
+  /**
+   * Decodes a {@link BytesRef} from another {@link BytesRef}.
+   * @see Bytes#writeBytesRef(BytesRef, BytesRef)
+   */
+  public final static void readBytesRef(BytesRef src, BytesRef dst) {
+    int length = Bytes.readVInt(src);
+
+    if (length == 0) {
+      dst.offset = dst.length = 0;
+      return;
+    }
+
+    if (dst.bytes.length < length) {
+      dst.bytes = new byte[length];
+    }
+
+    System.arraycopy(src.bytes, src.offset, dst.bytes, 0, length);
+
+    src.offset += length;
+    dst.offset = 0;
+    dst.length = length;
+  }
+
 
 }

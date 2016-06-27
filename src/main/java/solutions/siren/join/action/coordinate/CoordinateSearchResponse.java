@@ -28,6 +28,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.suggest.Suggest;
+import solutions.siren.join.action.coordinate.execution.CoordinateSearchMetadata;
 
 import java.io.IOException;
 

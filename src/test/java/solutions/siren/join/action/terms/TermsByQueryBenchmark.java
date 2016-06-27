@@ -36,7 +36,7 @@ import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
 import solutions.siren.join.SirenJoinPlugin;
-import solutions.siren.join.action.coordinate.FilterJoinCache;
+import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 
 import java.io.IOException;
 import java.util.Arrays;

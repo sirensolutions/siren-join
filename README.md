@@ -14,7 +14,7 @@ The following table shows the compatibility between releases of Elasticsearch an
 
 Elasticsearch|SIREn Join
 ---|---
-2.3.3|2.3.3
+2.3.3|2.3.3-1
 2.2.0|2.2.0-1
 2.1.2|2.1.2
 2.1.1|2.1.1
@@ -24,7 +24,7 @@ Elasticsearch|SIREn Join
 
 You can use the following command to download the plugin from the online repository:
 
-    $ bin/plugin install solutions.siren/siren-join/2.3.3
+    $ bin/plugin install solutions.siren/siren-join/2.3.3-1
 
 Alternatively, you can assemble it via Maven (you must build it as a *non-root* user):
 
@@ -36,7 +36,7 @@ $ mvn package
 
 This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
-    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.3.3.zip
+    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.3.3-1.zip
 
 You can now start Elasticsearch and see that our plugin gets loaded:
 
@@ -68,7 +68,7 @@ as the `filterjoin` filter is not supported by the original elaticsearch actions
 * `query`: the query used to lookup terms with.
 * `orderBy`: the ordering to use to lookup the maximum number of terms: default, doc_score (optional, default to default ordering).
 * `maxTermsPerShard`: the maximum number of terms per shard to lookup (optional, default to all terms).
-* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom (optional, default to long).
+* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom, bytes (optional, default to long).
 
 ### Example
 
@@ -161,6 +161,8 @@ As a rule of thumb, the maximum amount of unique values transferred across the s
 using bloom encoding, 5 to 10M when using long or integer encoding.
 It is recommended to configure a `maxTermsPerShard` limit if the attribute defined by the `path` parameter contains
 a larger number of values.
+* The `bytes` terms encoding will likely provide better performance for highly selective queries over large indices, as
+it will perform the filtering based on a dictionary lookup instead of a doc value scan.
 
 ## Acknowledgement
 

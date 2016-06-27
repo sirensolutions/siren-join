@@ -25,7 +25,7 @@ import org.elasticsearch.search.internal.SearchContext;
 /**
  * Collects terms into a bloom filter for a given field based on a {@link HitStream}.
  */
-public class BloomFilterTermsCollector extends TermsCollector {
+public class BloomFilterTermsCollector extends NumericTermsCollector {
 
   public BloomFilterTermsCollector(final IndexFieldData indexFieldData, final SearchContext context,
                                    final CircuitBreaker breaker) {
@@ -33,7 +33,7 @@ public class BloomFilterTermsCollector extends TermsCollector {
   }
 
   @Override
-  protected TermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker) {
+  protected NumericTermsSet newTermsSet(final int expectedElements, final CircuitBreaker breaker) {
     return new BloomFilterTermsSet(expectedElements, breaker);
   }
 

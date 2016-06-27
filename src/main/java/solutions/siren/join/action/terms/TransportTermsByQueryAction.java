@@ -185,7 +185,7 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
     // Merge the responses
 
     try {
-      // TermsSet is responsible for the merge, set size to avoid rehashing on certain implementations.
+      // NumericTermsSet is responsible for the merge, set size to avoid rehashing on certain implementations.
       long expectedElements = request.expectedTerms() != null ? request.expectedTerms() : numTerms;
       TermsSet termsSet = TermsSet.newTermsSet(expectedElements, request.termsEncoding(), breakerService.getBreaker(CircuitBreaker.REQUEST));
 
@@ -310,6 +310,8 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
         return new IntegerTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
       case BLOOM:
         return new BloomFilterTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
+      case BYTES:
+        return new BytesRefTermsCollector(indexFieldData, context, breakerService.getBreaker(CircuitBreaker.REQUEST));
       default:
         throw new IllegalArgumentException("[termsByQuery] Invalid terms encoding: " + termsEncoding.name());
     }

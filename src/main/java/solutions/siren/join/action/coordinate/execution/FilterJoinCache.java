@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
+package solutions.siren.join.action.coordinate.execution;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -29,6 +29,8 @@ import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import solutions.siren.join.action.coordinate.model.FilterJoinNode;
+import solutions.siren.join.action.coordinate.model.FilterJoinTerms;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -40,35 +42,27 @@ import java.util.concurrent.TimeUnit;
  */
 public class FilterJoinCache {
 
-  private final Cache<Integer, CacheEntry> cache;
+  private final Cache<Long, CacheEntry> cache;
 
   /**
    * The maximum size (in bytes) of the cache. Default to 256MB.
    */
   private static final int DEFAULT_CACHE_SIZE = 268435456;
 
-  /**
-   * The time (in second) before a cache entry expires. Default to 360 seconds.
-   */
-  private static final long DEFAULT_CACHE_EXPIRE = 360;
-
   public final static String SIREN_FILTERJOIN_CACHE_ENABLED = "siren.filterjoin.cache.enabled";
   public final static String SIREN_FILTERJOIN_CACHE_SIZE = "siren.filterjoin.cache.size";
-  public final static String SIREN_FILTERJOIN_CACHE_EXPIRE = "siren.filterjoin.cache.expire";
 
   private static final ESLogger logger = Loggers.getLogger(FilterJoinCache.class);
 
   public FilterJoinCache(Settings settings) {
     boolean isEnabled = settings.getAsBoolean(SIREN_FILTERJOIN_CACHE_ENABLED, true);
     long size = settings.getAsInt(SIREN_FILTERJOIN_CACHE_SIZE, DEFAULT_CACHE_SIZE);
-    long duration = settings.getAsLong(SIREN_FILTERJOIN_CACHE_EXPIRE, DEFAULT_CACHE_EXPIRE);
 
     if (isEnabled) {
       this.cache = CacheBuilder.newBuilder()
               .recordStats()
               .maximumWeight(size)
               .weigher(new CacheEntryWeigher())
-              .expireAfterWrite(duration, TimeUnit.SECONDS)
               .build();
     }
     else {
@@ -79,16 +73,16 @@ public class FilterJoinCache {
   /**
    * Caches the provided list of encoded terms for the given filter join node.
    */
-  public void put(final FilterJoinNode node, final BytesRef encodedTerms, final int size, final boolean isPruned) {
-    logger.debug("{}: New cache entry {}", Thread.currentThread().getName(), node.getCacheId());
-    this.cache.put(node.getCacheId(), new CacheEntry(encodedTerms, size, isPruned));
+  public void put(final long cacheKey, final FilterJoinTerms terms) {
+    logger.debug("{}: New cache entry {}", Thread.currentThread().getName(), cacheKey);
+    this.cache.put(cacheKey, new CacheEntry(terms.getEncodedTerms(), terms.getSize(), terms.isPruned()));
   }
 
   /**
    * Retrieves the list of encoded terms for the given filter join node.
    */
-  public CacheEntry get(final FilterJoinNode node) {
-    CacheEntry entry = this.cache.getIfPresent(node.getCacheId());
+  public CacheEntry get(final long cacheKey) {
+    CacheEntry entry = this.cache.getIfPresent(cacheKey);
     return entry;
   }
 
@@ -119,11 +113,11 @@ public class FilterJoinCache {
    * A cache entry is composed of the set of terms (encoded), a flag to indicate
    * if the set of terms has been pruned, the size in number of terms.
    */
-  static class CacheEntry {
+  public static class CacheEntry {
 
-    final BytesRef encodedTerms;
-    final int size;
-    final boolean isPruned;
+    public final BytesRef encodedTerms;
+    public final int size;
+    public final boolean isPruned;
 
     private CacheEntry(BytesRef encodedTerms, int size, boolean isPruned) {
       this.encodedTerms = encodedTerms;
@@ -133,10 +127,10 @@ public class FilterJoinCache {
 
   }
 
-  static class CacheEntryWeigher implements Weigher<Integer, CacheEntry> {
+  static class CacheEntryWeigher implements Weigher<Long, CacheEntry> {
 
     @Override
-    public int weigh(Integer key, CacheEntry value) {
+    public int weigh(Long key, CacheEntry value) {
       return value.encodedTerms.length;
     }
 
