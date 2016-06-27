@@ -33,9 +33,10 @@ You can use the following command to download the plugin from the online reposit
 - Get the ZIPball from [maven.org](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22solutions.siren%22%20AND%20a%3A%22siren-join%22)
 - Install with the downloaded file
 
-    $ bin/plugin install file:/path/to/folder/with/siren-join-2.3.3.zip
+    $ bin/plugin install file:/path/to/folder/with/siren-join-2.3.3-1.zip
 
 ### Manual
+
 Alternatively, you can assemble it via Maven (you must build it as a *non-root* user):
 
 ```
