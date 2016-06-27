@@ -14,7 +14,7 @@ The following table shows the compatibility between releases of Elasticsearch an
 
 Elasticsearch|SIREn Join
 ---|---
-2.3.3|2.3.3
+2.3.3|2.3.3-1
 2.2.0|2.2.0-1
 2.1.2|2.1.2
 2.1.1|2.1.1
@@ -24,7 +24,7 @@ Elasticsearch|SIREn Join
 
 You can use the following command to download the plugin from the online repository:
 
-    $ bin/plugin install solutions.siren/siren-join/2.3.3
+    $ bin/plugin install solutions.siren/siren-join/2.3.3-1
 
 Alternatively, you can assemble it via Maven (you must build it as a *non-root* user):
 
@@ -36,7 +36,7 @@ $ mvn package
 
 This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
-    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.3.3.zip
+    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.3.3-1.zip
 
 You can now start Elasticsearch and see that our plugin gets loaded:
 
