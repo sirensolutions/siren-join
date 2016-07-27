@@ -1,3 +1,9 @@
+======================= Release 2.3.4 =======================
+
+Improvements
+
+* [GH-81] Upgrade to Elasticsearch 2.3.4
+
 ====================== Release 2.3.3-1 ======================
 
 Improvements
