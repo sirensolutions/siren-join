@@ -1,3 +1,9 @@
+======================= Release 2.3.5 =======================
+
+Improvements
+
+* Upgrade to Elasticsearch 2.3.5
+
 ======================= Release 2.3.4 =======================
 
 Improvements
