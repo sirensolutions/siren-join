@@ -9,15 +9,15 @@ the two collections within the Elasticsearch environment.
 === Prerequisites
 
 This guide requires that you have downloaded and
-installed the https://www.elastic.co/downloads/elasticsearch[Elasticsearch 2.3.4] distribution
+installed the https://www.elastic.co/downloads/elasticsearch[Elasticsearch 2.3.5] distribution
 on your computer. If you do not have an Elasticsearch distribution, you can run the following
 commands:
 
 [source,bash]
 -----------------------------------------------------------
-$ wget https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-2.3.4.zip
-$ unzip elasticsearch-2.3.4.zip
-$ cd elasticsearch-2.3.4
+$ wget https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-2.3.5.zip
+$ unzip elasticsearch-2.3.5.zip
+$ cd elasticsearch-2.3.5
 -----------------------------------------------------------
 
 [[siren-join-install]]
@@ -28,13 +28,13 @@ installation directory, you can run the following command:
 
 [source,bash]
 -----------------------------------------------------------
-$ bin/plugin install solutions.siren/siren-join/2.3.4
+$ bin/plugin install solutions.siren/siren-join/2.3.5
 
--> Installing solutions.siren/siren-join/2.3.4...
-Trying http://download.elasticsearch.org/solutions.siren/siren-join/siren-join-2.3.4.zip...
-Trying http://search.maven.org/remotecontent?filepath=solutions/siren/siren-join/2.3.4/siren-join-2.3.4.zip...
+-> Installing solutions.siren/siren-join/2.3.5...
+Trying http://download.elasticsearch.org/solutions.siren/siren-join/siren-join-2.3.5.zip...
+Trying http://search.maven.org/remotecontent?filepath=solutions/siren/siren-join/2.3.5/siren-join-2.3.5.zip...
 Downloading ..........................................................................................DONE
-Installed solutions.siren/siren-join/2.3.4 into /tmp/elasticsearch-2.3.4/plugins/siren-join
+Installed solutions.siren/siren-join/2.3.5 into /tmp/elasticsearch-2.3.5/plugins/siren-join
 -----------------------------------------------------------
 
 In case you want to remove the plugin, you can run the following command:
