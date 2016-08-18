@@ -1,3 +1,9 @@
+======================= Release 2.3.5 =======================
+
+Improvements
+
+* [GH-86] Upgrade to Elasticsearch 2.3.5
+
 ======================= Release 2.3.4 =======================
 
 Improvements
