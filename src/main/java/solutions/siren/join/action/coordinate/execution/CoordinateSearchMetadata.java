@@ -110,7 +110,7 @@ public class CoordinateSearchMetadata {
       static final XContentBuilderString CACHE_HIT = new XContentBuilderString("cache_hit");
       static final XContentBuilderString TOOK = new XContentBuilderString("took");
       static final XContentBuilderString TERMS_ENCODING = new XContentBuilderString("terms_encoding");
-      static final XContentBuilderString ORDERING = new XContentBuilderString("ordering");
+      static final XContentBuilderString ORDERING = new XContentBuilderString("order_by");
       static final XContentBuilderString MAX_TERMS_PER_SHARD = new XContentBuilderString("max_terms_per_shard");
     }
 
