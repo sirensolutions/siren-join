@@ -264,7 +264,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
                           boolQuery().filter(termQuery("tag", "aaa"))
                         )
                       )
-                    ).orderBy("doc_score").maxTermsPerShard(1)
+                    ).orderBy(TermsByQueryRequest.Ordering.DOC_SCORE).maxTermsPerShard(1)
                   )
                   .filter(
                     termQuery("id", "1")
