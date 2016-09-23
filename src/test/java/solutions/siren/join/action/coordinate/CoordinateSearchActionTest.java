@@ -18,7 +18,9 @@
  */
 package solutions.siren.join.action.coordinate;
 
+import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
+import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
@@ -554,7 +556,6 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
     assertHitCount(searchResponse, 0L);
   }
 
-  @Test(expected=SearchPhaseExecutionException.class)
   public void testInvalidTargetField() throws Exception {
     assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string"));
@@ -578,6 +579,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
                     boolQuery().filter(termQuery("tag", "aaa"))
             )
     ).get();
+    assertHitCount(searchResponse, 0L);
   }
 
   @Test
