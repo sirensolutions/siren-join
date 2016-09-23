@@ -18,9 +18,6 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchPhaseExecutionException;
-import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
