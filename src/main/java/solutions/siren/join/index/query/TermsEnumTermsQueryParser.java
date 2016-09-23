@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.index.query;
 
+import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
@@ -91,10 +92,13 @@ public class TermsEnumTermsQueryParser implements QueryParser {
       throw new QueryParsingException(parseContext, "[termsenum_terms] a cache key is required");
     }
 
+    if (fieldName == null) {
+      throw new QueryParsingException(parseContext, "[termsenum_terms] a field name is required");
+    }
+
     MappedFieldType fieldType = parseContext.fieldMapper(fieldName);
     if (fieldType == null) {
-      throw new QueryParsingException(parseContext, "[termsenum_terms] field '" + fieldName +
-              "' does not exist in index '" + parseContext.index().getName() +"'.");
+      return new MatchNoDocsQuery();
     }
 
     Query query = new TermsEnumTermsQuery(value, fieldName, cacheKey);
