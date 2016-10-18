@@ -1,8 +1,8 @@
-======================= Release 2.4.0 =======================
+======================= Release 2.4.1 =======================
 
 Improvements
 
-* [GH-87] Upgrade to Elasticsearch 2.4.0 and Lucene 5.5.2
+* [GH-104] Upgrade to Elasticsearch 2.4.1
 
 ======================= Release 2.3.5 =======================
 
