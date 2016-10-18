@@ -158,22 +158,22 @@ public class FilterJoinVisitor {
 
   private void visit(RootNode root) {
     for (AbstractNode child : root.getChildren()) {
-      this.visit((FilterJoinNode) child);
+      this.visit((FilterJoinNode) child, null);
     }
   }
 
-  private void visit(FilterJoinNode node) {
+  private void visit(FilterJoinNode node, FilterJoinNode parent) {
     if (node.hasChildren()) {
       for (AbstractNode child : node.getChildren()) {
-        this.visit((FilterJoinNode) child);
+        this.visit((FilterJoinNode) child, node);
       }
     }
     else {
-      this.visitLeafNode(node);
+      this.visitLeafNode(node, parent);
     }
   }
 
-  private void visitLeafNode(FilterJoinNode node) {
+  private void visitLeafNode(FilterJoinNode node, FilterJoinNode parent) {
     switch (node.getState()) {
       case WAITING:
         this.executeAsyncOperation(node);
@@ -181,7 +181,7 @@ public class FilterJoinVisitor {
 
       case COMPLETED:
         this.checkForFailure(node);
-        this.recordMetadata(node);
+        this.recordMetadata(node, parent);
         this.convertToTermsQuery(node);
         return;
     }
@@ -228,11 +228,16 @@ public class FilterJoinVisitor {
    * <br>
    * Returns the created action, so that subclasses, e.g., {@link CachedFilterJoinVisitor}, can extend it.
    */
-  protected CoordinateSearchMetadata.Action recordMetadata(FilterJoinNode node) {
+  protected CoordinateSearchMetadata.Action recordMetadata(FilterJoinNode node, FilterJoinNode parent) {
     FilterJoinTerms terms = node.getTerms();
 
-    CoordinateSearchMetadata.Relation from = new CoordinateSearchMetadata.Relation(node.getLookupIndices(), node.getLookupTypes(), node.getLookupPath());
-    CoordinateSearchMetadata.Relation to = new CoordinateSearchMetadata.Relation(null, null, node.getField());
+    final String[] fromIndices = node.getLookupIndices();
+    final String[] fromTypes = node.getLookupTypes();
+    final String[] toIndices = parent == null ? null : parent.getLookupIndices();
+    final String[] toTypes = parent == null ? null : parent.getLookupTypes();
+
+    CoordinateSearchMetadata.Relation from = new CoordinateSearchMetadata.Relation(fromIndices, fromTypes, node.getLookupPath());
+    CoordinateSearchMetadata.Relation to = new CoordinateSearchMetadata.Relation(toIndices, toTypes, node.getField());
 
     CoordinateSearchMetadata.Action action = this.metadata.addAction(from, to);
     action.setPruned(terms.isPruned());
@@ -241,6 +246,8 @@ public class FilterJoinVisitor {
     action.setCacheHit(terms.cacheHit());
     action.setTookInMillis(terms.getTookInMillis());
     action.setTermsEncoding(node.getTermsEncoding());
+    action.setOrdering(node.getOrderBy());
+    action.setMaxTermsPerShard(node.getMaxTermsPerShard());
 
     return action;
   }

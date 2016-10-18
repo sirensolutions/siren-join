@@ -28,6 +28,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.rest.client.RestException;
 import org.elasticsearch.test.rest.client.http.HttpResponse;
 import org.junit.Test;
+import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -264,7 +265,7 @@ public class RestApiTest extends SirenJoinTestCase {
     String q = boolQuery().filter(
                 filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
-                ).orderBy("doc_score").maxTermsPerShard(1)).toString();
+                ).orderBy(TermsByQueryRequest.Ordering.DOC_SCORE).maxTermsPerShard(1)).toString();
     String body = "{ \"query\" : " + q + "}";
 
     HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();

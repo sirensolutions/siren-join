@@ -1,3 +1,15 @@
+======================= Release 2.4.1 =======================
+
+Improvements
+
+* [GH-98] Add some more info in the query response
+* [GH-99] Set the parent index/type in the response debug actions of a filterjoin
+* [GH-104] Upgrade to Elasticsearch 2.4.1
+
+Bugs
+
+* [GH-101] FieldDataTermsQueryParser dumps the byte array in the log if a query parsing exception occurs
+
 ======================= Release 2.3.5 =======================
 
 Improvements
