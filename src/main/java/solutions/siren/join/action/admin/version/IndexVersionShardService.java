@@ -64,12 +64,12 @@ public class IndexVersionShardService extends AbstractIndexShardComponent implem
   private class VersioningIndexingOperationListener extends IndexingOperationListener {
 
     @Override
-    public void postIndex(Engine.Index index) {
+    public void postIndexUnderLock(Engine.Index index) {
       version.incrementAndGet();
     }
 
     @Override
-    public void postDelete(Engine.Delete delete) {
+    public void postDeleteUnderLock(Engine.Delete delete) {
       version.incrementAndGet();
     }
 
