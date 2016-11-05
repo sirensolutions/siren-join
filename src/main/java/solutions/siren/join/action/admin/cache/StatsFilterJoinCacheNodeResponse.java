@@ -22,7 +22,7 @@ import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import solutions.siren.join.action.coordinate.FilterJoinCache;
+import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 
 import java.io.IOException;
 

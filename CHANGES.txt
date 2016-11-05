@@ -1,8 +1,53 @@
-======================= Release 2.3.1 =======================
+======================= Release 2.4.1 =======================
+
+Improvements
+
+* [GH-98] Add some more info in the query response
+* [GH-99] Set the parent index/type in the response debug actions of a filterjoin
+* [GH-104] Upgrade to Elasticsearch 2.4.1
+
+Bugs
+
+* [GH-101] FieldDataTermsQueryParser dumps the byte array in the log if a query parsing exception occurs
+
+======================= Release 2.3.5 =======================
+
+Improvements
+
+* [GH-86] Upgrade to Elasticsearch 2.3.5
+
+======================= Release 2.3.4 =======================
+
+Improvements
+
+* [GH-81] Upgrade to Elasticsearch 2.3.4
+
+====================== Release 2.3.3-1 ======================
+
+Improvements
+
+* [GH-69] Add an artifactory profile to deploy to artifactory
+* [GH-78] Dictionary-based terms filter for highly selective join
+
+Bugs
+
+* [GH-73] Cache key must be based on a version number of the source index
+
+======================= Release 2.3.3 =======================
+
+Improvements
 
 * [GH-55] Upgrade to Elasticsearch 2.3.1
+* [GH-64] Upgrade to Elasticsearch 2.3.3
+* [GH-65] Long encoding should be the default
+
+Bugs
+
+* [GH-60] Default cache size is set to 256kb instead of 256mb
 
 ======================= Release 2.2.0-1 =======================
+
+Bugs
 
 * [GH-49] Terms set implementation is using java 1.8 Math.toIntExact
 

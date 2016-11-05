@@ -14,11 +14,7 @@ drop of performance. See https://github.com/elastic/elasticsearch/issues/16259[i
 === Node Level Caching
 
 The coordinating node relies on a node level cache to reuse the list of terms computed in previously seen `filterjoin`
-queries.
-
-The cache entries are not invalidated on an index update, and therefore can lead to stale results if your index
-is updated quite frequently. You should reduce the cache entry expiration time or clear the cache if your
-application requires up-to-date results.
+queries. The cache entries are invalidated on an index update.
 
 === Settings
 
@@ -26,7 +22,6 @@ You can configure the node level cache with the following Elasticsearch's settin
 
 * `siren.filterjoin.cache.enabled`: Enable or disable the node level cache. Default to `true`.
 * `siren.filterjoin.cache.size`: The maximum size (in bytes) of the cache. Default to `262144` bytes (256MB).
-* `siren.filterjoin.cache.expire`: The time (in second) before a cache entry expires. Default to `360` seconds.
 
 ==== Clearing the Cache
 

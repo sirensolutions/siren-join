@@ -21,7 +21,7 @@ package solutions.siren.join.action.admin.cache;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import solutions.siren.join.action.coordinate.FilterJoinCache;
+import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 
 public class FilterJoinCacheService extends AbstractComponent {
 

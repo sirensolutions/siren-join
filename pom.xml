@@ -5,7 +5,7 @@
   <groupId>solutions.siren</groupId>
   <artifactId>siren-join</artifactId>
   <name>siren-join</name>
-  <version>2.3.1-SNAPSHOT</version>
+  <version>2.4.2-SNAPSHOT</version>
   <description>SIREn plugin that adds join capabilities to Elasticsearch</description>
   <url>http://github.com/sirensolutions/siren-join</url>
 
@@ -35,8 +35,8 @@
   </scm>
 
   <properties>
-    <lucene.version>5.5.0</lucene.version>
-    <elasticsearch.version>2.3.1</elasticsearch.version>
+    <lucene.version>5.5.2</lucene.version>
+    <elasticsearch.version>2.4.1</elasticsearch.version>
     <maven.compiler.target>1.7</maven.compiler.target>
 
     <siren.tools.directory>${project.basedir}/dev-tools</siren.tools.directory>
@@ -338,6 +338,26 @@
         </plugins>
       </build>
     </profile>
+
+    <!-- To deploy to artifactory -->
+    <profile>
+      <id>artifactory</id>
+
+      <distributionManagement>
+        <repository>
+          <id>artifactory-releases</id>
+          <name>artifactory-releases</name>
+          <url>${artifactory.url}/libs-release-local</url>
+        </repository>
+        <snapshotRepository>
+          <id>artifactory-snapshots</id>
+          <name>artifactory-snapshots</name>
+          <url>${artifactory.url}/libs-snapshot-local</url>
+        </snapshotRepository>
+      </distributionManagement>
+
+    </profile>
+
   </profiles>
 
 </project>

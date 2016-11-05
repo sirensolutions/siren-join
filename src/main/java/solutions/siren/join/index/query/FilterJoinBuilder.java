@@ -36,7 +36,7 @@ public class FilterJoinBuilder extends QueryBuilder implements BoostableQueryBui
   private String routing;
   private String path;
   private QueryBuilder query;
-  private String orderBy;
+  private TermsByQueryRequest.Ordering orderBy;
   private Integer maxTermsPerShard;
   private String filterName;
   private TermsByQueryRequest.TermsEncoding termsEncoding;
@@ -90,8 +90,9 @@ public class FilterJoinBuilder extends QueryBuilder implements BoostableQueryBui
 
   /**
    * Sets the ordering used to lookup terms
+   * @param orderBy
    */
-  public FilterJoinBuilder orderBy(String orderBy) {
+  public FilterJoinBuilder orderBy(TermsByQueryRequest.Ordering orderBy) {
     this.orderBy = orderBy;
     return this;
   }

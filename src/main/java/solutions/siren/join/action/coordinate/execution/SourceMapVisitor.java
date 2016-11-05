@@ -16,8 +16,11 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
+package solutions.siren.join.action.coordinate.execution;
 
+import solutions.siren.join.action.coordinate.model.AbstractNode;
+import solutions.siren.join.action.coordinate.model.FilterJoinNode;
+import solutions.siren.join.action.coordinate.model.RootNode;
 import solutions.siren.join.index.query.FilterJoinBuilder;
 
 import java.util.*;

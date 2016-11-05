@@ -14,7 +14,10 @@ The following table shows the compatibility between releases of Elasticsearch an
 
 Elasticsearch|SIREn Join
 ---|---
-2.3.1|2.3.1
+2.4.1|2.4.1
+2.3.5|2.3.5
+2.3.4|2.3.4
+2.3.3|2.3.3-1
 2.2.0|2.2.0-1
 2.1.2|2.1.2
 2.1.1|2.1.1
@@ -22,9 +25,20 @@ Elasticsearch|SIREn Join
 
 ## Installing the Plugin
 
+### Online Download
+
 You can use the following command to download the plugin from the online repository:
 
-    $ bin/plugin install solutions.siren/siren-join/2.3.1
+    $ bin/plugin install solutions.siren/siren-join/2.4.1
+
+### Offline Download
+
+- Get the ZIPball from [maven.org](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22solutions.siren%22%20AND%20a%3A%22siren-join%22)
+- Install with the downloaded file
+
+    $ bin/plugin install file:/path/to/folder/with/siren-join-2.4.1.zip
+
+### Manual
 
 Alternatively, you can assemble it via Maven (you must build it as a *non-root* user):
 
@@ -36,7 +50,9 @@ $ mvn package
 
 This creates a single Zip file that can be installed using the Elasticsearch plugin command:
 
-    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.3.1.zip
+    $ bin/plugin install file:/PATH-TO-SIRENJOIN-PROJECT/target/releases/siren-join-2.4.1.zip
+
+### Interacting with the Plugin
 
 You can now start Elasticsearch and see that our plugin gets loaded:
 
@@ -68,7 +84,7 @@ as the `filterjoin` filter is not supported by the original elaticsearch actions
 * `query`: the query used to lookup terms with.
 * `orderBy`: the ordering to use to lookup the maximum number of terms: default, doc_score (optional, default to default ordering).
 * `maxTermsPerShard`: the maximum number of terms per shard to lookup (optional, default to all terms).
-* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom (optional, default to bloom).
+* `termsEncoding`: the encoding to use when transferring terms across the network: long, integer, bloom, bytes (optional, default to long).
 
 ### Example
 
@@ -148,7 +164,7 @@ see example below. The object contains the following parameters:
 
 ## Performance Considerations
 
-* It is recommended to activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
+* We recommend to activate caching for all queries via the setting `index.queries.cache.everything: true`. The new
 caching policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
 drop of performance. See issue [16529](https://github.com/elastic/elasticsearch/issues/16259) for more information.
 * Joining numeric attributes is more efficient than joining string attributes.
@@ -161,6 +177,8 @@ As a rule of thumb, the maximum amount of unique values transferred across the s
 using bloom encoding, 5 to 10M when using long or integer encoding.
 It is recommended to configure a `maxTermsPerShard` limit if the attribute defined by the `path` parameter contains
 a larger number of values.
+* The `bytes` terms encoding will likely provide better performance for highly selective queries over large indices, as
+it will perform the filtering based on a dictionary lookup instead of a doc value scan.
 
 ## Acknowledgement
 

@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
+package solutions.siren.join.action.coordinate.execution;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -32,7 +32,7 @@ import java.util.Locale;
 /**
  * Holds various metadata information about the execution of a coordinate search.
  */
-class CoordinateSearchMetadata {
+public class CoordinateSearchMetadata {
 
   /**
    * The list of actions
@@ -44,7 +44,7 @@ class CoordinateSearchMetadata {
     static final XContentBuilderString ACTIONS = new XContentBuilderString("actions");
   }
 
-  CoordinateSearchMetadata() {}
+  public CoordinateSearchMetadata() {}
 
   Action addAction(Relation from, Relation to) {
     Action action = new Action(from, to);
@@ -97,6 +97,8 @@ class CoordinateSearchMetadata {
     boolean cacheHit;
     long tookInMillis;
     TermsByQueryRequest.TermsEncoding termsEncoding;
+    TermsByQueryRequest.Ordering ordering;
+    int maxTermsPerShard;
 
     static final class Fields {
       static final XContentBuilderString RELATIONS = new XContentBuilderString("relations");
@@ -108,6 +110,8 @@ class CoordinateSearchMetadata {
       static final XContentBuilderString CACHE_HIT = new XContentBuilderString("cache_hit");
       static final XContentBuilderString TOOK = new XContentBuilderString("took");
       static final XContentBuilderString TERMS_ENCODING = new XContentBuilderString("terms_encoding");
+      static final XContentBuilderString ORDERING = new XContentBuilderString("order_by");
+      static final XContentBuilderString MAX_TERMS_PER_SHARD = new XContentBuilderString("max_terms_per_shard");
     }
 
     Action() {}
@@ -140,6 +144,14 @@ class CoordinateSearchMetadata {
       this.termsEncoding = termsEncoding;
     }
 
+    public void setMaxTermsPerShard(Integer maxTermsPerShard) {
+      this.maxTermsPerShard = maxTermsPerShard == null ? -1 : maxTermsPerShard;
+    }
+
+    public void setOrdering(TermsByQueryRequest.Ordering ordering) {
+      this.ordering = ordering;
+    }
+
     public XContentBuilder toXContent(XContentBuilder builder) throws IOException {
       builder.startObject();
 
@@ -160,6 +172,12 @@ class CoordinateSearchMetadata {
       builder.field(Fields.IS_PRUNED, isPruned);
       builder.field(Fields.CACHE_HIT, cacheHit);
       builder.field(Fields.TERMS_ENCODING, termsEncoding.name().toLowerCase(Locale.ROOT));
+      if (ordering != null) {
+        builder.field(Fields.ORDERING, ordering.name().toLowerCase(Locale.ROOT));
+      }
+      if (maxTermsPerShard != -1) {
+        builder.field(Fields.MAX_TERMS_PER_SHARD, maxTermsPerShard);
+      }
       builder.field(Fields.TOOK, tookInMillis);
 
       builder.endObject();
@@ -178,6 +196,12 @@ class CoordinateSearchMetadata {
       this.cacheHit = in.readBoolean();
       this.tookInMillis = in.readLong();
       this.termsEncoding = TermsByQueryRequest.TermsEncoding.values()[in.readVInt()];
+      if (in.readBoolean()) {
+        this.ordering = TermsByQueryRequest.Ordering.values()[in.readVInt()];
+      }
+      if (in.readBoolean()) {
+        this.maxTermsPerShard = in.readVInt();
+      }
     }
 
     public void writeTo(StreamOutput out) throws IOException {
@@ -189,6 +213,18 @@ class CoordinateSearchMetadata {
       out.writeBoolean(cacheHit);
       out.writeLong(tookInMillis);
       out.writeVInt(termsEncoding.ordinal());
+      if (ordering == null) {
+        out.writeBoolean(false);
+      } else {
+        out.writeBoolean(true);
+        out.writeVInt(ordering.ordinal());
+      }
+      if (maxTermsPerShard == -1) {
+        out.writeBoolean(false);
+      } else {
+        out.writeBoolean(true);
+        out.writeVInt(maxTermsPerShard);
+      }
     }
 
   }

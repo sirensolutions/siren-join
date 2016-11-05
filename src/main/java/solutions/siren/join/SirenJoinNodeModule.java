@@ -16,28 +16,16 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
+package solutions.siren.join;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.elasticsearch.common.inject.AbstractModule;
+import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
 
-/**
- * Abstract node of the abstract syntax tree.
- */
-public abstract class AbstractNode {
+public class SirenJoinNodeModule extends AbstractModule {
 
-  private final List<AbstractNode> children = new ArrayList<>();
-
-  public void addChild(AbstractNode child) {
-    this.children.add(child);
-  }
-
-  public boolean hasChildren() {
-    return !this.children.isEmpty();
-  }
-
-  public List<AbstractNode> getChildren() {
-    return this.children;
+  @Override
+  protected void configure() {
+    bind(FilterJoinCacheService.class).asEagerSingleton();
   }
 
 }

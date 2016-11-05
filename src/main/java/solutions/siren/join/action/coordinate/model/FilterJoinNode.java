@@ -16,8 +16,10 @@
  * You should have received a copy of the GNU Affero General Public
  * License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package solutions.siren.join.action.coordinate;
+package solutions.siren.join.action.coordinate.model;
 
+import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
+import solutions.siren.join.action.coordinate.execution.FilterJoinVisitor;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -47,9 +49,14 @@ public class FilterJoinNode extends AbstractNode {
   private final Map<String, Object> self;
 
   /**
-   * A unique cache id based on the source map.
+   * A hash of the query
    */
-  private final int cacheId;
+  private final int queryHash;
+
+  /**
+   * The version of the lookup indices
+   */
+  private long indicesVersion;
 
   /**
    * An estimation of the cardinality of the join.
@@ -57,8 +64,21 @@ public class FilterJoinNode extends AbstractNode {
   private long cardinality = 0;
   private boolean hasCardinality = false;
 
+  /**
+   * Flag to indicate if there was a failure while processing the node
+   */
+  private boolean hasFailure = false;
+  private Throwable failure;
+
+  /**
+   * The state of the node
+   */
   private State state;
-  private FilterJoinVisitor.TermsByQueryActionListener listener;
+
+  /**
+   * The results of the processing of the node
+   */
+  private FilterJoinTerms terms;
 
   /**
    * The various states of {@link FilterJoinNode}.
@@ -74,9 +94,30 @@ public class FilterJoinNode extends AbstractNode {
     this.parent = parent;
     this.self = self;
     this.state = State.WAITING;
-    // Generate the cache id based on the hashCode of the source map, before it is modified.
+
+    // Generate the query hash based on the hashCode of the source map, before it is modified.
     // This should not be sensitive to the order of the fields, but this might be sensitive to the order of arrays.
-    this.cacheId = self.hashCode();
+    this.queryHash = self.hashCode();
+  }
+
+  public void setFailure(Throwable failure) {
+    this.failure = failure;
+    this.hasFailure = true;
+  }
+
+  public boolean hasFailure() {
+    return this.hasFailure;
+  }
+
+  public Throwable getFailure() {
+    return failure;
+  }
+
+  /**
+   * Sets the version of the lookup indices
+   */
+  public void setIndicesVersion(long indicesVersion) {
+    this.indicesVersion = indicesVersion;
   }
 
   /**
@@ -85,20 +126,25 @@ public class FilterJoinNode extends AbstractNode {
    * and by {@link FilterJoinVisitor#convertToFieldDataTermsQuery(FilterJoinNode)} as cache key for the
    * binary terms filter.
    */
-  int getCacheId() {
+  public long getCacheId() {
+    long cacheId = 1;
+
+    cacheId = 31 * cacheId + queryHash;
+    cacheId = 31 * cacheId + indicesVersion;
+
     return cacheId;
   }
 
-  void setCardinality(long cardinality) {
+  public void setCardinality(long cardinality) {
     this.cardinality = cardinality;
     this.hasCardinality = true;
   }
 
-  boolean hasCardinality() {
+  public boolean hasCardinality() {
     return hasCardinality;
   }
 
-  long getCardinality() {
+  public long getCardinality() {
     return cardinality;
   }
 
@@ -197,12 +243,12 @@ public class FilterJoinNode extends AbstractNode {
     return state;
   }
 
-  public void setActionListener(FilterJoinVisitor.TermsByQueryActionListener listener) {
-    this.listener = listener;
+  public void setTerms(FilterJoinTerms terms) {
+    this.terms = terms;
   }
 
-  public FilterJoinVisitor.TermsByQueryActionListener getActionListener() {
-    return listener;
+  public FilterJoinTerms getTerms() {
+    return terms;
   }
 
 }

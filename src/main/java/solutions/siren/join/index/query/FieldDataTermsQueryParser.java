@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.index.query;
 
+import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.logging.ESLogger;
@@ -62,7 +63,7 @@ public class FieldDataTermsQueryParser implements QueryParser {
 
     String queryName = null;
     byte[] value = null;
-    Integer cacheKey = null;
+    Long cacheKey = null;
 
     token = parser.nextToken();
     if (token == XContentParser.Token.START_OBJECT) {
@@ -72,11 +73,11 @@ public class FieldDataTermsQueryParser implements QueryParser {
           currentFieldName = parser.currentName();
         } else {
           if ("value".equals(currentFieldName)) {
-              value = parser.binaryValue();
+            value = parser.binaryValue();
           } else if ("_name".equals(currentFieldName)) {
-              queryName = parser.text();
+            queryName = parser.text();
           } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
-              cacheKey = parser.intValue();
+            cacheKey = parser.longValue();
           } else {
             throw new QueryParsingException(parseContext, "[fielddata_terms] filter does not support [" + currentFieldName + "]");
           }
@@ -96,10 +97,13 @@ public class FieldDataTermsQueryParser implements QueryParser {
       throw new QueryParsingException(parseContext, "[fielddata_terms] a cache key is required");
     }
 
+    if (fieldName == null) {
+      throw new QueryParsingException(parseContext, "[fielddata_terms] a field name is required");
+    }
+
     MappedFieldType fieldType = parseContext.fieldMapper(fieldName);
     if (fieldType == null) {
-      throw new QueryParsingException(parseContext, "[fielddata_terms] field '" + fieldName +
-              "' does not exist in index '" + parseContext.index().getName() +"'.");
+      return new MatchNoDocsQuery();
     }
 
     IndexFieldData fieldData = parseContext.getForField(fieldType);
@@ -113,7 +117,7 @@ public class FieldDataTermsQueryParser implements QueryParser {
   }
 
   private final Query toFieldDataTermsQuery(MappedFieldType fieldType, IndexFieldData fieldData,
-                                            byte[] encodedTerms, int cacheKey) {
+                                            byte[] encodedTerms, long cacheKey) {
     Query query = null;
 
     if (fieldType instanceof NumberFieldMapper.NumberFieldType) {
