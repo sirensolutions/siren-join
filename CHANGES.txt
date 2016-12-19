@@ -1,3 +1,9 @@
+======================= Release 2.4.2 =======================
+
+Improvements
+
+* [GH-113] Upgrade to Elasticsearch 2.4.2
+
 ======================= Release 2.4.1 =======================
 
 Improvements
