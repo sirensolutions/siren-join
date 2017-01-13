@@ -98,7 +98,6 @@ public class FilterJoinNode extends AbstractNode {
 
     // Generate the query hash based on the hashCode of the source map, before it is modified.
     // This should not be sensitive to the order of the fields, but this might be sensitive to the order of arrays.
-    // this.queryHash = self.hashCode();
     this.queryHash = Collections.hashCode(self);
   }
 
