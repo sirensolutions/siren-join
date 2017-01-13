@@ -52,7 +52,7 @@ public class CoordinateSearchMetadata {
     return action;
   }
 
-  List<Action> getActions() {
+  public List<Action> getActions() {
     return this.actions;
   }
 
@@ -88,7 +88,7 @@ public class CoordinateSearchMetadata {
   /**
    * Metadata about a filter join action.
    */
-  static class Action {
+  public static class Action {
 
     Relation[] relations;
     int size;
@@ -124,20 +124,40 @@ public class CoordinateSearchMetadata {
       this.isPruned = isPruned;
     }
 
+    public boolean isPruned() {
+      return isPruned;
+    }
+
     void setSize(int size) {
       this.size = size;
+    }
+
+    public int size() {
+      return size;
     }
 
     void setSizeInBytes(long size) {
       this.sizeInBytes = size;
     }
 
+    public long sizeInBytes() {
+      return sizeInBytes;
+    }
+
     void setCacheHit(boolean cacheHit) {
       this.cacheHit = cacheHit;
     }
 
+    public boolean cacheHit() {
+      return cacheHit;
+    }
+
     void setTookInMillis(long tookInMillis) {
       this.tookInMillis = tookInMillis;
+    }
+
+    public long tookInMillis() {
+      return tookInMillis;
     }
 
     void setTermsEncoding(TermsByQueryRequest.TermsEncoding termsEncoding) {
