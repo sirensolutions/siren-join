@@ -70,13 +70,13 @@ public class GetIndicesVersionResponse extends BroadcastResponse {
 
     Set<String> indices = Sets.newHashSet();
     for (ShardIndexVersion shard : shards) {
-      indices.add(shard.getShardRouting().getIndex());
+      indices.add(shard.getShardRouting().index().getName());
     }
 
     for (String index : indices) {
       List<ShardIndexVersion> shards = new ArrayList<>();
       for (ShardIndexVersion shard : this.shards) {
-        if (shard.getShardRouting().index().equals(index)) {
+        if (shard.getShardRouting().index().getName().equals(index)) {
           shards.add(shard);
         }
       }
@@ -93,12 +93,7 @@ public class GetIndicesVersionResponse extends BroadcastResponse {
     long version = 1;
 
     // order shards per their id before computing the hash
-    Collections.sort(shards, new Comparator<ShardIndexVersion>() {
-      @Override
-      public int compare(ShardIndexVersion o1, ShardIndexVersion o2) {
-        return o1.getShardRouting().id() - o2.getShardRouting().id();
-      }
-    });
+    Collections.sort(shards, Comparator.comparingInt(o -> o.getShardRouting().id()));
 
     // compute hash
     for (ShardIndexVersion shard : shards) {

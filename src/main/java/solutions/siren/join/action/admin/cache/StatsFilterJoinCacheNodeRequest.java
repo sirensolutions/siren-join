@@ -31,7 +31,7 @@ public class StatsFilterJoinCacheNodeRequest extends BaseNodeRequest {
   public StatsFilterJoinCacheNodeRequest() {}
 
   public StatsFilterJoinCacheNodeRequest(String nodeId, StatsFilterJoinCacheRequest request) {
-    super(request, nodeId);
+    super(nodeId);
     this.request = request;
   }
 

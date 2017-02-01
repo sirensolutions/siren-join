@@ -18,11 +18,14 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.support.broadcast.BroadcastShardRequest;
 import org.elasticsearch.common.Nullable;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.search.internal.AliasFilter;
 
 import java.io.IOException;
 
@@ -32,13 +35,15 @@ import java.io.IOException;
 public class TermsByQueryShardRequest extends BroadcastShardRequest {
 
   @Nullable
-  private String[] filteringAliases;
+  private AliasFilter filteringAliases;
   private TermsByQueryRequest request;
 
   /**
    * Default constructor
    */
-  public TermsByQueryShardRequest() {}
+  public TermsByQueryShardRequest() {
+    filteringAliases = new AliasFilter(null, Strings.EMPTY_ARRAY);
+  }
 
   /**
    * Main Constructor
@@ -47,7 +52,7 @@ public class TermsByQueryShardRequest extends BroadcastShardRequest {
    * @param filteringAliases optional aliases
    * @param request          the original {@link TermsByQueryRequest}
    */
-  public TermsByQueryShardRequest(ShardId shardId, @Nullable String[] filteringAliases, TermsByQueryRequest request) {
+  public TermsByQueryShardRequest(ShardId shardId, AliasFilter filteringAliases, TermsByQueryRequest request) {
     super(shardId, request);
     this.filteringAliases = filteringAliases;
     this.request = request;
@@ -58,7 +63,7 @@ public class TermsByQueryShardRequest extends BroadcastShardRequest {
    *
    * @return the filtering aliases
    */
-  public String[] filteringAliases() {
+  public AliasFilter filteringAliases() {
     return filteringAliases;
   }
 
@@ -84,7 +89,7 @@ public class TermsByQueryShardRequest extends BroadcastShardRequest {
     request.readFrom(in);
 
     if (in.readBoolean()) {
-      filteringAliases = in.readStringArray();
+      filteringAliases = new AliasFilter(in);
     }
   }
 
@@ -103,7 +108,7 @@ public class TermsByQueryShardRequest extends BroadcastShardRequest {
       out.writeBoolean(false);
     } else {
       out.writeBoolean(true);
-      out.writeStringArray(filteringAliases);
+      filteringAliases.writeTo(out);
     }
   }
 }

@@ -18,9 +18,9 @@
  */
 package solutions.siren.join.action.coordinate.tasks;
 
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import solutions.siren.join.action.coordinate.model.FilterJoinNode;
@@ -38,7 +38,7 @@ import solutions.siren.join.action.terms.TermsByQueryResponse;
  */
 public class TermsByQueryTask implements NodeTask {
 
-  protected static final ESLogger logger = Loggers.getLogger(TermsByQueryTask.class);
+  protected static final Logger logger = Loggers.getLogger(TermsByQueryTask.class);
 
   @Override
   public void execute(final NodeTaskContext context, final NodeTaskReporter reporter) {
@@ -66,7 +66,7 @@ public class TermsByQueryTask implements NodeTask {
       }
 
       @Override
-      public void onFailure(Throwable e) {
+      public void onFailure(Exception e) {
         reporter.failure(e);
       }
 

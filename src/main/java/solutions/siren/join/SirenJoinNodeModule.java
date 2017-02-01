@@ -20,12 +20,20 @@ package solutions.siren.join;
 
 import org.elasticsearch.common.inject.AbstractModule;
 import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
+import solutions.siren.join.action.admin.version.IndexVersionService;
 
 public class SirenJoinNodeModule extends AbstractModule {
+
+  private final IndexVersionService indexVersionService;
+
+  public SirenJoinNodeModule(IndexVersionService indexVersionService) {
+    this.indexVersionService = indexVersionService;
+  }
 
   @Override
   protected void configure() {
     bind(FilterJoinCacheService.class).asEagerSingleton();
+    bind(IndexVersionService.class).toInstance(indexVersionService);
   }
 
 }

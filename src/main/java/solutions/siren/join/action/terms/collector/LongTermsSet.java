@@ -22,11 +22,11 @@ import com.carrotsearch.hppc.BufferAllocationException;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongScatterSet;
 import com.carrotsearch.hppc.cursors.LongCursor;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.common.Math;
@@ -45,7 +45,7 @@ public class LongTermsSet extends NumericTermsSet {
    */
   private static final int HEADER_SIZE = 9;
 
-  private static final ESLogger logger = Loggers.getLogger(LongTermsSet.class);
+  private static final Logger logger = Loggers.getLogger(LongTermsSet.class);
 
   /**
    * Constructor used by {@link solutions.siren.join.action.terms.TermsByQueryShardResponse}

@@ -20,7 +20,7 @@ package solutions.siren.join.index.query;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
-import org.elasticsearch.index.cache.IndexCacheModule;
+import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.index.cache.query.QueryCacheStats;
 import org.elasticsearch.test.ESIntegTestCase;
 import solutions.siren.join.SirenJoinTestCase;
@@ -36,7 +36,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitC
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes = 0, supportsDedicatedMasters = false)
 public class FieldDataTermsQueryTest extends SirenJoinTestCase {
 
   private static final Integer CACHE_KEY = 123;
@@ -55,8 +55,8 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
   public Settings indexSettings() {
     Settings.Builder builder = Settings.builder();
     builder.put(super.indexSettings());
-    builder.put(IndexCacheModule.QUERY_CACHE_TYPE, IndexCacheModule.INDEX_QUERY_CACHE); // force query cache
-    builder.put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true); // force caching even small queries
+    builder.put(IndexModule.INDEX_QUERY_CACHE_ENABLED_SETTING.getKey(), true); // force query cache
+    builder.put(IndexModule.INDEX_QUERY_CACHE_EVERYTHING_SETTING.getKey(), true); // force caching even small queries
     return builder.build();
   }
 
@@ -78,7 +78,7 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
 
   @Test
   public void testStringFilter() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword"));
     ensureGreen();
 
     indexRandom(true,
@@ -101,7 +101,7 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
 
   @Test
   public void testCaching() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=long"));
     ensureGreen();
 
     indexRandom(true,

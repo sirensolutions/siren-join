@@ -18,80 +18,109 @@
  */
 package solutions.siren.join;
 
-import org.elasticsearch.action.ActionModule;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.common.inject.Module;
-import org.elasticsearch.index.cache.IndexCacheModule;
-import org.elasticsearch.indices.IndicesModule;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.rest.RestModule;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.inject.Module;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
-
-import solutions.siren.join.action.admin.cache.*;
-import solutions.siren.join.action.admin.version.GetIndicesVersionAction;
-import solutions.siren.join.action.admin.version.IndexVersionShardService;
-import solutions.siren.join.action.admin.version.TransportGetIndicesVersionAction;
+import org.elasticsearch.index.IndexModule;
+import org.elasticsearch.index.shard.IndexingOperationListener;
+import org.elasticsearch.plugins.ActionPlugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.SearchPlugin;
+import org.elasticsearch.rest.RestHandler;
+import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
+import solutions.siren.join.action.admin.cache.StatsFilterJoinCacheAction;
+import solutions.siren.join.action.admin.cache.TransportClearFilterJoinCacheAction;
+import solutions.siren.join.action.admin.cache.TransportStatsFilterJoinCacheAction;
+import solutions.siren.join.action.admin.version.*;
 import solutions.siren.join.action.coordinate.CoordinateMultiSearchAction;
 import solutions.siren.join.action.coordinate.CoordinateSearchAction;
 import solutions.siren.join.action.coordinate.TransportCoordinateMultiSearchAction;
 import solutions.siren.join.action.coordinate.TransportCoordinateSearchAction;
+import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 import solutions.siren.join.action.terms.TermsByQueryAction;
 import solutions.siren.join.action.terms.TransportTermsByQueryAction;
-import solutions.siren.join.index.query.FieldDataTermsQueryParser;
-import solutions.siren.join.index.query.TermsEnumTermsQueryParser;
+import solutions.siren.join.index.query.FieldDataTermsQueryBuilder;
+import solutions.siren.join.index.query.FilterJoinBuilder;
+import solutions.siren.join.index.query.TermsEnumTermsQueryBuilder;
 import solutions.siren.join.rest.RestClearFilterJoinCacheAction;
 import solutions.siren.join.rest.RestCoordinateMultiSearchAction;
 import solutions.siren.join.rest.RestCoordinateSearchAction;
 import solutions.siren.join.rest.RestStatsFilterJoinCacheAction;
 
-import java.io.Closeable;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * The SIREn Join plugin.
  */
-public class SirenJoinPlugin extends Plugin {
+public class SirenJoinPlugin extends Plugin implements ActionPlugin, SearchPlugin {
 
   private final boolean isEnabled;
+  private final IndexVersionService indexVersionService;
 
   @Inject
   public SirenJoinPlugin(Settings settings) {
-    if (DiscoveryNode.clientNode(settings)) {
+    if (DiscoveryNode.isDataNode(settings) || DiscoveryNode.isMasterNode(settings)) {
       this.isEnabled = "node".equals(settings.get("client.type"));
+    } else {
+      this.isEnabled = false;
     }
-    else {
-      this.isEnabled = true;
-    }
-  }
 
-  public void onModule(ActionModule module) {
-    module.registerAction(TermsByQueryAction.INSTANCE, TransportTermsByQueryAction.class);
-    module.registerAction(CoordinateSearchAction.INSTANCE, TransportCoordinateSearchAction.class);
-    module.registerAction(CoordinateMultiSearchAction.INSTANCE, TransportCoordinateMultiSearchAction.class);
-    module.registerAction(ClearFilterJoinCacheAction.INSTANCE, TransportClearFilterJoinCacheAction.class);
-    module.registerAction(StatsFilterJoinCacheAction.INSTANCE, TransportStatsFilterJoinCacheAction.class);
-    module.registerAction(GetIndicesVersionAction.INSTANCE, TransportGetIndicesVersionAction.class);
-  }
-
-  public void onModule(IndicesModule module) {
-    module.registerQueryParser(FieldDataTermsQueryParser.class);
-    module.registerQueryParser(TermsEnumTermsQueryParser.class);
-  }
-
-  public void onModule(RestModule module) {
-    module.addRestAction(RestCoordinateSearchAction.class);
-    module.addRestAction(RestCoordinateMultiSearchAction.class);
-    module.addRestAction(RestClearFilterJoinCacheAction.class);
-    module.addRestAction(RestStatsFilterJoinCacheAction.class);
+    this.indexVersionService = isEnabled ? new IndexVersionService(settings) : null;
   }
 
   @Override
-  public Collection<Module> nodeModules() {
+  public void onIndexModule(IndexModule indexModule) {
+    if (!this.isEnabled) return;
+    IndexVersionEventListener indexVersionEventListener = indexVersionService.getOrDefault(indexModule.getIndex());
+
+    if (indexVersionEventListener == null) {
+      VersionIndexingOperationListener indexingOperationListener = new VersionIndexingOperationListener();
+      IndexVersionEventListener eventListener = new IndexVersionEventListener(indexingOperationListener);
+      indexModule.addIndexEventListener(eventListener);
+      indexModule.addIndexOperationListener(indexingOperationListener);
+      this.indexVersionService.registerIndexEventListener(indexModule.getIndex(), eventListener);
+    } else {
+      indexModule.addIndexEventListener(indexVersionEventListener);
+      indexModule.addIndexOperationListener(indexVersionEventListener.getOperationListener());
+    }
+  }
+
+  @Override
+  public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    return Arrays.asList(
+            new ActionHandler<>(TermsByQueryAction.INSTANCE, TransportTermsByQueryAction.class),
+            new ActionHandler<>(CoordinateSearchAction.INSTANCE, TransportCoordinateSearchAction.class),
+            new ActionHandler<>(CoordinateMultiSearchAction.INSTANCE, TransportCoordinateMultiSearchAction.class),
+            new ActionHandler<>(ClearFilterJoinCacheAction.INSTANCE, TransportClearFilterJoinCacheAction.class),
+            new ActionHandler<>(StatsFilterJoinCacheAction.INSTANCE, TransportStatsFilterJoinCacheAction.class),
+            new ActionHandler<>(GetIndicesVersionAction.INSTANCE, TransportGetIndicesVersionAction.class));
+  }
+
+
+  @Override
+  public List<QuerySpec<?>> getQueries() {
+    return Arrays.asList(new QuerySpec<>(FieldDataTermsQueryBuilder.NAME, FieldDataTermsQueryBuilder::new, FieldDataTermsQueryBuilder::fromXContent),
+            new QuerySpec<>(TermsEnumTermsQueryBuilder.NAME, TermsEnumTermsQueryBuilder::new, TermsEnumTermsQueryBuilder::fromXContent),
+            new QuerySpec<>(FilterJoinBuilder.NAME, FilterJoinBuilder::new, FilterJoinBuilder::fromXContent));
+  }
+
+  @Override
+  public List<Class<? extends RestHandler>> getRestHandlers() {
+    return Arrays.asList(RestCoordinateSearchAction.class, RestCoordinateMultiSearchAction.class,
+      RestClearFilterJoinCacheAction.class, RestStatsFilterJoinCacheAction.class);
+  }
+
+  @Override
+  public Collection<Module> createGuiceModules() {
     if (isEnabled) {
-      return Collections.singletonList((Module) new SirenJoinNodeModule());
+      return Collections.singletonList(new SirenJoinNodeModule(this.indexVersionService));
     }
     else {
       return Collections.emptyList();
@@ -99,30 +128,10 @@ public class SirenJoinPlugin extends Plugin {
   }
 
   @Override
-  public Collection<Module> shardModules(Settings indexSettings) {
-    return Collections.singletonList((Module) new SirenJoinShardModule());
-  }
-
-  @Override
-  public Collection<Class<? extends Closeable>> shardServices() {
-    Collection<Class<? extends Closeable>> services = new ArrayList<>();
-    services.add(IndexVersionShardService.class);
-    return services;
-  }
-
-  @Override
-  public String name() {
-    return "SirenJoinPlugin";
-  }
-
-  @Override
-  public String description() {
-    return "SIREn plugin that adds join capabilities to Elasticsearch";
-  }
-
-  @Override
-  public Settings additionalSettings() {
-    return Settings.builder().put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true).build();
+  public List<Setting<?>> getSettings() {
+    return Arrays.asList(Setting.boolSetting(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, true, Setting.Property.NodeScope),
+            Setting.intSetting(FilterJoinCache.SIREN_FILTERJOIN_CACHE_SIZE, FilterJoinCache.DEFAULT_CACHE_SIZE, Setting.Property.NodeScope)
+    );
   }
 
 }

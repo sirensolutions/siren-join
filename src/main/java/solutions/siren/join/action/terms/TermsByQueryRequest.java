@@ -74,7 +74,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    * of the original request to the new request.
    */
   public TermsByQueryRequest(ActionRequest originalRequest, String... indices) {
-    super(originalRequest);
+    super(indices);
     this.indices(indices);
   }
 
@@ -129,7 +129,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    * @see {@link org.elasticsearch.index.query.QueryBuilders}
    */
   public TermsByQueryRequest query(QueryBuilder queryBuilder) {
-    this.querySource = queryBuilder == null ? null : queryBuilder.buildAsBytes();
+    //this.querySource = queryBuilder == null ? null : queryBuilder.buildAsBytes();
     return this;
   }
 

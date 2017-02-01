@@ -19,8 +19,9 @@
 package solutions.siren.join;
 
 import org.elasticsearch.Version;
-import org.elasticsearch.index.cache.IndexCacheModule;
+import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.node.MockNode;
+import org.elasticsearch.node.NodeValidationException;
 import org.elasticsearch.plugins.Plugin;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
 import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
@@ -74,24 +75,24 @@ public class FilterJoinBenchmark {
     private final Client client;
     private final Random random;
 
-    FilterJoinBenchmark() {
-      Settings settings = Settings.builder()
-        .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
-        .put("index.engine.robin.refreshInterval", "-1")
-        .put("path.home", "./target/elasticsearch-benchmark/home/")
-        .put("node.local", true)
-        .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
-        .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
-        .put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true)
-        .build();
+    FilterJoinBenchmark() throws NodeValidationException {
+        Settings settings = Settings.builder()
+                .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
+                .put("index.engine.robin.refreshInterval", "-1")
+                .put("path.home", "./target/elasticsearch-benchmark/home/")
+                .put("node.local", true)
+                .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
+                .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
+                .put(IndexModule.INDEX_QUERY_CACHE_EVERYTHING_SETTING.getKey(), true)
+                .build();
 
-      this.nodes = new MockNode[2];
-      this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
-      this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
-      this.client = nodes[0].client();
-      this.random = new Random(System.currentTimeMillis());
+        this.nodes = new MockNode[2];
+        this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(), 
+                Collections.singletonList(SirenJoinPlugin.class)).start();
+        this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(), 
+                Collections.singletonList(SirenJoinPlugin.class)).start();
+        this.client = nodes[0].client();
+        this.random = new Random(System.currentTimeMillis());
     }
 
     public static void main(String[] args) throws Exception {
@@ -115,7 +116,7 @@ public class FilterJoinBenchmark {
       client.admin().cluster().prepareHealth().setWaitForGreenStatus().setTimeout("10s").execute().actionGet();
     }
 
-    public void shutdown() {
+    public void shutdown() throws IOException {
       client.close();
       nodes[0].close();
       nodes[1].close();
@@ -126,18 +127,18 @@ public class FilterJoinBenchmark {
     }
 
     public void memStatus() throws IOException {
-      NodeStats[] nodeStats = client.admin().cluster().prepareNodesStats()
+      List<NodeStats> nodeStats = client.admin().cluster().prepareNodesStats()
         .setJvm(true).setIndices(true).setTransport(true)
         .execute().actionGet().getNodes();
 
       log("==== MEMORY ====");
-      log("Committed heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapCommitted());
-      log("Used heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapUsed());
-      log("FieldData cache size: [0]=" + nodeStats[0].getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getFieldData().getMemorySize());
-      log("Query cache size: [0]=" + nodeStats[0].getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getQueryCache().getMemorySize());
+      log("Committed heap size: [0]=" + nodeStats.get(0).getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats.get(1).getJvm().getMem().getHeapCommitted());
+      log("Used heap size: [0]=" + nodeStats.get(0).getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats.get(1).getJvm().getMem().getHeapUsed());
+      log("FieldData cache size: [0]=" + nodeStats.get(0).getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats.get(1).getIndices().getFieldData().getMemorySize());
+      log("Query cache size: [0]=" + nodeStats.get(0).getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats.get(1).getIndices().getQueryCache().getMemorySize());
       log("");
       log("==== NETWORK ====");
-      log("Transport: [0]=" + nodeStats[0].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats[1].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+      log("Transport: [0]=" + nodeStats.get(0).getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats.get(1).getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
       log("");
     }
 
@@ -207,7 +208,7 @@ public class FilterJoinBenchmark {
         }
 
         client.admin().indices().prepareRefresh().execute().actionGet();
-        log("Number of docs in index: " + client.prepareCount(PARENT_INDEX, CHILD_INDEX).setQuery(matchAllQuery()).execute().actionGet().getCount());
+        log("Number of docs in index: " + client.prepareSearch(PARENT_INDEX, CHILD_INDEX).setQuery(matchAllQuery()).setSize(0).execute().actionGet().getHits().getTotalHits());
         log("");
     }
 
@@ -311,11 +312,11 @@ public class FilterJoinBenchmark {
         bloomNumFilter.query(lookupQuery);
         bloomStringFilter.query(lookupQuery);
 
-        tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-        tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        tookInt += runQuery("int", i, PARENT_INDEX, expected, filteredQuery(mainQuery, intFilter));
-        tookBloomNum += runQuery("bloom_num", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
-        tookBloomString += runQuery("bloom_string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
+        tookString += runQuery("string", i, PARENT_INDEX, expected, stringFilter);
+        tookLong += runQuery("long", i, PARENT_INDEX, expected, longFilter);
+        tookInt += runQuery("int", i, PARENT_INDEX, expected, intFilter);
+        tookBloomNum += runQuery("bloom_num", i, PARENT_INDEX, expected, bloomNumFilter);
+        tookBloomString += runQuery("bloom_string", i, PARENT_INDEX, expected, bloomStringFilter);
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
@@ -385,11 +386,11 @@ public class FilterJoinBenchmark {
 
       log("==== HAS CHILD MATCH-ALL ====");
       for (int i = 0; i < NUM_QUERIES; i++) {
-        tookString += runQuery("string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-        tookLong += runQuery("long", i, PARENT_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        tookInt += runQuery("int", i, PARENT_INDEX, expected, filteredQuery(mainQuery, intFilter));
-        tookBloomNum += runQuery("bloom_num", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
-        tookBloomString += runQuery("bloom_string", i, PARENT_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
+        tookString += runQuery("string", i, PARENT_INDEX, expected, stringFilter);
+        tookLong += runQuery("long", i, PARENT_INDEX, expected, longFilter);
+        tookInt += runQuery("int", i, PARENT_INDEX, expected, intFilter);
+        tookBloomNum += runQuery("bloom_num", i, PARENT_INDEX, expected, bloomNumFilter);
+        tookBloomString += runQuery("bloom_string", i, PARENT_INDEX, expected, bloomStringFilter);
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
@@ -462,11 +463,11 @@ public class FilterJoinBenchmark {
         bloomNumFilter.query(lookupQuery);
         bloomStringFilter.query(lookupQuery);
 
-        tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-        tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        tookInt += runQuery("int", i, CHILD_INDEX, expected, filteredQuery(mainQuery, intFilter));
-        tookBloomNum += runQuery("bloom_num", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
-        tookBloomString += runQuery("bloom_string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
+        tookString += runQuery("string", i, CHILD_INDEX, expected, stringFilter);
+        tookLong += runQuery("long", i, CHILD_INDEX, expected, longFilter);
+        tookInt += runQuery("int", i, CHILD_INDEX, expected, intFilter);
+        tookBloomNum += runQuery("bloom_num", i, CHILD_INDEX, expected, bloomNumFilter);
+        tookBloomString += runQuery("bloom_string", i, CHILD_INDEX, expected, bloomStringFilter);
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
@@ -536,11 +537,11 @@ public class FilterJoinBenchmark {
 
       log("==== HAS PARENT MATCH-ALL ====");
       for (int i = 0; i < NUM_QUERIES; i++) {
-        tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-        tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
-        tookInt += runQuery("int", i, CHILD_INDEX, expected, filteredQuery(mainQuery, intFilter));
-        tookBloomNum += runQuery("bloom_num", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomNumFilter));
-        tookBloomString += runQuery("bloom_string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, bloomStringFilter));
+        tookString += runQuery("string", i, CHILD_INDEX, expected, stringFilter);
+        tookLong += runQuery("long", i, CHILD_INDEX, expected, longFilter);
+        tookInt += runQuery("int", i, CHILD_INDEX, expected, intFilter);
+        tookBloomNum += runQuery("bloom_num", i, CHILD_INDEX, expected, bloomNumFilter);
+        tookBloomString += runQuery("bloom_string", i, CHILD_INDEX, expected, bloomStringFilter);
       }
 
       log("string: " + (tookString / NUM_QUERIES) + "ms avg");
@@ -596,8 +597,8 @@ public class FilterJoinBenchmark {
             stringFilter.query(lookupQuery);
             longFilter.query(lookupQuery);
 
-            tookString += runQuery("string", i, CHILD_INDEX, expected, filteredQuery(mainQuery, stringFilter));
-            tookLong += runQuery("long", i, CHILD_INDEX, expected, filteredQuery(mainQuery, longFilter));
+            tookString += runQuery("string", i, CHILD_INDEX, expected, stringFilter);
+            tookLong += runQuery("long", i, CHILD_INDEX, expected, longFilter);
         }
 
         log("string: " + (tookString / NUM_QUERIES) + "ms avg");

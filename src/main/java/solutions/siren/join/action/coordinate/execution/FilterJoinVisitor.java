@@ -18,9 +18,10 @@
  */
 package solutions.siren.join.action.coordinate.execution;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.index.query.ConstantScoreQueryParser;
+import org.elasticsearch.index.query.ConstantScoreQueryBuilder;
 import solutions.siren.join.action.coordinate.model.AbstractNode;
 import solutions.siren.join.action.coordinate.model.FilterJoinNode;
 import solutions.siren.join.action.coordinate.model.FilterJoinTerms;
@@ -33,13 +34,12 @@ import solutions.siren.join.action.coordinate.tasks.CardinalityEstimationTask;
 import solutions.siren.join.action.coordinate.tasks.IndicesVersionTask;
 import solutions.siren.join.action.coordinate.tasks.TermsByQueryTask;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
-import solutions.siren.join.index.query.FieldDataTermsQueryParser;
+import solutions.siren.join.index.query.FieldDataTermsQueryBuilder;
 import solutions.siren.join.index.query.FilterJoinBuilder;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import solutions.siren.join.index.query.TermsEnumTermsQueryParser;
+import solutions.siren.join.index.query.TermsEnumTermsQueryBuilder;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -65,7 +65,7 @@ public class FilterJoinVisitor {
    */
   private final FilterJoinCache cache;
 
-  private static final ESLogger logger = Loggers.getLogger(FilterJoinVisitor.class);
+  private static final Logger logger = Loggers.getLogger(FilterJoinVisitor.class);
 
   public FilterJoinVisitor(Client client, RootNode root, FilterJoinCache cache, ActionRequest parentRequest) {
     this.parentRequest = parentRequest;
@@ -287,18 +287,18 @@ public class FilterJoinVisitor {
     Map<String, Object> termsQuery = new HashMap<>();
     // If bytes terms encoding is used, we switch to the terms enum based terms query
     if (node.getTermsEncoding().equals(TermsByQueryRequest.TermsEncoding.BYTES)) {
-      termsQuery.put(TermsEnumTermsQueryParser.NAME, field);
+      termsQuery.put(TermsEnumTermsQueryBuilder.NAME, field);
     }
     else {
-      termsQuery.put(FieldDataTermsQueryParser.NAME, field);
+      termsQuery.put(FieldDataTermsQueryBuilder.NAME, field);
     }
 
     // Create the object for the constant score query
     Map<String, Object> constantScoreQueryParams = new HashMap<>();
-    constantScoreQueryParams.put("filter", termsQuery);
+    constantScoreQueryParams.put("query", termsQuery);
 
     // Add the constant score query to the parent
-    parent.put(ConstantScoreQueryParser.NAME, constantScoreQueryParams);
+    parent.put(ConstantScoreQueryBuilder.NAME, constantScoreQueryParams);
     node.setState(FilterJoinNode.State.CONVERTED);
     this.blockingQueue.poll();
   }

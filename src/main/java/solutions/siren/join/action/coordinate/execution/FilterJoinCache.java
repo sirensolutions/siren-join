@@ -22,18 +22,17 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheStats;
 import com.google.common.cache.Weigher;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import solutions.siren.join.action.coordinate.model.FilterJoinNode;
 import solutions.siren.join.action.coordinate.model.FilterJoinTerms;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The filter join cache. It is thread-safe (use a {@link Cache} underneath).
@@ -47,12 +46,12 @@ public class FilterJoinCache {
   /**
    * The maximum size (in bytes) of the cache. Default to 256MB.
    */
-  private static final int DEFAULT_CACHE_SIZE = 268435456;
+  public static final int DEFAULT_CACHE_SIZE = 268435456;
 
   public final static String SIREN_FILTERJOIN_CACHE_ENABLED = "siren.filterjoin.cache.enabled";
   public final static String SIREN_FILTERJOIN_CACHE_SIZE = "siren.filterjoin.cache.size";
 
-  private static final ESLogger logger = Loggers.getLogger(FilterJoinCache.class);
+  private static final Logger logger = Loggers.getLogger(FilterJoinCache.class);
 
   public FilterJoinCache(Settings settings) {
     boolean isEnabled = settings.getAsBoolean(SIREN_FILTERJOIN_CACHE_ENABLED, true);

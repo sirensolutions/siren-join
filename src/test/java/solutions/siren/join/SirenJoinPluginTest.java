@@ -33,20 +33,20 @@ public class SirenJoinPluginTest extends SirenJoinTestCase {
   @Test
   public void testPluginLoaded() {
     NodesInfoResponse nodesInfoResponse = client().admin().cluster().prepareNodesInfo().clear().setPlugins(true).get();
-    assertTrue(nodesInfoResponse.getNodes().length != 0);
-    assertThat(nodesInfoResponse.getNodes()[0].getPlugins().getPluginInfos(), notNullValue());
-    assertThat(nodesInfoResponse.getNodes()[0].getPlugins().getPluginInfos().size(), not(0));
+    assertTrue(nodesInfoResponse.getNodes().size() != 0);
+    assertThat(nodesInfoResponse.getNodes().get(0).getPlugins().getPluginInfos(), notNullValue());
+    assertThat(nodesInfoResponse.getNodes().get(0).getPlugins().getPluginInfos().size(), not(0));
 
     boolean pluginFound = false;
 
-    for (PluginInfo pluginInfo : nodesInfoResponse.getNodes()[0].getPlugins().getPluginInfos()) {
-      if (pluginInfo.getName().equals("SirenJoinPlugin")) {
+    for (PluginInfo pluginInfo : nodesInfoResponse.getNodes().get(0).getPlugins().getPluginInfos()) {
+      if (pluginInfo.getName().equals(SirenJoinPlugin.class.getName())) {
         pluginFound = true;
         break;
       }
     }
 
-    assertThat(pluginFound, is(true));
+    assertTrue(pluginFound);
   }
 
 }
