@@ -30,6 +30,7 @@ import org.elasticsearch.common.StopWatch;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
@@ -252,7 +253,7 @@ public class TermsByQueryBenchmark {
      * Child long field = "num"
      */
     public void benchHasChildSingleTerm() {
-      QueryBuilder lookupQuery;
+      BoolQueryBuilder lookupQuery;
 
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(CHILD_INDEX)
@@ -337,7 +338,7 @@ public class TermsByQueryBenchmark {
      * Child numeric field = "num"
      */
     public void benchHasParentSingleTerm() {
-      QueryBuilder lookupQuery;
+      BoolQueryBuilder lookupQuery;
 
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(PARENT_INDEX)
