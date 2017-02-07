@@ -818,4 +818,36 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
     assertHitCount(searchResponse, 0L);
   }
 
+  @Test
+  public void testSimpleJoinInWrapperQuery() throws Exception {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+
+    ensureGreen();
+
+    indexRandom(true,
+        client().prepareIndex("index1", "type", "1").setSource("id", "1", "foreign_key", new String[]{"1", "3"}),
+        client().prepareIndex("index1", "type", "2").setSource("id", "2"),
+        client().prepareIndex("index1", "type", "3").setSource("id", "3", "foreign_key", new String[]{"2"}),
+        client().prepareIndex("index1", "type", "4").setSource("id", "4", "foreign_key", new String[]{"1", "4"}),
+
+        client().prepareIndex("index2", "type", "1").setSource("id", "1", "tag", "aaa"),
+        client().prepareIndex("index2", "type", "2").setSource("id", "2", "tag", "aaa"),
+        client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
+        client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc") );
+
+    String q = QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+            boolQuery().filter(termQuery("tag", "aaa"))
+        ).toString();
+
+    // Joining index1.foreign_key with index2.id
+    SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+        filteredQuery(matchAllQuery(),
+            wrapperQuery(q)
+        )
+    ).get();
+    assertHitCount(searchResponse, 3L);
+    assertSearchHits(searchResponse, "1", "3", "4");
+  }
+
 }
