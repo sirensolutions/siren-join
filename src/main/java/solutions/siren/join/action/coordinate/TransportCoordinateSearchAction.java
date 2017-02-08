@@ -71,6 +71,10 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
     if (parsedSource != null) { // can be null if this is a uri search (query parameter in extraSource)
       Map<String, Object> map = parsedSource.v2();
 
+      // Unwrap "wrapper" queries
+      WrapperQueryVisitor wrapperVisitor = new WrapperQueryVisitor(map);
+      wrapperVisitor.traverse();
+
       // Query planning and execution of filter joins
       SourceMapVisitor mapVisitor = new SourceMapVisitor(map);
       mapVisitor.traverse();
