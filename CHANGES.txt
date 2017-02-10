@@ -4,6 +4,10 @@ Improvements
 
 * [GH-121] Support wrapped queries in the coordinator
 
+Bugs
+
+* [GH-112] Cache hit/miss based on `range` filter in query is hitting same cache
+
 ======================= Release 2.4.2 =======================
 
 Improvements
