@@ -1,3 +1,9 @@
+====================== Release 2.4.2-1 ======================
+
+Improvements
+
+* [GH-121] Support wrapped queries in the coordinator
+
 ======================= Release 2.4.2 =======================
 
 Improvements
