@@ -20,12 +20,14 @@ package solutions.siren.join.action.terms;
 
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.breaker.CircuitBreakingException;
+import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
-import org.elasticsearch.node.settings.NodeSettingsService;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+
 import org.junit.Test;
+
 import solutions.siren.join.action.terms.collector.IntegerTermsSet;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
 
@@ -38,9 +40,9 @@ public class TermsSetTest extends ESSingleNodeTestCase {
     final int size = 42;
     HierarchyCircuitBreakerService hcbs = new HierarchyCircuitBreakerService(
             Settings.builder()
-                    .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, size - 1, ByteSizeUnit.BYTES)
+                    .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), size - 1, ByteSizeUnit.BYTES)
                     .build(),
-            new NodeSettingsService(Settings.EMPTY));
+            new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS));
 
     LongTermsSet termsSet = new LongTermsSet(size, hcbs.getBreaker(CircuitBreaker.REQUEST));
   }
@@ -50,9 +52,9 @@ public class TermsSetTest extends ESSingleNodeTestCase {
     final int size = 42;
     HierarchyCircuitBreakerService hcbs = new HierarchyCircuitBreakerService(
             Settings.builder()
-                    .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, size - 1, ByteSizeUnit.BYTES)
+                    .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), size - 1, ByteSizeUnit.BYTES)
                     .build(),
-            new NodeSettingsService(Settings.EMPTY));
+            new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS));
 
     IntegerTermsSet termsSet = new IntegerTermsSet(size, hcbs.getBreaker(CircuitBreaker.REQUEST));
   }
@@ -61,7 +63,7 @@ public class TermsSetTest extends ESSingleNodeTestCase {
   public void testCircuitBreakerAdjustmentOnLongTermsSet() {
     HierarchyCircuitBreakerService hcbs = new HierarchyCircuitBreakerService(
             Settings.builder().build(),
-            new NodeSettingsService(Settings.EMPTY));
+            new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS));
 
     CircuitBreaker breaker = hcbs.getBreaker(CircuitBreaker.REQUEST);
     assertThat(breaker.getUsed(), is(equalTo(0L)));
@@ -85,7 +87,7 @@ public class TermsSetTest extends ESSingleNodeTestCase {
   public void testCircuitBreakerAdjustmentOnIntTermsSet() {
     HierarchyCircuitBreakerService hcbs = new HierarchyCircuitBreakerService(
             Settings.builder().build(),
-            new NodeSettingsService(Settings.EMPTY));
+            new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS));
 
     CircuitBreaker breaker = hcbs.getBreaker(CircuitBreaker.REQUEST);
     assertThat(breaker.getUsed(), is(equalTo(0L)));

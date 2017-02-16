@@ -20,9 +20,9 @@ package solutions.siren.join.common;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.breaker.NoopCircuitBreaker;
+
 import solutions.siren.join.action.terms.collector.BytesRefTermsSet;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
-import solutions.siren.join.index.query.FieldDataTermsQueryParser;
 
 import java.io.IOException;
 

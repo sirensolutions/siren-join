@@ -18,19 +18,18 @@
  */
 package solutions.siren.join.action.admin.cache;
 
+import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.ClusterName;
-import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 public class TransportClearFilterJoinCacheAction extends TransportNodesAction<ClearFilterJoinCacheRequest,
         ClearFilterJoinCacheResponse, ClearFilterJoinCacheNodeRequest, ClearFilterJoinCacheNodeResponse> {
@@ -39,27 +38,22 @@ public class TransportClearFilterJoinCacheAction extends TransportNodesAction<Cl
   private final FilterJoinCacheService cacheService;
 
   @Inject
-  public TransportClearFilterJoinCacheAction(Settings settings, ClusterName clusterName, ThreadPool threadPool,
-                                                ClusterService clusterService, FilterJoinCacheService cacheService,
-                                                TransportService transportService, ActionFilters actionFilters,
-                                                IndexNameExpressionResolver indexNameExpressionResolver) {
-    super(settings, ClearFilterJoinCacheAction.NAME, clusterName, threadPool, clusterService, transportService,
-            actionFilters, indexNameExpressionResolver, ClearFilterJoinCacheRequest.class,
-            ClearFilterJoinCacheNodeRequest.class, ThreadPool.Names.MANAGEMENT);
+  public TransportClearFilterJoinCacheAction(Settings settings, ThreadPool threadPool,
+          ClusterService clusterService, FilterJoinCacheService cacheService,
+          TransportService transportService, ActionFilters actionFilters,
+          IndexNameExpressionResolver indexNameExpressionResolver) {
+    super(settings, ClearFilterJoinCacheAction.NAME, threadPool, clusterService, transportService,
+            actionFilters, indexNameExpressionResolver, ClearFilterJoinCacheRequest::new,
+            ClearFilterJoinCacheNodeRequest::new, ThreadPool.Names.MANAGEMENT, ClearFilterJoinCacheNodeResponse.class);
     this.cacheService = cacheService;
     this.clusterService = clusterService;
   }
 
   @Override
-  protected ClearFilterJoinCacheResponse newResponse(ClearFilterJoinCacheRequest request, AtomicReferenceArray nodesResponses) {
-    final List<ClearFilterJoinCacheNodeResponse> nodes = new ArrayList<>();
-    for (int i = 0; i < nodesResponses.length(); i++) {
-      Object resp = nodesResponses.get(i);
-      if (resp instanceof ClearFilterJoinCacheNodeResponse) {
-        nodes.add((ClearFilterJoinCacheNodeResponse) resp);
-      }
-    }
-    return new ClearFilterJoinCacheResponse(clusterName, nodes.toArray(new ClearFilterJoinCacheNodeResponse[nodes.size()]));
+  protected ClearFilterJoinCacheResponse newResponse(ClearFilterJoinCacheRequest request,
+          List<ClearFilterJoinCacheNodeResponse> clearFilterJoinCacheNodeResponses,
+          List<FailedNodeException> failures) {
+    return new ClearFilterJoinCacheResponse(clusterService.getClusterName(), clearFilterJoinCacheNodeResponses, failures);
   }
 
   @Override

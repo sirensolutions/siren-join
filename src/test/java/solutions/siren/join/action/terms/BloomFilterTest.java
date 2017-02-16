@@ -18,15 +18,19 @@
  */
 package solutions.siren.join.action.terms;
 
+import org.elasticsearch.test.ESSingleNodeTestCase;
+
 import org.junit.Test;
+
 import solutions.siren.join.action.terms.collector.LongBloomFilter;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Random;
+import java.util.Set;
 
-import static org.junit.Assert.*;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.closeTo;
 
-public class BloomFilterTest {
+public class BloomFilterTest extends ESSingleNodeTestCase {
 
   @Test
   public void testCardinalityEstimation() {

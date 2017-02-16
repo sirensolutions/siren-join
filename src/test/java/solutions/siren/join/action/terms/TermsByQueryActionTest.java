@@ -22,15 +22,17 @@ import com.carrotsearch.hppc.cursors.LongCursor;
 import com.carrotsearch.randomizedtesting.RandomizedTest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
+
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.collector.LongBloomFilter;
 import solutions.siren.join.action.terms.collector.LongTermsSet;
 import solutions.siren.join.action.terms.collector.NumericTermsSet;
-import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
-import org.junit.Test;
 import solutions.siren.join.action.terms.collector.TermsSet;
+
+import org.apache.lucene.util.BytesRef;
+import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -48,15 +50,14 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testTermsByQueryStringField() throws Exception {
-    createIndex("test");
-
+    ElasticsearchAssertions.assertAcked(prepareCreate("test").addMapping("type", "str", "type=keyword"));
     int numDocs = RandomizedTest.randomIntBetween(100, 2000);
     logger.info("--> indexing [" + numDocs + "] docs");
     for (int i = 0; i < numDocs; i++) {
       client().prepareIndex("test", "type", "" + i)
               .setSource(jsonBuilder().startObject()
-                                        .field("str", Integer.toString(i))
-                                      .endObject())
+                      .field("str", Integer.toString(i))
+                      .endObject())
               .execute().actionGet();
     }
 
@@ -64,11 +65,11 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
 
     logger.info("--> lookup terms in field [str]");
     TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
-                                                                        .setField("str")
-                                                                        .setQuery(QueryBuilders.matchAllQuery())
-                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
-                                                                        .execute()
-                                                                        .actionGet();
+            .setField("str")
+            .setQuery(QueryBuilders.matchAllQuery())
+            .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
+            .execute()
+            .actionGet();
 
     ElasticsearchAssertions.assertNoFailures(resp);
     assertThat(resp.getEncodedTermsSet(), notNullValue());
@@ -94,8 +95,8 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     for (int i = 0; i < numDocs; i++) {
       client().prepareIndex("test", "type", "" + i)
               .setSource(jsonBuilder().startObject()
-                                        .field("int", i)
-                                      .endObject())
+                      .field("int", i)
+                      .endObject())
               .execute().actionGet();
     }
 
@@ -103,11 +104,11 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
 
     logger.info("--> lookup terms in field [int]");
     TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
-                                                                        .setField("int")
-                                                                        .setQuery(QueryBuilders.matchAllQuery())
-                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
-                                                                        .execute()
-                                                                        .actionGet();
+            .setField("int")
+            .setQuery(QueryBuilders.matchAllQuery())
+            .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
+            .execute()
+            .actionGet();
 
     ElasticsearchAssertions.assertNoFailures(resp);
     assertThat(resp.getEncodedTermsSet(), notNullValue());
@@ -132,8 +133,8 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     for (int i = 0; i < numDocs; i++) {
       client().prepareIndex("test", "type", "" + i)
               .setSource(jsonBuilder().startObject()
-                                        .field("int", i)
-                                      .endObject())
+                      .field("int", i)
+                      .endObject())
               .execute().actionGet();
     }
 
@@ -141,13 +142,13 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
 
     logger.info("--> lookup terms in field [int]");
     TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
-                                                                        .setField("int")
-                                                                        .setQuery(QueryBuilders.matchAllQuery())
-                                                                        .setOrderBy(TermsByQueryRequest.Ordering.DEFAULT)
-                                                                        .setMaxTermsPerShard(50)
-                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
-                                                                        .execute()
-                                                                        .actionGet();
+            .setField("int")
+            .setQuery(QueryBuilders.matchAllQuery())
+            .setOrderBy(TermsByQueryRequest.Ordering.DEFAULT)
+            .setMaxTermsPerShard(50)
+            .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
+            .execute()
+            .actionGet();
 
     int expectedMaxResultSize = this.getNumShards("test").totalNumShards * 50;
     ElasticsearchAssertions.assertNoFailures(resp);
@@ -174,18 +175,18 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
     for (int i = 0; i < numDocs / 2; i += 2) {
       client().prepareIndex("test", "type", "" + i)
               .setSource(jsonBuilder().startObject()
-              .field("int", i)
-              .field("text", "aaa")
-              .endObject())
+                      .field("int", i)
+                      .field("text", "aaa")
+                      .endObject())
               .execute().actionGet();
     }
 
     for (int i = 1; i < numDocs / 2; i += 2) {
       client().prepareIndex("test", "type", "" + i)
               .setSource(jsonBuilder().startObject()
-              .field("int", i)
-              .field("text", "aaa aaa")
-              .endObject())
+                      .field("int", i)
+                      .field("text", "aaa aaa")
+                      .endObject())
               .execute().actionGet();
     }
 
@@ -193,13 +194,13 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
 
     logger.info("--> lookup terms in field [int]");
     TermsByQueryResponse resp = new TermsByQueryRequestBuilder(client(), TermsByQueryAction.INSTANCE).setIndices("test")
-                                                                        .setField("int")
-                                                                        .setQuery(QueryBuilders.termQuery("text", "aaa"))
-                                                                        .setOrderBy(TermsByQueryRequest.Ordering.DOC_SCORE)
-                                                                        .setMaxTermsPerShard(5)
-                                                                        .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
-                                                                        .execute()
-                                                                        .actionGet();
+            .setField("int")
+            .setQuery(QueryBuilders.termQuery("text", "aaa"))
+            .setOrderBy(TermsByQueryRequest.Ordering.DOC_SCORE)
+            .setMaxTermsPerShard(5)
+            .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
+            .execute()
+            .actionGet();
 
     int expectedMaxResultSize = this.getNumShards("test").totalNumShards * 5;
     ElasticsearchAssertions.assertNoFailures(resp);

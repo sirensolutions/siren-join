@@ -18,9 +18,10 @@
  */
 package solutions.siren.join.action.coordinate.tasks;
 
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+
 import solutions.siren.join.action.admin.version.GetIndicesVersionAction;
 import solutions.siren.join.action.admin.version.GetIndicesVersionRequest;
 import solutions.siren.join.action.admin.version.GetIndicesVersionResponse;
@@ -38,7 +39,7 @@ import java.util.Arrays;
  */
 public class IndicesVersionTask implements NodeTask {
 
-  protected static final ESLogger logger = Loggers.getLogger(IndicesVersionTask.class);
+  protected static final Logger logger = Loggers.getLogger(IndicesVersionTask.class);
 
   @Override
   public void execute(final NodeTaskContext context, final NodeTaskReporter reporter) {
@@ -54,7 +55,7 @@ public class IndicesVersionTask implements NodeTask {
       }
 
       @Override
-      public void onFailure(Throwable e) {
+      public void onFailure(Exception e) {
         reporter.failure(e);
       }
 

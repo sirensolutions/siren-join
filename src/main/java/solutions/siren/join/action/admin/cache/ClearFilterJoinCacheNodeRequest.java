@@ -31,7 +31,7 @@ public class ClearFilterJoinCacheNodeRequest extends BaseNodeRequest {
   public ClearFilterJoinCacheNodeRequest() {}
 
   public ClearFilterJoinCacheNodeRequest(String nodeId, ClearFilterJoinCacheRequest request) {
-    super(request, nodeId);
+    super(nodeId);
     this.request = request;
   }
 

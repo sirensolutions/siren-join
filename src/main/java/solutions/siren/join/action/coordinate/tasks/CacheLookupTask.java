@@ -18,8 +18,9 @@
  */
 package solutions.siren.join.action.coordinate.tasks;
 
-import org.elasticsearch.common.logging.ESLogger;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
+
 import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 import solutions.siren.join.action.coordinate.model.FilterJoinNode;
 import solutions.siren.join.action.coordinate.model.FilterJoinTerms;
@@ -32,7 +33,7 @@ import solutions.siren.join.action.coordinate.pipeline.NodeTaskReporter;
  */
 public class CacheLookupTask implements NodeTask {
 
-  protected static final ESLogger logger = Loggers.getLogger(CacheLookupTask.class);
+  protected static final Logger logger = Loggers.getLogger(CacheLookupTask.class);
 
   @Override
   public void execute(NodeTaskContext context, NodeTaskReporter reporter) {

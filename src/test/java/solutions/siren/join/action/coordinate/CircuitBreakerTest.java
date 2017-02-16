@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.coordinate;
 
-import com.carrotsearch.randomizedtesting.annotations.Seed;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
@@ -30,33 +29,36 @@ import org.elasticsearch.indices.breaker.CircuitBreakerStats;
 import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.common.settings.Settings;
+
 import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Before;
+
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.index.query.QueryBuilders;
-import org.elasticsearch.common.settings.Settings;
+
 import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;
 
-import static org.elasticsearch.common.settings.Settings.settingsBuilder;
 import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
+
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.*;
 
-@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes=1, randomDynamicTemplates=false)
+@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes=1, numClientNodes = 0, supportsDedicatedMasters = false, randomDynamicTemplates=false)
 public class CircuitBreakerTest extends SirenJoinTestCase {
 
   @Before
   public void setup() throws ExecutionException, InterruptedException {
     Settings.Builder builder = Settings.builder().put("index.number_of_shards", 1);
     builder.put("index.number_of_replicas", 0);
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer").setSettings(builder));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string").setSettings(builder));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword").setSettings(builder));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string").setSettings(builder));
 
     ensureGreen();
 
@@ -76,15 +78,11 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
   @After
   public void teardown() {
     logger.info("--> resetting breaker settings");
-    Settings resetSettings = settingsBuilder()
-            .put(HierarchyCircuitBreakerService.FIELDDATA_CIRCUIT_BREAKER_LIMIT_SETTING,
-                    HierarchyCircuitBreakerService.DEFAULT_FIELDDATA_BREAKER_LIMIT)
-            .put(HierarchyCircuitBreakerService.FIELDDATA_CIRCUIT_BREAKER_OVERHEAD_SETTING,
-                    HierarchyCircuitBreakerService.DEFAULT_FIELDDATA_OVERHEAD_CONSTANT)
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING,
-                    HierarchyCircuitBreakerService.DEFAULT_REQUEST_BREAKER_LIMIT)
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_TYPE_SETTING, CircuitBreaker.Type.MEMORY)
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_OVERHEAD_SETTING, 1.0)
+    Settings resetSettings = Settings.builder()
+            .put(HierarchyCircuitBreakerService.FIELDDATA_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "70%")
+            .put(HierarchyCircuitBreakerService.FIELDDATA_CIRCUIT_BREAKER_OVERHEAD_SETTING.getKey(), 1.03d)
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "60%")
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_OVERHEAD_SETTING.getKey(), 1.0)
             .build();
     assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(resetSettings));
   }
@@ -92,8 +90,8 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
   @Test
   public void testCircuitBreakerOnShard() throws Exception {
     // Update circuit breaker settings
-    Settings settings = settingsBuilder()
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "8b")
+    Settings settings = Settings.builder()
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "8b")
             .build();
     assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(settings));
 
@@ -117,8 +115,8 @@ public class CircuitBreakerTest extends SirenJoinTestCase {
   @Test
   public void testCircuitBreakerOnCoordinator() throws Exception {
     // Update circuit breaker settings
-    Settings settings = settingsBuilder()
-            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING, "60b")
+    Settings settings = Settings.builder()
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "60b")
             .build();
     assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(settings));
 

@@ -28,6 +28,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.suggest.Suggest;
+
 import solutions.siren.join.action.coordinate.execution.CoordinateSearchMetadata;
 
 import java.io.IOException;
@@ -37,8 +38,7 @@ import java.io.IOException;
  * which injects filter join execution metadata into the response.
  * <br>
  * We use a decorator pattern instead of a subclass extension because there are many hard-coded
- * instantiations of {@link SearchResponse}, e.g., in
- * {@link org.elasticsearch.action.search.type.TransportSearchTypeAction}, and it would have required to
+ * instantiations of {@link SearchResponse}, and it would have required to
  * subclass all of them to instantiate a {@link CoordinateSearchResponse} instead.
  */
 public class CoordinateSearchResponse extends SearchResponse {

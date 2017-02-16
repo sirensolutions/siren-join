@@ -21,7 +21,7 @@ package solutions.siren.join.action.coordinate.execution;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentBuilderString;
+
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
@@ -40,8 +40,8 @@ public class CoordinateSearchMetadata {
   private List<Action> actions = new ArrayList<>();
 
   static final class Fields {
-    static final XContentBuilderString COORDINATE_SEARCH = new XContentBuilderString("coordinate_search");
-    static final XContentBuilderString ACTIONS = new XContentBuilderString("actions");
+    static final String COORDINATE_SEARCH = "coordinate_search";
+    static final String ACTIONS = "actions";
   }
 
   public CoordinateSearchMetadata() {}
@@ -101,17 +101,17 @@ public class CoordinateSearchMetadata {
     int maxTermsPerShard;
 
     static final class Fields {
-      static final XContentBuilderString RELATIONS = new XContentBuilderString("relations");
-      static final XContentBuilderString FROM = new XContentBuilderString("from");
-      static final XContentBuilderString TO = new XContentBuilderString("to");
-      static final XContentBuilderString SIZE = new XContentBuilderString("size");
-      static final XContentBuilderString SIZE_IN_BYTES = new XContentBuilderString("size_in_bytes");
-      static final XContentBuilderString IS_PRUNED = new XContentBuilderString("is_pruned");
-      static final XContentBuilderString CACHE_HIT = new XContentBuilderString("cache_hit");
-      static final XContentBuilderString TOOK = new XContentBuilderString("took");
-      static final XContentBuilderString TERMS_ENCODING = new XContentBuilderString("terms_encoding");
-      static final XContentBuilderString ORDERING = new XContentBuilderString("order_by");
-      static final XContentBuilderString MAX_TERMS_PER_SHARD = new XContentBuilderString("max_terms_per_shard");
+      static final String RELATIONS = "relations";
+      static final String FROM = "from";
+      static final String TO = "to";
+      static final String SIZE = "size";
+      static final String SIZE_IN_BYTES = "size_in_bytes";
+      static final String IS_PRUNED = "is_pruned";
+      static final String CACHE_HIT = "cache_hit";
+      static final String TOOK = "took";
+      static final String TERMS_ENCODING = "terms_encoding";
+      static final String ORDERING = "order_by";
+      static final String MAX_TERMS_PER_SHARD = "max_terms_per_shard";
     }
 
     Action() {}
@@ -239,9 +239,9 @@ public class CoordinateSearchMetadata {
     String field;
 
     static final class Fields {
-      static final XContentBuilderString INDICES = new XContentBuilderString("indices");
-      static final XContentBuilderString TYPES = new XContentBuilderString("types");
-      static final XContentBuilderString FIELD = new XContentBuilderString("field");
+      static final String INDICES = "indices";
+      static final String TYPES = "types";
+      static final String FIELD = "field";
     }
 
     Relation() {}

@@ -18,32 +18,41 @@
  */
 package solutions.siren.join.rest;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+
+import org.elasticsearch.client.Response;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.node.Node;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.rest.client.http.HttpResponse;
+
 import org.junit.Test;
+
 import solutions.siren.join.SirenJoinTestCase;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.index.query.QueryBuilders.*;
-import static solutions.siren.join.index.query.QueryBuilders.filterJoin;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+
+import static solutions.siren.join.index.query.QueryBuilders.filterJoin;
+
 import static org.hamcrest.Matchers.equalTo;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=2)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=2, numClientNodes = 0, supportsDedicatedMasters = false)
 public class RestFilterJoinCacheTest extends SirenJoinTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
     return Settings.builder()
-            .put(Node.HTTP_ENABLED, true) // enable http for these tests
+            .put("force.http.enabled", true) // enable http for these tests
             .put(super.nodeSettings(nodeOrdinal)).build();
   }
 
@@ -52,21 +61,21 @@ public class RestFilterJoinCacheTest extends SirenJoinTestCase {
     // load some data and warm the cache
     this.warmCache();
 
-    HttpResponse response = httpClient().method("GET").path("/_filter_join/cache/stats").execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_filter_join/cache/stats");
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
     Map nodes = (Map) map.get("nodes");
     for (Object node : nodes.values()) {
       Map stats = (Map) ((Map) node).get("stats");
       assertThat((Integer) stats.get("size"), equalTo(1));
     }
 
-    response = httpClient().method("GET").path("/_filter_join/cache/clear").execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    response = getRestClient().performRequest("GET", "/_filter_join/cache/clear");
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
 
-    response = httpClient().method("GET").path("/_filter_join/cache/stats").execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    response = getRestClient().performRequest("GET", "/_filter_join/cache/stats");
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
     nodes = (Map) map.get("nodes");
     for (Object node : nodes.values()) {
       Map stats = (Map) ((Map) node).get("stats");
@@ -82,8 +91,8 @@ public class RestFilterJoinCacheTest extends SirenJoinTestCase {
   }
 
   private void loadData() throws ExecutionException, InterruptedException {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -105,11 +114,11 @@ public class RestFilterJoinCacheTest extends SirenJoinTestCase {
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
             )).toString();
-    String body = "{ \"query\" : " + q + "}";
+    HttpEntity body = new NStringEntity("{ \"query\" : " + q + "}", ContentType.APPLICATION_JSON);
 
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
     assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(3));
   }
 

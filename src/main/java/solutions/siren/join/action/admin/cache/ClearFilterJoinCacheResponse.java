@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.admin.cache;
 
+import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -26,28 +27,31 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClearFilterJoinCacheResponse extends BaseNodesResponse<ClearFilterJoinCacheNodeResponse> implements ToXContent {
 
   ClearFilterJoinCacheResponse() {}
 
-  ClearFilterJoinCacheResponse(ClusterName clusterName, ClearFilterJoinCacheNodeResponse[] nodes) {
-    super(clusterName, nodes);
+  ClearFilterJoinCacheResponse(ClusterName clusterName, List<ClearFilterJoinCacheNodeResponse> nodes, List<FailedNodeException> failures) {
+    super(clusterName, nodes, failures);
   }
 
   @Override
-  public void readFrom(StreamInput in) throws IOException {
-    super.readFrom(in);
-    nodes = new ClearFilterJoinCacheNodeResponse[in.readVInt()];
-    for (int i = 0; i < nodes.length; i++) {
-      nodes[i] = ClearFilterJoinCacheNodeResponse.readNodeInfo(in);
+  public List<ClearFilterJoinCacheNodeResponse> readNodesFrom(StreamInput in) throws IOException {
+    int size = in.readVInt();
+    List<ClearFilterJoinCacheNodeResponse> nodes = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      nodes.add(ClearFilterJoinCacheNodeResponse.readNodeInfo(in));
     }
+
+    return nodes;
   }
 
   @Override
-  public void writeTo(StreamOutput out) throws IOException {
-    super.writeTo(out);
-    out.writeVInt(nodes.length);
+  public void writeNodesTo(StreamOutput out, List<ClearFilterJoinCacheNodeResponse> nodes) throws IOException {
+    out.writeVInt(nodes.size());
     for (ClearFilterJoinCacheNodeResponse node : nodes) {
       node.writeTo(out);
     }
@@ -58,8 +62,8 @@ public class ClearFilterJoinCacheResponse extends BaseNodesResponse<ClearFilterJ
     builder.field("cluster_name", getClusterName().value());
 
     builder.startObject("nodes");
-    for (ClearFilterJoinCacheNodeResponse node : this) {
-      builder.startObject(node.getNode().getName(), XContentBuilder.FieldCaseConversion.NONE);
+    for (ClearFilterJoinCacheNodeResponse node : getNodes()) {
+      builder.startObject(node.getNode().getName());
       builder.field("timestamp", node.getTimestamp());
       builder.endObject();
     }

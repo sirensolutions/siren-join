@@ -168,15 +168,15 @@ see example below. The object contains the following parameters:
 caching policy of Elasticsearch will not cache a `filterjoin` query on small segments which can lead to a significant
 drop of performance. See issue [16529](https://github.com/elastic/elasticsearch/issues/16259) for more information.
 * Joining numeric attributes is more efficient than joining string attributes.
-* The bloom filter is the most efficient and the default encoding method for terms. It can encode 40M unique values
+* The bloom filter is the most efficient and the default encoding method for terms. It can encode 40M unique value
 in ~30MB. However, this trades precision for space, i.e., the bloom filter can lead to false-positive results.
 If precision is critical, then it is recommended to switch to the terms encoding to long.
 * If the joined attributes of your documents contain incremental integers, switch the terms encoding to integer.
-* The `filterjoin` includes a circuit breaker to prevent OOME when joining a field with a large number of unique values.
-As a rule of thumb, the maximum amount of unique values transferred across the shards should be around 50 to 100M when
+* The `filterjoin` includes a circuit breaker to prevent OOME when joining a field with a large number of unique value.
+As a rule of thumb, the maximum amount of unique value transferred across the shards should be around 50 to 100M when
 using bloom encoding, 5 to 10M when using long or integer encoding.
 It is recommended to configure a `maxTermsPerShard` limit if the attribute defined by the `path` parameter contains
-a larger number of values.
+a larger number of value.
 * The `bytes` terms encoding will likely provide better performance for highly selective queries over large indices, as
 it will perform the filtering based on a dictionary lookup instead of a doc value scan.
 

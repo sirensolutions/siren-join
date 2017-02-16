@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
@@ -31,16 +30,18 @@ import org.elasticsearch.common.StopWatch;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.node.NodeValidationException;
+
 import solutions.siren.join.SirenJoinPlugin;
 import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
@@ -57,69 +58,67 @@ import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
 @SuppressWarnings("unchecked")
 public class TermsByQueryBenchmark {
 
-  // index settings
-  public static final int NUM_SHARDS = 3;
-  public static final int NUM_REPLICAS = 0;
-  public static final String PARENT_INDEX = "joinparent";
-  public static final String PARENT_TYPE = "p";
-  public static final String CHILD_INDEX = "joinchild";
-  public static final String CHILD_TYPE = "c";
-  // test settings
-  public static final int NUM_PARENTS = 1000000;
-  public static final int NUM_CHILDREN_PER_PARENT = 5;
-  public static final int BATCH_SIZE = 100;
-  public static final int NUM_QUERIES = 50;
+    // index settings
+    public static final int NUM_SHARDS = 3;
+    public static final int NUM_REPLICAS = 0;
+    public static final String PARENT_INDEX = "joinparent";
+    public static final String PARENT_TYPE = "p";
+    public static final String CHILD_INDEX = "joinchild";
+    public static final String CHILD_TYPE = "c";
+    // test settings
+    public static final int NUM_PARENTS = 1000000;
+    public static final int NUM_CHILDREN_PER_PARENT = 5;
+    public static final int BATCH_SIZE = 100;
+    public static final int NUM_QUERIES = 50;
 
-  public static final int MAX_TERMS_PER_SHARD = -1;
-  public static final TermsByQueryRequest.Ordering ORDERING = TermsByQueryRequest.Ordering.DEFAULT;
+    public static final int MAX_TERMS_PER_SHARD = -1;
+    public static final TermsByQueryRequest.Ordering ORDERING = TermsByQueryRequest.Ordering.DEFAULT;
 
-  private final Node[] nodes;
-  private final Client client;
-  private final Random random;
+    private final Node[] nodes;
+    private final Client client;
+    private final Random random;
 
-    TermsByQueryBenchmark() {
-      Settings settings = Settings.builder()
-        .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
-        .put("index.engine.robin.refreshInterval", "-1")
-        .put("path.home", "./target/elasticsearch-benchmark/home/")
-        .put("node.local", true)
-        .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
-        .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
-        .build();
+    TermsByQueryBenchmark() throws NodeValidationException {
+        Settings settings = Settings.builder()
+                .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
+                .put("index.engine.robin.refreshInterval", "-1")
+                .put("path.home", "./target/elasticsearch-benchmark/home/")
+                .put("node.local", true)
+                .put(SETTING_NUMBER_OF_SHARDS, NUM_SHARDS)
+                .put(SETTING_NUMBER_OF_REPLICAS, NUM_REPLICAS)
+                .build();
 
-      this.nodes = new MockNode[2];
-      this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
-      this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
-      this.client = nodes[0].client();
-      this.random = new Random(System.currentTimeMillis());
+        this.nodes = new MockNode[2];
+        this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(), Collections.singletonList(SirenJoinPlugin.class)).start();
+        this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(), Collections.singletonList(SirenJoinPlugin.class)).start();
+        this.client = nodes[0].client();
+        this.random = new Random(System.currentTimeMillis());
     }
 
     public static void main(String[] args) throws Exception {
-      TermsByQueryBenchmark bench = new TermsByQueryBenchmark();
-      bench.waitForGreen();
-      bench.setupIndex();
-      bench.memStatus();
+        TermsByQueryBenchmark bench = new TermsByQueryBenchmark();
+        bench.waitForGreen();
+        bench.setupIndex();
+        bench.memStatus();
 
-      bench.benchHasChildSingleTerm();
-      bench.benchHasParentSingleTerm();
-      bench.benchHasParentMatchAll();
-      bench.benchHasChildMatchAll();
+        bench.benchHasChildSingleTerm();
+        bench.benchHasParentSingleTerm();
+        bench.benchHasParentMatchAll();
+        bench.benchHasChildMatchAll();
 
-      System.gc();
-      bench.memStatus();
-      bench.shutdown();
+        System.gc();
+        bench.memStatus();
+        bench.shutdown();
     }
 
     public void waitForGreen() {
-      client.admin().cluster().prepareHealth().setWaitForGreenStatus().setTimeout("10s").execute().actionGet();
+        client.admin().cluster().prepareHealth().setWaitForGreenStatus().setTimeout("10s").execute().actionGet();
     }
 
-    public void shutdown() {
-      client.close();
-      nodes[0].close();
-      nodes[1].close();
+    public void shutdown() throws IOException {
+        client.close();
+        nodes[0].close();
+        nodes[1].close();
     }
 
     public void log(String msg) {
@@ -127,19 +126,19 @@ public class TermsByQueryBenchmark {
     }
 
     public void memStatus() throws IOException {
-      NodeStats[] nodeStats = client.admin().cluster().prepareNodesStats()
-        .setJvm(true).setIndices(true).setTransport(true)
-        .execute().actionGet().getNodes();
+        List<NodeStats> nodeStats = client.admin().cluster().prepareNodesStats()
+                .setJvm(true).setIndices(true).setTransport(true)
+                .execute().actionGet().getNodes();
 
-      log("==== MEMORY ====");
-      log("Committed heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapCommitted());
-      log("Used heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapUsed());
-      log("FieldData cache size: [0]=" + nodeStats[0].getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getFieldData().getMemorySize());
-      log("Query cache size: [0]=" + nodeStats[0].getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getQueryCache().getMemorySize());
-      log("");
-      log("==== NETWORK ====");
-      log("Transport: [0]=" + nodeStats[0].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats[1].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
-      log("");
+        log("==== MEMORY ====");
+        log("Committed heap size: [0]=" + nodeStats.get(0).getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats.get(1).getJvm().getMem().getHeapCommitted());
+        log("Used heap size: [0]=" + nodeStats.get(0).getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats.get(1).getJvm().getMem().getHeapUsed());
+        log("FieldData cache size: [0]=" + nodeStats.get(0).getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats.get(1).getIndices().getFieldData().getMemorySize());
+        log("Query cache size: [0]=" + nodeStats.get(0).getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats.get(1).getIndices().getQueryCache().getMemorySize());
+        log("");
+        log("==== NETWORK ====");
+        log("Transport: [0]=" + nodeStats.get(0).getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats.get(1).getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+        log("");
     }
 
     public XContentBuilder parentSource(int id, String nameValue) throws IOException {
@@ -203,7 +202,7 @@ public class TermsByQueryBenchmark {
         }
 
         client.admin().indices().prepareRefresh().execute().actionGet();
-        log("Number of docs in index: " + client.prepareCount(PARENT_INDEX, CHILD_INDEX).setQuery(matchAllQuery()).execute().actionGet().getCount());
+        log("Number of docs in index: " + client.prepareSearch(PARENT_INDEX, CHILD_INDEX).setQuery(matchAllQuery()).setSize(0).execute().actionGet().getHits().getTotalHits());
         log("");
     }
 
@@ -228,20 +227,20 @@ public class TermsByQueryBenchmark {
     }
 
     public long runQuery(String name, int testNum, long expectedHits, ActionRequestBuilder request) {
-      long timestamp = System.nanoTime();
-      TermsByQueryResponse response = (TermsByQueryResponse) request.execute().actionGet();
-      long timeElapsed = System.nanoTime() - timestamp;
+        long timestamp = System.nanoTime();
+        TermsByQueryResponse response = (TermsByQueryResponse) request.execute().actionGet();
+        long timeElapsed = System.nanoTime() - timestamp;
 
-      if (response.getFailedShards() > 0) {
-        log("Search Failures " + Arrays.toString(response.getShardFailures()));
-      }
+        if (response.getFailedShards() > 0) {
+            log("Search Failures " + Arrays.toString(response.getShardFailures()));
+        }
 
-      long hits = response.getSize();
-      if (MAX_TERMS_PER_SHARD == -1 && hits != expectedHits) {
-        log("[" + name + "][#" + testNum + "] Hits Mismatch:  expected [" + expectedHits + "], got [" + hits + "]");
-      }
+        long hits = response.getSize();
+        if (MAX_TERMS_PER_SHARD == -1 && hits != expectedHits) {
+            log("[" + name + "][#" + testNum + "] Hits Mismatch:  expected [" + expectedHits + "], got [" + hits + "]");
+        }
 
-      return timeElapsed / 1000000;
+        return timeElapsed / 1000000;
     }
 
     /**
@@ -254,40 +253,40 @@ public class TermsByQueryBenchmark {
      * Child long field = "num"
      */
     public void benchHasChildSingleTerm() {
-      QueryBuilder lookupQuery;
+        BoolQueryBuilder lookupQuery;
 
-      TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
-      stringFilter.setIndices(CHILD_INDEX)
-                  .setTypes(CHILD_TYPE)
-                  .setField("pid")
-                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
+        TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
+        stringFilter.setIndices(CHILD_INDEX)
+                .setTypes(CHILD_TYPE)
+                .setField("pid")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-      TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
-      longFilter.setIndices(CHILD_INDEX)
+        TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
+        longFilter.setIndices(CHILD_INDEX)
                 .setTypes(CHILD_TYPE)
                 .setField("num")
                 .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-      long tookString = 0;
-      long tookLong = 0;
-      long expected = NUM_PARENTS;
-      warmFieldData("id", "pid");     // for string fields
-      warmFieldData("num", "num");    // for long fields
+        long tookString = 0;
+        long tookLong = 0;
+        long expected = NUM_PARENTS;
+        warmFieldData("id", "pid");     // for string fields
+        warmFieldData("num", "num");    // for long fields
 
-      log("==== HAS CHILD SINGLE TERM ====");
-      for (int i = 0; i < NUM_QUERIES; i++) {
-          lookupQuery = boolQuery().filter(termQuery("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
+        log("==== HAS CHILD SINGLE TERM ====");
+        for (int i = 0; i < NUM_QUERIES; i++) {
+            lookupQuery = boolQuery().filter(termQuery("tag", "tag" + random.nextInt(NUM_CHILDREN_PER_PARENT)));
 
-          stringFilter.setQuery(lookupQuery);
-          longFilter.setQuery(lookupQuery);
+            stringFilter.setQuery(lookupQuery);
+            longFilter.setQuery(lookupQuery);
 
-          tookString += runQuery("string", i, expected, stringFilter);
-          tookLong += runQuery("long", i, expected, longFilter);
-      }
+            tookString += runQuery("string", i, expected, stringFilter);
+            tookLong += runQuery("long", i, expected, longFilter);
+        }
 
-      log("string: " + (tookString / NUM_QUERIES) + "ms avg");
-      log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
-      log("");
+        log("string: " + (tookString / NUM_QUERIES) + "ms avg");
+        log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
+        log("");
     }
 
     /**
@@ -300,33 +299,33 @@ public class TermsByQueryBenchmark {
      * Child long field = "num"
      */
     public void benchHasChildMatchAll() {
-      TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
-      stringFilter.setIndices(CHILD_INDEX)
-                  .setTypes(CHILD_TYPE)
-                  .setField("pid")
-                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
+        TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
+        stringFilter.setIndices(CHILD_INDEX)
+                .setTypes(CHILD_TYPE)
+                .setField("pid")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-      TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
-      longFilter.setIndices(CHILD_INDEX)
+        TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
+        longFilter.setIndices(CHILD_INDEX)
                 .setTypes(CHILD_TYPE)
                 .setField("num")
                 .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-      long tookString = 0;
-      long tookLong = 0;
-      long expected = NUM_PARENTS;
-      warmFieldData("id", "pid");     // for string fields
-      warmFieldData("num", "num");    // for long fields
+        long tookString = 0;
+        long tookLong = 0;
+        long expected = NUM_PARENTS;
+        warmFieldData("id", "pid");     // for string fields
+        warmFieldData("num", "num");    // for long fields
 
-      log("==== HAS CHILD MATCH-ALL ====");
-      for (int i = 0; i < NUM_QUERIES; i++) {
-        tookString += runQuery("string", i, expected, stringFilter);
-        tookLong += runQuery("long", i, expected, longFilter);
-      }
+        log("==== HAS CHILD MATCH-ALL ====");
+        for (int i = 0; i < NUM_QUERIES; i++) {
+            tookString += runQuery("string", i, expected, stringFilter);
+            tookLong += runQuery("long", i, expected, longFilter);
+        }
 
-      log("string: " + (tookString / NUM_QUERIES) + "ms avg");
-      log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
-      log("");
+        log("string: " + (tookString / NUM_QUERIES) + "ms avg");
+        log("long  : " + (tookLong / NUM_QUERIES) + "ms avg");
+        log("");
     }
 
     /**
@@ -339,40 +338,40 @@ public class TermsByQueryBenchmark {
      * Child numeric field = "num"
      */
     public void benchHasParentSingleTerm() {
-      QueryBuilder lookupQuery;
+        BoolQueryBuilder lookupQuery;
 
-      TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
-      stringFilter.setIndices(PARENT_INDEX)
-                  .setTypes(PARENT_TYPE)
-                  .setField("id")
-                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
+        TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
+        stringFilter.setIndices(PARENT_INDEX)
+                .setTypes(PARENT_TYPE)
+                .setField("id")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-      TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
-      longFilter.setIndices(PARENT_INDEX)
+        TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
+        longFilter.setIndices(PARENT_INDEX)
                 .setTypes(PARENT_TYPE)
                 .setField("num")
                 .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-      long tookString = 0;
-      long tookLong = 0;
-      long expected = 1;
-      warmFieldData("id", "pid");     // for string fields
-      warmFieldData("num", "num");    // for long fields
+        long tookString = 0;
+        long tookLong = 0;
+        long expected = 1;
+        warmFieldData("id", "pid");     // for string fields
+        warmFieldData("num", "num");    // for long fields
 
-      log("==== HAS PARENT SINGLE TERM ====");
-      for (int i = 0; i < NUM_QUERIES; i++) {
-        lookupQuery = boolQuery().filter(termQuery("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
+        log("==== HAS PARENT SINGLE TERM ====");
+        for (int i = 0; i < NUM_QUERIES; i++) {
+            lookupQuery = boolQuery().filter(termQuery("name", "test" + (random.nextInt(NUM_PARENTS) + 1)));
 
-        stringFilter.setQuery(lookupQuery);
-        longFilter.setQuery(lookupQuery);
+            stringFilter.setQuery(lookupQuery);
+            longFilter.setQuery(lookupQuery);
 
-        tookString += runQuery("string", i, expected, stringFilter);
-        tookLong += runQuery("long", i, expected, longFilter);
-      }
+            tookString += runQuery("string", i, expected, stringFilter);
+            tookLong += runQuery("long", i, expected, longFilter);
+        }
 
-      log("string: " + (tookString / NUM_QUERIES) + "ms avg");
-      log("long: " + (tookLong / NUM_QUERIES) + "ms avg");
-      log("");
+        log("string: " + (tookString / NUM_QUERIES) + "ms avg");
+        log("long: " + (tookLong / NUM_QUERIES) + "ms avg");
+        log("");
     }
 
     /**
@@ -385,14 +384,14 @@ public class TermsByQueryBenchmark {
      * Child long field = "num"
      */
     public void benchHasParentMatchAll() {
-      TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
-      stringFilter.setIndices(PARENT_INDEX)
-                  .setTypes(PARENT_TYPE)
-                  .setField("id")
-                  .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
+        TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
+        stringFilter.setIndices(PARENT_INDEX)
+                .setTypes(PARENT_TYPE)
+                .setField("id")
+                .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
 
-      TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
-      longFilter.setIndices(PARENT_INDEX)
+        TermsByQueryRequestBuilder longFilter = this.newTermsByQueryRequestBuilder();
+        longFilter.setIndices(PARENT_INDEX)
                 .setTypes(PARENT_TYPE)
                 .setField("num")
                 .setTermsEncoding(TermsByQueryRequest.TermsEncoding.LONG);
@@ -405,8 +404,8 @@ public class TermsByQueryBenchmark {
 
         log("==== HAS PARENT MATCH-ALL ====");
         for (int i = 0; i < NUM_QUERIES; i++) {
-          tookString += runQuery("string", i, expected, stringFilter);
-          tookLong += runQuery("long", i, expected, longFilter);
+            tookString += runQuery("string", i, expected, stringFilter);
+            tookLong += runQuery("long", i, expected, longFilter);
         }
 
         log("string: " + (tookString / NUM_QUERIES) + "ms avg");
@@ -414,11 +413,11 @@ public class TermsByQueryBenchmark {
         log("");
     }
 
-  private TermsByQueryRequestBuilder newTermsByQueryRequestBuilder() {
-    TermsByQueryRequestBuilder builder = new TermsByQueryRequestBuilder(client, TermsByQueryAction.INSTANCE);
-    builder.setOrderBy(ORDERING);
-    if (MAX_TERMS_PER_SHARD != -1) builder.setMaxTermsPerShard(MAX_TERMS_PER_SHARD);
-    return builder;
-  }
+    private TermsByQueryRequestBuilder newTermsByQueryRequestBuilder() {
+        TermsByQueryRequestBuilder builder = new TermsByQueryRequestBuilder(client, TermsByQueryAction.INSTANCE);
+        builder.setOrderBy(ORDERING);
+        if (MAX_TERMS_PER_SHARD != -1) builder.setMaxTermsPerShard(MAX_TERMS_PER_SHARD);
+        return builder;
+    }
 
 }

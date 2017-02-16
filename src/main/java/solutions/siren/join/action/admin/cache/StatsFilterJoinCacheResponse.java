@@ -18,6 +18,7 @@
  */
 package solutions.siren.join.action.admin.cache;
 
+import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -26,32 +27,31 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StatsFilterJoinCacheResponse extends BaseNodesResponse<StatsFilterJoinCacheNodeResponse> implements ToXContent {
 
   StatsFilterJoinCacheResponse() {}
 
-  StatsFilterJoinCacheResponse(ClusterName clusterName, StatsFilterJoinCacheNodeResponse[] nodes) {
-    super(clusterName, nodes);
+  StatsFilterJoinCacheResponse(ClusterName clusterName, List<StatsFilterJoinCacheNodeResponse> nodes, List<FailedNodeException> failures) {
+    super(clusterName, nodes, failures);
   }
 
-  public StatsFilterJoinCacheNodeResponse[] getNodeResponses() {
+  @Override
+  public List<StatsFilterJoinCacheNodeResponse> readNodesFrom(StreamInput in) throws IOException {
+    int size = in.readVInt();
+    List<StatsFilterJoinCacheNodeResponse> nodes = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      nodes.add(StatsFilterJoinCacheNodeResponse.readNodeStats(in));
+    }
+
     return nodes;
   }
 
   @Override
-  public void readFrom(StreamInput in) throws IOException {
-    super.readFrom(in);
-    nodes = new StatsFilterJoinCacheNodeResponse[in.readVInt()];
-    for (int i = 0; i < nodes.length; i++) {
-      nodes[i] = StatsFilterJoinCacheNodeResponse.readNodeStats(in);
-    }
-  }
-
-  @Override
-  public void writeTo(StreamOutput out) throws IOException {
-    super.writeTo(out);
-    out.writeVInt(nodes.length);
+  public void writeNodesTo(StreamOutput out, List<StatsFilterJoinCacheNodeResponse> nodes) throws IOException {
+    out.writeVInt(nodes.size());
     for (StatsFilterJoinCacheNodeResponse node : nodes) {
       node.writeTo(out);
     }
@@ -62,8 +62,8 @@ public class StatsFilterJoinCacheResponse extends BaseNodesResponse<StatsFilterJ
     builder.field("cluster_name", getClusterName().value());
 
     builder.startObject("nodes");
-    for (StatsFilterJoinCacheNodeResponse node : this) {
-      builder.startObject(node.getNode().getName(), XContentBuilder.FieldCaseConversion.NONE);
+    for (StatsFilterJoinCacheNodeResponse node : getNodes()) {
+      builder.startObject(node.getNode().getName());
       builder.field("timestamp", node.getTimestamp());
       builder.startObject("stats");
       builder.field("size", node.getCacheStats().getSize());

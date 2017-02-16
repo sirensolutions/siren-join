@@ -49,7 +49,7 @@ public class ShardIndexVersion implements Streamable {
 
   @Override
   public void readFrom(StreamInput in) throws IOException {
-    shardRouting = ShardRouting.readShardRoutingEntry(in);
+    shardRouting = new ShardRouting(in);
     version = in.readLong();
   }
 

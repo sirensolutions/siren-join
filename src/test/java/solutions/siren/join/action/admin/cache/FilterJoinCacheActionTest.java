@@ -20,7 +20,9 @@ package solutions.siren.join.action.admin.cache;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.test.ESIntegTestCase;
+
 import org.junit.Test;
+
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
 import solutions.siren.join.index.query.QueryBuilders;
@@ -31,15 +33,15 @@ import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.Matchers.*;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0, supportsDedicatedMasters = false)
 public class FilterJoinCacheActionTest extends SirenJoinTestCase {
 
   @Test
   public void testCacheStats() throws Exception {
     this.warmCache();
     StatsFilterJoinCacheResponse rsp = new StatsFilterJoinCacheRequestBuilder(client(), StatsFilterJoinCacheAction.INSTANCE).get();
-    assertThat(rsp.getNodeResponses().length, equalTo(1));
-    for (StatsFilterJoinCacheNodeResponse nodeResponse : rsp.getNodeResponses()) {
+    assertThat(rsp.getNodes().size(), equalTo(1));
+    for (StatsFilterJoinCacheNodeResponse nodeResponse : rsp.getNodes()) {
       assertThat(nodeResponse.getTimestamp(), not(equalTo(0l)));
       assertThat(nodeResponse.getCacheStats().getSize(), greaterThanOrEqualTo(1l));
       assertThat(nodeResponse.getCacheStats().getCacheStats().hitCount(), greaterThanOrEqualTo(0l));
@@ -76,8 +78,8 @@ public class FilterJoinCacheActionTest extends SirenJoinTestCase {
   }
 
   private void loadData() throws ExecutionException, InterruptedException {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 

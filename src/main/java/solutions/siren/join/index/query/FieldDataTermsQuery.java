@@ -19,20 +19,25 @@
 package solutions.siren.join.index.query;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
 
 import com.carrotsearch.hppc.LongHashSet;
+
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.elasticsearch.common.logging.ESLogger;
+
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
+
 import solutions.siren.join.action.terms.collector.LongBloomFilter;
 import solutions.siren.join.action.terms.collector.NumericTermsSet;
 import solutions.siren.join.action.terms.collector.TermsSet;
@@ -67,7 +72,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
    */
   protected final long cacheKey;
 
-  private static final ESLogger logger = Loggers.getLogger(FieldDataTermsQuery.class);
+  private static final Logger logger = Loggers.getLogger(FieldDataTermsQuery.class);
 
   /**
    * Get a {@link FieldDataTermsQuery} that filters on non-floating point numeric terms found in a hppc
@@ -106,22 +111,12 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    if (cacheKey != ((FieldDataTermsQuery) obj).cacheKey) { // relies on the cache key instead of the encodedTerms for equality
-      return false;
-    }
-    return true;
+    return this == obj || cacheKey == ((FieldDataTermsQuery) obj).cacheKey;
   }
 
   @Override
   public int hashCode() {
-    int hashcode = super.hashCode();
-    hashcode = 31 * hashcode + ((int) cacheKey); // relies on the cache key instead of the encodedTerms for hashcode
+    int hashcode = 31 * ((int) cacheKey); // relies on the cache key instead of the encodedTerms for hashcode
     return hashcode;
   }
 
@@ -255,7 +250,7 @@ public abstract class FieldDataTermsQuery extends Query implements Accountable {
    */
   protected static class BytesFieldDataTermsQuery extends FieldDataTermsQuery {
 
-    private final ESLogger logger = Loggers.getLogger(getClass());
+    private final Logger logger = Loggers.getLogger(getClass());
 
     /**
      * Creates a new {@link BytesFieldDataTermsQuery} from the given field data.

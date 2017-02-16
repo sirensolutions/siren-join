@@ -25,7 +25,7 @@ import org.elasticsearch.common.Strings;
 /**
  * Request to compute the version of a set of indices.
  */
-public class GetIndicesVersionRequest extends BroadcastRequest {
+public class GetIndicesVersionRequest extends BroadcastRequest<GetIndicesVersionRequest> {
 
   public GetIndicesVersionRequest() {
     this(Strings.EMPTY_ARRAY);
@@ -41,7 +41,7 @@ public class GetIndicesVersionRequest extends BroadcastRequest {
    * of the original request to the new request.
    */
   public GetIndicesVersionRequest(ActionRequest originalRequest, String... indices) {
-    super(originalRequest);
+    super(indices);
     this.indices(indices);
   }
 

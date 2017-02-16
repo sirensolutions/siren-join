@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.broadcast.BroadcastRequest;
@@ -29,7 +28,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.AbstractQueryBuilder;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -37,7 +36,7 @@ import java.util.Arrays;
 /**
  * A request to get the values from a specific field for documents matching a specific query.
  * <p/>
- * The request requires the filter source to be set using {@link #query(QueryBuilder)}.
+ * The request requires the filter source to be set using {@link #query(AbstractQueryBuilder)}.
  *
  * @see TermsByQueryResponse
  */
@@ -69,20 +68,11 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
   public TermsByQueryRequest() {}
 
   /**
-   * Constructor used internally to execute a terms by query request that originates from a parent request.
-   * This is required for Shield compatibility. This will copy the context and headers (which contain the Shield tokens)
-   * of the original request to the new request.
-   */
-  public TermsByQueryRequest(ActionRequest originalRequest, String... indices) {
-    super(originalRequest);
-    this.indices(indices);
-  }
-
-  /**
    * Constructs a new terms by query request against the provided indices. No indices provided means it will run against all indices.
    */
   public TermsByQueryRequest(String... indices) {
     super(indices);
+    this.indices(indices);
   }
 
   /**
@@ -128,7 +118,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    *
    * @see {@link org.elasticsearch.index.query.QueryBuilders}
    */
-  public TermsByQueryRequest query(QueryBuilder queryBuilder) {
+  public TermsByQueryRequest query(AbstractQueryBuilder<?> queryBuilder) {
     this.querySource = queryBuilder == null ? null : queryBuilder.buildAsBytes();
     return this;
   }

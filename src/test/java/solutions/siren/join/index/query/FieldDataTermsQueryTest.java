@@ -19,24 +19,29 @@
 package solutions.siren.join.index.query;
 
 import org.apache.lucene.util.BytesRef;
+
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
-import org.elasticsearch.index.cache.IndexCacheModule;
+import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.index.cache.query.QueryCacheStats;
 import org.elasticsearch.test.ESIntegTestCase;
-import solutions.siren.join.SirenJoinTestCase;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
-import org.junit.Test;
+
+import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.collector.LongBloomFilter;
 
-import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
+import org.junit.Test;
+
 import static solutions.siren.join.index.query.QueryBuilders.fieldDataTermsQuery;
+
+import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
+
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes = 0, supportsDedicatedMasters = false)
 public class FieldDataTermsQueryTest extends SirenJoinTestCase {
 
   private static final Integer CACHE_KEY = 123;
@@ -55,8 +60,8 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
   public Settings indexSettings() {
     Settings.Builder builder = Settings.builder();
     builder.put(super.indexSettings());
-    builder.put(IndexCacheModule.QUERY_CACHE_TYPE, IndexCacheModule.INDEX_QUERY_CACHE); // force query cache
-    builder.put(IndexCacheModule.QUERY_CACHE_EVERYTHING, true); // force caching even small queries
+    builder.put(IndexModule.INDEX_QUERY_CACHE_ENABLED_SETTING.getKey(), true); // force query cache
+    builder.put(IndexModule.INDEX_QUERY_CACHE_EVERYTHING_SETTING.getKey(), true); // force caching even small queries
     return builder.build();
   }
 
@@ -66,25 +71,25 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
     ensureGreen();
 
     indexRandom(true,
-      client().prepareIndex("index1", "type", "1").setSource("id", "1"),
-      client().prepareIndex("index1", "type", "3").setSource("id", "3"),
-      client().prepareIndex("index1", "type", "7").setSource("id", "7"));
+            client().prepareIndex("index1", "type", "1").setSource("id", "1"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3"),
+            client().prepareIndex("index1", "type", "7").setSource("id", "7"));
 
     SearchResponse searchResponse = client().prepareSearch("index1").setQuery(
-      boolQuery().filter(fieldDataTermsQuery("id", new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 }, CACHE_KEY))
+            boolQuery().filter(fieldDataTermsQuery("id", new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 }, CACHE_KEY))
     ).get();
     assertHitCount(searchResponse, 2L);
   }
 
   @Test
   public void testStringFilter() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword"));
     ensureGreen();
 
     indexRandom(true,
-      client().prepareIndex("index1", "type", "1").setSource("id", "1"),
-      client().prepareIndex("index1", "type", "3").setSource("id", "3"),
-      client().prepareIndex("index1", "type", "7").setSource("id", "7"));
+            client().prepareIndex("index1", "type", "1").setSource("id", "1"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3"),
+            client().prepareIndex("index1", "type", "7").setSource("id", "7"));
 
     long[] ids = new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 };
     long[] hashIds = new long[ids.length];
@@ -94,20 +99,20 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
     }
 
     SearchResponse searchResponse = client().prepareSearch("index1").setQuery(
-      boolQuery().filter(fieldDataTermsQuery("id", hashIds, CACHE_KEY))
+            boolQuery().filter(fieldDataTermsQuery("id", hashIds, CACHE_KEY))
     ).get();
     assertHitCount(searchResponse, 2L);
   }
 
   @Test
   public void testCaching() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=long"));
     ensureGreen();
 
     indexRandom(true,
-      client().prepareIndex("index1", "type", "1").setSource("id", "1"),
-      client().prepareIndex("index1", "type", "3").setSource("id", "3"),
-      client().prepareIndex("index1", "type", "7").setSource("id", "7"));
+            client().prepareIndex("index1", "type", "1").setSource("id", "1"),
+            client().prepareIndex("index1", "type", "3").setSource("id", "3"),
+            client().prepareIndex("index1", "type", "7").setSource("id", "7"));
     forceMerge(); // ensure that we have only one segment - needed for cache stats
 
     QueryCacheStats queryCacheStats = this.getQueryCacheStats("index1");
@@ -115,7 +120,7 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
     assertThat(queryCacheStats.getHitCount(), is(equalTo(0L)));
 
     SearchResponse searchResponse = client().prepareSearch("index1").setQuery(
-      boolQuery().filter(fieldDataTermsQuery("id", new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 }, CACHE_KEY))
+            boolQuery().filter(fieldDataTermsQuery("id", new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 }, CACHE_KEY))
     ).get();
     assertHitCount(searchResponse, 2L);
 
@@ -124,7 +129,7 @@ public class FieldDataTermsQueryTest extends SirenJoinTestCase {
     assertThat(queryCacheStats.getHitCount(), is(equalTo(0L)));
 
     searchResponse = client().prepareSearch("index1").setQuery(
-      boolQuery().filter(fieldDataTermsQuery("id", new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 }, CACHE_KEY))
+            boolQuery().filter(fieldDataTermsQuery("id", new long[] { 1, 2, 4, 8, 10, 7, 6, 11, 5 }, CACHE_KEY))
     ).get();
     assertHitCount(searchResponse, 2L);
 

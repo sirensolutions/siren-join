@@ -21,7 +21,7 @@ package solutions.siren.join.action.terms;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.broadcast.BroadcastOperationRequestBuilder;
 import org.elasticsearch.client.ElasticsearchClient;
-import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.AbstractQueryBuilder;
 
 /**
  * A terms by query action request builder. This is an internal api.
@@ -79,7 +79,7 @@ public class TermsByQueryRequestBuilder extends BroadcastOperationRequestBuilder
    *
    * @see org.elasticsearch.index.query.QueryBuilders
    */
-  public TermsByQueryRequestBuilder setQuery(QueryBuilder queryBuilder) {
+  public TermsByQueryRequestBuilder setQuery(AbstractQueryBuilder<?> queryBuilder) {
     request.query(queryBuilder);
     return this;
   }

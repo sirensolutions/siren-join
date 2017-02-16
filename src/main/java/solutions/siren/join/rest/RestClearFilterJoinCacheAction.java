@@ -18,31 +18,37 @@
  */
 package solutions.siren.join.rest;
 
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.support.RestToXContentListener;
+import org.elasticsearch.rest.action.RestToXContentListener;
+
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheRequest;
-import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheResponse;
+
+import java.io.IOException;
 
 public class RestClearFilterJoinCacheAction extends BaseRestHandler {
 
   @Inject
-  public RestClearFilterJoinCacheAction(final Settings settings, final RestController controller, final Client client) {
-    super(settings, controller, client);
+  public RestClearFilterJoinCacheAction(final Settings settings, final RestController controller) {
+    super(settings);
     controller.registerHandler(RestRequest.Method.POST, "/_filter_join/cache/clear", this);
     controller.registerHandler(RestRequest.Method.GET, "/_filter_join/cache/clear", this);
   }
 
   @Override
-  protected void handleRequest(RestRequest request, RestChannel channel, Client client) throws Exception {
+  protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
     ClearFilterJoinCacheRequest clearFilterJoinCacheRequest = new ClearFilterJoinCacheRequest();
-    client.execute(ClearFilterJoinCacheAction.INSTANCE, clearFilterJoinCacheRequest, new RestToXContentListener<ClearFilterJoinCacheResponse>(channel));
+    return (consumer) -> client.execute(ClearFilterJoinCacheAction.INSTANCE, clearFilterJoinCacheRequest,
+            new RestToXContentListener<>(consumer));
   }
 
+  @Override
+  public boolean canTripCircuitBreaker() {
+    return false;
+  }
 }

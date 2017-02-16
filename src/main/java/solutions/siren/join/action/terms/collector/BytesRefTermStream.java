@@ -23,7 +23,8 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
-import org.apache.lucene.util.NumericUtils;
+import org.apache.lucene.util.LegacyNumericUtils;
+
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
@@ -137,7 +138,7 @@ abstract class BytesRefTermStream extends TermStream {
     @Override
     public BytesRef next() {
       BytesRefBuilder b = new BytesRefBuilder();
-      NumericUtils.intToPrefixCoded((int) values.valueAt(this.count++), 0, b);
+      LegacyNumericUtils.intToPrefixCoded((int) values.valueAt(this.count++), 0, b);
       return b.toBytesRef();
     }
 
@@ -152,7 +153,7 @@ abstract class BytesRefTermStream extends TermStream {
     @Override
     public BytesRef next() {
       BytesRefBuilder b = new BytesRefBuilder();
-      NumericUtils.longToPrefixCoded((int) values.valueAt(this.count++), 0, b);
+      LegacyNumericUtils.longToPrefixCoded((int) values.valueAt(this.count++), 0, b);
       return b.toBytesRef();
     }
 
