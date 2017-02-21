@@ -34,8 +34,8 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithStringFields() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -52,40 +52,32 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
     // Joining index1.foreign_key with index2.id
     SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
                     QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                       boolQuery().filter(termQuery("tag", "aaa"))
-                    ))
-    ).get();
+                    )).get();
     assertHitCount(searchResponse, 3L);
     assertSearchHits(searchResponse, "1", "3", "4");
 
     // Joining index1.foreign_key with empty index2 relation
     searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
-      filteredQuery(matchAllQuery(),
                     QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                       boolQuery().filter(termQuery("tag", "ddd"))
-                    ))
-    ).get();
+                    )).get();
     assertHitCount(searchResponse, 0L);
 
     // Joining index2.id with index1.foreign_key
     searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
-      filteredQuery(matchAllQuery(),
                     QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
                       boolQuery().filter(termQuery("id", "1"))
-                    ))
-    ).get();
+                    )).get();
     assertHitCount(searchResponse, 2L);
     assertSearchHits(searchResponse, "1", "3");
 
     // Joining index2.id with empty index1.foreign_key
     searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index2").setQuery(
-      filteredQuery(matchAllQuery(),
                     QueryBuilders.filterJoin("id").indices("index1").types("type").path("foreign_key").query(
                       boolQuery().filter(termQuery("id", "2"))
-                    ))
-    ).get();
+                    )).get();
     assertHitCount(searchResponse, 0L);
   }
 
@@ -144,7 +136,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testNestedJoinWithIntegerFields() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -212,7 +204,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testNestedJoinWithOrderByDocScore() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -279,7 +271,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testSimpleJoinNoTypeSpecified() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -327,7 +319,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testSimpleJoinMoreThanOneTypesSpecified() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type1", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type2", "id", "type=integer", "tag", "type=string")
@@ -373,7 +365,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testSimpleJoinNoIndexSpecified() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type1", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type2", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
@@ -423,7 +415,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testSimpleJoinMoreThanOneIndexSpecified() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type1", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type2", "id", "type=integer", "tag", "type=string"));
@@ -447,8 +439,10 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
             client().prepareIndex("index3", "type2", "3").setSource("id", "7", "tag", "bbb"),
             client().prepareIndex("index3", "type2", "4").setSource("id", "8", "tag", "ccc"));
 
-    // In order to query all the indices, we need to call setIndices() without argument to set an empty array,
-    // otherwise we will get NPE. This behaviour is identical to Elasticsearch SearchRequestBuilder's behaviour.
+    SearchResponse response = client().prepareSearch("index2", "index3").setQuery(termQuery("tag", "aaa")).get();
+
+    assertHitCount(response, 4);
+
     SearchResponse rsp = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setTypes("type1").setQuery(
       boolQuery().filter(
         QueryBuilders.filterJoin("foreign_key").indices("index2", "index3").types("type2").path("id").query(
@@ -466,7 +460,7 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testIndirectSelfJoin() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "tag", "type=string"));
@@ -661,8 +655,8 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithBytesEncodingOnIntegerField() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "tag", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -714,8 +708,8 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithBytesEncodingOnStringField() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -767,14 +761,14 @@ public class CoordinateSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithBytesEncodingOnLongField() throws Exception {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=long", "foreign_key", "type=long"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=long", "tag", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=long", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
     indexRandom(true,
             client().prepareIndex("index1", "type", "1").setSource("id", "1", "foreign_key", new String[]{"1", "3"}),
-            client().prepareIndex("index1", "type", "2").setSource("id", "2"),
+            client().prepareIndex("index1", "type", "2").setSource("id", "2", "text", "text"),
             client().prepareIndex("index1", "type", "3").setSource("id", "3", "foreign_key", new String[]{"2"}),
             client().prepareIndex("index1", "type", "4").setSource("id", "4", "foreign_key", new String[]{"1", "4"}),
 

@@ -18,20 +18,23 @@
  */
 package solutions.siren.join.rest;
 
-import solutions.siren.join.action.coordinate.CoordinateMultiSearchAction;
 import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.support.RestActions;
-import org.elasticsearch.rest.action.support.RestToXContentListener;
+import org.elasticsearch.rest.action.RestActions;
+import org.elasticsearch.rest.action.RestToXContentListener;
+import org.elasticsearch.rest.action.search.RestMultiSearchAction;
+import org.elasticsearch.search.SearchRequestParsers;
+import solutions.siren.join.action.coordinate.CoordinateMultiSearchAction;
+
+import java.io.IOException;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
@@ -39,10 +42,11 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 public class RestCoordinateMultiSearchAction extends BaseRestHandler {
 
   private final boolean allowExplicitIndex;
+  private final SearchRequestParsers searchRequestParsers;
 
   @Inject
-  public RestCoordinateMultiSearchAction(final Settings settings, final RestController controller, final Client client) {
-    super(settings, controller, client);
+  public RestCoordinateMultiSearchAction(final Settings settings, final RestController controller, SearchRequestParsers searchRequestParsers) {
+    super(settings);
     controller.registerHandler(GET, "/_coordinate_msearch", this);
     controller.registerHandler(POST, "/_coordinate_msearch", this);
     controller.registerHandler(GET, "/{index}/_coordinate_msearch", this);
@@ -51,24 +55,25 @@ public class RestCoordinateMultiSearchAction extends BaseRestHandler {
     controller.registerHandler(POST, "/{index}/{type}/_coordinate_msearch", this);
 
     this.allowExplicitIndex = settings.getAsBoolean("rest.action.multi.allow_explicit_index", true);
-  }
-
-  @Override
-  public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) throws Exception {
-    MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
-
-    String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
-    String[] types = Strings.splitStringByCommaToArray(request.param("type"));
-    String path = request.path();
-    boolean isTemplateRequest = isTemplateRequest(path);
-    IndicesOptions indicesOptions = IndicesOptions.fromRequest(request, multiSearchRequest.indicesOptions());
-    multiSearchRequest.add(RestActions.getRestContent(request), isTemplateRequest, indices, types, request.param("search_type"), request.param("routing"), indicesOptions, allowExplicitIndex);
-
-    client.execute(CoordinateMultiSearchAction.INSTANCE, multiSearchRequest, new RestToXContentListener<MultiSearchResponse>(channel));
+    this.searchRequestParsers = searchRequestParsers;
   }
 
   private boolean isTemplateRequest(String path) {
     return (path != null && path.endsWith("/template"));
   }
 
+  @Override
+  protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+
+    String path = request.path();
+    boolean isTemplateRequest = isTemplateRequest(path);
+    MultiSearchRequest multiSearchRequest = RestMultiSearchAction.parseRequest(request, allowExplicitIndex, searchRequestParsers, parseFieldMatcher);
+
+    return channel -> client.execute(CoordinateMultiSearchAction.INSTANCE, multiSearchRequest, new RestToXContentListener<>(channel));
+  }
+
+  @Override
+  public boolean canTripCircuitBreaker() {
+    return false;
+  }
 }

@@ -33,14 +33,13 @@ import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.Matchers.*;
-import static org.elasticsearch.common.settings.Settings.settingsBuilder;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0, supportsDedicatedMasters = false)
 public class FilterJoinCacheSettingsTest extends SirenJoinTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
-    return settingsBuilder()
+    return Settings.builder()
             .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
             .put(super.nodeSettings(nodeOrdinal)).build();
   }
@@ -49,8 +48,8 @@ public class FilterJoinCacheSettingsTest extends SirenJoinTestCase {
   public void testDisableCache() throws Exception {
     this.warmCache();
     StatsFilterJoinCacheResponse rsp = new StatsFilterJoinCacheRequestBuilder(client(), StatsFilterJoinCacheAction.INSTANCE).get();
-    assertThat(rsp.getNodeResponses().length, equalTo(1));
-    for (StatsFilterJoinCacheNodeResponse nodeResponse : rsp.getNodeResponses()) {
+    assertThat(rsp.getNodes().size(), equalTo(1));
+    for (StatsFilterJoinCacheNodeResponse nodeResponse : rsp.getNodes()) {
       assertThat(nodeResponse.getCacheStats().getSize(), equalTo(0l));
     }
   }
@@ -85,8 +84,8 @@ public class FilterJoinCacheSettingsTest extends SirenJoinTestCase {
   }
 
   private void loadData() throws ExecutionException, InterruptedException {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 

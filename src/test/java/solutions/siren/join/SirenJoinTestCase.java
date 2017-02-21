@@ -20,6 +20,7 @@ package solutions.siren.join;
 
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.transport.Netty4Plugin;
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheAction;
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheRequestBuilder;
 import solutions.siren.join.action.admin.cache.ClearFilterJoinCacheResponse;
@@ -29,19 +30,17 @@ import org.junit.Before;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.elasticsearch.common.settings.Settings.settingsBuilder;
-
 public class SirenJoinTestCase extends ESIntegTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
-    return settingsBuilder()
+    return Settings.builder()
       .put(super.nodeSettings(nodeOrdinal)).build();
   }
 
   @Override
   protected Collection<Class<? extends Plugin>> nodePlugins() {
-    return Arrays.<Class<? extends Plugin>> asList(SirenJoinPlugin.class);
+    return Arrays.asList(SirenJoinPlugin.class, Netty4Plugin.class);
   }
 
   @Override

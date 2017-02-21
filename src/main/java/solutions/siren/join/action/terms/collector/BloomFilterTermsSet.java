@@ -20,11 +20,11 @@ package solutions.siren.join.action.terms.collector;
 
 import com.google.common.math.LongMath;
 import com.google.common.primitives.Ints;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 import solutions.siren.join.common.Bytes;
@@ -45,7 +45,7 @@ public class BloomFilterTermsSet extends NumericTermsSet {
    */
   private static final int HEADER_SIZE = 17;
 
-  private static final ESLogger logger = Loggers.getLogger(BloomFilterTermsSet.class);
+  private static final Logger logger = Loggers.getLogger(BloomFilterTermsSet.class);
 
   /**
    * Constructor used by {@link solutions.siren.join.action.terms.TermsByQueryShardResponse}

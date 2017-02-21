@@ -21,10 +21,17 @@ package solutions.siren.join.action.terms;
 import org.elasticsearch.action.support.broadcast.TransportBroadcastAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.ParseFieldMatcher;
 import org.elasticsearch.common.breaker.CircuitBreaker;
+import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
+import org.elasticsearch.search.SearchRequestParsers;
 import org.elasticsearch.search.SearchService;
+import org.elasticsearch.search.internal.AliasFilter;
 import org.elasticsearch.tasks.Task;
 import solutions.siren.join.action.terms.collector.*;
 import org.elasticsearch.ElasticsearchException;
@@ -34,8 +41,6 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastShardOperationFailedException;
-import org.elasticsearch.cache.recycler.PageCacheRecycler;
-import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
@@ -56,7 +61,6 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchContextException;
 import org.elasticsearch.search.SearchShardTarget;
-import org.elasticsearch.search.internal.DefaultSearchContext;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.internal.ShardSearchLocalRequest;
 import org.elasticsearch.search.internal.ShardSearchRequest;
@@ -75,31 +79,34 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
 
   private final IndicesService indicesService;
   private final ScriptService scriptService;
-  private final PageCacheRecycler pageCacheRecycler;
   private final BigArrays bigArrays;
   private final CircuitBreakerService breakerService;
   private final Client client;
+  private final SearchService searchService;
+  private final SearchRequestParsers searchRequestParsers;
 
   /**
    * Constructor
    */
   @Inject
   public TransportTermsByQueryAction(Settings settings, ThreadPool threadPool, ClusterService clusterService,
-                                     TransportService transportService, IndicesService indicesService,
+                                     TransportService transportService, SearchService searchService, IndicesService indicesService,
                                      CircuitBreakerService breakerService,
-                                     ScriptService scriptService, PageCacheRecycler pageCacheRecycler,
+                                     ScriptService scriptService,
                                      BigArrays bigArrays, ActionFilters actionFilters,
-                                     IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
+                                     IndexNameExpressionResolver indexNameExpressionResolver, Client client,
+                                     SearchRequestParsers searchRequestParsers) {
     super(settings, TermsByQueryAction.NAME, threadPool, clusterService, transportService, actionFilters,
-            indexNameExpressionResolver, TermsByQueryRequest.class, TermsByQueryShardRequest.class,
+            indexNameExpressionResolver, TermsByQueryRequest::new, TermsByQueryShardRequest::new,
             // Use the generic threadpool which is cached, as we can end up with deadlock with the SEARCH threadpool
             ThreadPool.Names.GENERIC);
     this.indicesService = indicesService;
     this.scriptService = scriptService;
-    this.pageCacheRecycler = pageCacheRecycler;
     this.bigArrays = bigArrays;
     this.breakerService = breakerService;
     this.client = client;
+    this.searchService = searchService;
+    this.searchRequestParsers = searchRequestParsers;
   }
 
   /**
@@ -116,8 +123,8 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
    */
   @Override
   protected TermsByQueryShardRequest newShardRequest(int numShards, ShardRouting shard, TermsByQueryRequest request) {
-    String[] filteringAliases = indexNameExpressionResolver.filteringAliases(clusterService.state(), shard.index(), request.indices());
-    return new TermsByQueryShardRequest(shard.shardId(), filteringAliases, request);
+    return new TermsByQueryShardRequest(shard.shardId(), searchService.buildAliasFilter(clusterService.state(),
+            shard.index().getName(), request.indices()), request);
   }
 
   /**
@@ -226,24 +233,19 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
    * The operation that executes the query and generates a {@link TermsByQueryShardResponse} for each shard.
    */
   @Override
-  protected TermsByQueryShardResponse shardOperation(TermsByQueryShardRequest shardRequest) throws ElasticsearchException {
+  protected TermsByQueryShardResponse shardOperation(TermsByQueryShardRequest shardRequest) throws ElasticsearchException, IOException {
     IndexService indexService = indicesService.indexServiceSafe(shardRequest.shardId().getIndex());
-    IndexShard indexShard = indexService.shardSafe(shardRequest.shardId().id());
+    IndexShard indexShard = indexService.getShard(shardRequest.shardId().id());
     TermsByQueryRequest request = shardRequest.request();
     OrderByShardOperation orderByOperation = OrderByShardOperation.get(request.getOrderBy(), request.maxTermsPerShard());
 
-    SearchShardTarget shardTarget = new SearchShardTarget(clusterService.localNode().id(),
+    SearchShardTarget shardTarget = new SearchShardTarget(clusterService.localNode().getId(),
                                                           shardRequest.shardId().getIndex(),
                                                           shardRequest.shardId().id());
 
-    ShardSearchRequest shardSearchRequest = new ShardSearchLocalRequest(request.types(), request.nowInMillis(),
+    ShardSearchRequest shardSearchRequest = new ShardSearchLocalRequest(shardRequest.shardId(), request.types(), request.nowInMillis(),
                                                                         shardRequest.filteringAliases());
-
-    SearchContext context = new DefaultSearchContext(0, shardSearchRequest, shardTarget,
-      indexShard.acquireSearcher("termsByQuery"), indexService, indexShard, scriptService,
-      pageCacheRecycler, bigArrays, threadPool.estimatedTimeInMillisCounter(), parseFieldMatcher,
-      SearchService.NO_TIMEOUT);
-    SearchContext.setCurrent(context);
+    SearchContext context = searchService.createSearchContext(shardSearchRequest, SearchService.NO_TIMEOUT, indexShard.acquireSearcher("termsByQuery"));
 
     try {
       MappedFieldType fieldType = context.smartNameFieldType(request.field());
@@ -259,21 +261,20 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
         XContentParser queryParser = null;
         try {
           queryParser = XContentFactory.xContent(querySource).createParser(querySource);
-          QueryParseContext.setTypes(request.types());
-          ParsedQuery parsedQuery = orderByOperation.getParsedQuery(queryParser, indexService);
+          context.getQueryShardContext().setTypes(request.types());
+          ParsedQuery parsedQuery = orderByOperation.getParsedQuery(queryParser, searchRequestParsers, parseFieldMatcher, context.getQueryShardContext());
           if (parsedQuery != null) {
             context.parsedQuery(parsedQuery);
           }
         }
         finally {
-          QueryParseContext.removeTypes();
           if (queryParser != null) {
             queryParser.close();
           }
         }
       }
 
-      context.preProcess();
+      context.preProcess(true);
 
       // execute the search only gathering the hit count and bitset for each segment
       logger.debug("{}: Executes search for collecting terms {}", Thread.currentThread().getName(),
@@ -297,7 +298,6 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
     finally {
       // this will also release the index searcher
       context.close();
-      SearchContext.removeCurrent();
     }
   }
 
@@ -331,8 +331,10 @@ public class TransportTermsByQueryAction extends TransportBroadcastAction<TermsB
     /**
      * Returns the {@link ParsedQuery} associated to this order by operation.
      */
-    protected ParsedQuery getParsedQuery(final XContentParser queryParser, final IndexService indexService) {
-      return indexService.queryParserService().parse(queryParser);
+    protected ParsedQuery getParsedQuery(final XContentParser queryParser, final SearchRequestParsers searchRequestParsers, final ParseFieldMatcher parseFieldMatcher, final QueryShardContext queryShardContext) throws IOException {
+      QueryParseContext context = new QueryParseContext(searchRequestParsers.queryParsers, queryParser, parseFieldMatcher);
+      Optional<QueryBuilder> queryBuilder = context.parseInnerQueryBuilder();
+      return queryBuilder.isPresent() ? new ParsedQuery(queryBuilder.get().toQuery(queryShardContext)) : null;
     }
 
     /**

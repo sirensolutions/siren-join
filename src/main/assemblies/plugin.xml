@@ -24,8 +24,9 @@
       <useTransitiveFiltering>true</useTransitiveFiltering>
       <excludes>
         <exclude>org.elasticsearch:elasticsearch</exclude>
-        <exclude>com.google.guava:guava</exclude>
         <exclude>com.carrotsearch:hppc</exclude>
+        <exclude>org.apache.logging.log4j:log4j-api</exclude>
+        <exclude>org.apache.logging.log4j:log4j-core</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

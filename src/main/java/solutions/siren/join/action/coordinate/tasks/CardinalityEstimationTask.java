@@ -18,12 +18,12 @@
  */
 package solutions.siren.join.action.coordinate.tasks;
 
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
@@ -40,7 +40,7 @@ import solutions.siren.join.action.terms.TermsByQueryRequest;
  */
 public class CardinalityEstimationTask implements NodeTask {
 
-  protected static final ESLogger logger = Loggers.getLogger(CardinalityEstimationTask.class);
+  protected static final Logger logger = Loggers.getLogger(CardinalityEstimationTask.class);
 
   @Override
   public void execute(NodeTaskContext context, NodeTaskReporter reporter) {
@@ -66,7 +66,7 @@ public class CardinalityEstimationTask implements NodeTask {
       }
 
       @Override
-      public void onFailure(Throwable e) {
+      public void onFailure(Exception e) {
         reporter.failure(e);
       }
 
@@ -83,7 +83,7 @@ public class CardinalityEstimationTask implements NodeTask {
     sourceBuilder.size(0).aggregation(AggregationBuilders.cardinality(lookupPath).field(lookupPath));
 
     // Build search request with reference to the parent request
-    SearchRequest searchRequest = new SearchRequest(parentRequest);
+    SearchRequest searchRequest = new SearchRequest();//parentRequest);
     searchRequest.indices(lookupIndices).types(lookupTypes).source(sourceBuilder);
 
     return searchRequest;

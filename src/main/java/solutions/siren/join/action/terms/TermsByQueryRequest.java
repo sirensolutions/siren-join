@@ -29,6 +29,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 
 import java.io.IOException;
@@ -74,7 +75,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    * of the original request to the new request.
    */
   public TermsByQueryRequest(ActionRequest originalRequest, String... indices) {
-    super(originalRequest);
+    super(indices);
     this.indices(indices);
   }
 
@@ -128,7 +129,7 @@ public class TermsByQueryRequest extends BroadcastRequest<TermsByQueryRequest> {
    *
    * @see {@link org.elasticsearch.index.query.QueryBuilders}
    */
-  public TermsByQueryRequest query(QueryBuilder queryBuilder) {
+  public TermsByQueryRequest query(AbstractQueryBuilder<?> queryBuilder) {
     this.querySource = queryBuilder == null ? null : queryBuilder.buildAsBytes();
     return this;
   }

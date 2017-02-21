@@ -48,8 +48,7 @@ public class TermsByQueryActionTest extends SirenJoinTestCase {
    */
   @Test
   public void testTermsByQueryStringField() throws Exception {
-    createIndex("test");
-
+    ElasticsearchAssertions.assertAcked(prepareCreate("test").addMapping("type", "str", "type=keyword"));
     int numDocs = RandomizedTest.randomIntBetween(100, 2000);
     logger.info("--> indexing [" + numDocs + "] docs");
     for (int i = 0; i < numDocs; i++) {

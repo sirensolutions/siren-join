@@ -19,28 +19,36 @@
 package solutions.siren.join.rest;
 
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.support.RestToXContentListener;
-import solutions.siren.join.action.admin.cache.*;
+import org.elasticsearch.rest.action.RestToXContentListener;
+import solutions.siren.join.action.admin.cache.StatsFilterJoinCacheAction;
+import solutions.siren.join.action.admin.cache.StatsFilterJoinCacheRequest;
+
+import java.io.IOException;
 
 public class RestStatsFilterJoinCacheAction extends BaseRestHandler {
 
   @Inject
-  public RestStatsFilterJoinCacheAction(final Settings settings, final RestController controller, final Client client) {
-    super(settings, controller, client);
+  public RestStatsFilterJoinCacheAction(final Settings settings, final RestController controller) {
+    super(settings);
     controller.registerHandler(RestRequest.Method.POST, "/_filter_join/cache/stats", this);
     controller.registerHandler(RestRequest.Method.GET, "/_filter_join/cache/stats", this);
   }
 
   @Override
-  protected void handleRequest(RestRequest request, RestChannel channel, Client client) throws Exception {
+  protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
     StatsFilterJoinCacheRequest statsFilterJoinCacheRequest = new StatsFilterJoinCacheRequest();
-    client.execute(StatsFilterJoinCacheAction.INSTANCE, statsFilterJoinCacheRequest, new RestToXContentListener<StatsFilterJoinCacheResponse>(channel));
+    return (consumer) -> client.doExecute(StatsFilterJoinCacheAction.INSTANCE, statsFilterJoinCacheRequest,
+            new RestToXContentListener<>(consumer));
   }
 
+  @Override
+  public boolean canTripCircuitBreaker() {
+    return false;
+  }
 }

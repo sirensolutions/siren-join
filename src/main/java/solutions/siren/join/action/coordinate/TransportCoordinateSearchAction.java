@@ -29,6 +29,7 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.search.SearchRequestParsers;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
@@ -49,9 +50,10 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
   public TransportCoordinateSearchAction(Settings settings, ThreadPool threadPool,
                                          TransportService transportService, FilterJoinCacheService cacheService,
                                          ActionFilters actionFilters, TransportSearchAction searchAction,
+                                         SearchRequestParsers searchRequestParsers,
                                          IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
     super(settings, CoordinateSearchAction.NAME, threadPool, transportService, actionFilters,
-            indexNameExpressionResolver, client, SearchRequest.class);
+            indexNameExpressionResolver, searchRequestParsers, client, SearchRequest::new);
     this.searchAction = searchAction;
     this.cacheService = cacheService;
   }
@@ -67,7 +69,7 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
     FilterJoinCache cache = cacheService.getCacheInstance();
 
     // Parse query source
-    Tuple<XContentType, Map<String, Object>> parsedSource = this.parseSource(request.source());
+    Tuple<XContentType, Map<String, Object>> parsedSource = this.parseSource(request.source().buildAsBytes());
     if (parsedSource != null) { // can be null if this is a uri search (query parameter in extraSource)
       Map<String, Object> map = parsedSource.v2();
 
@@ -118,7 +120,7 @@ public class TransportCoordinateSearchAction extends BaseTransportCoordinateSear
     }
 
     @Override
-    public final void onFailure(Throwable e) {
+    public final void onFailure(Exception e) {
       this.actionListener.onFailure(e);
     }
 

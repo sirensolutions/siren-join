@@ -21,15 +21,14 @@ package solutions.siren.join.action.admin.version;
 import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
-import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardsIterator;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.inject.Injector;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexService;
@@ -44,14 +43,17 @@ import java.util.List;
 public class TransportGetIndicesVersionAction extends TransportBroadcastByNodeAction<GetIndicesVersionRequest, GetIndicesVersionResponse, ShardIndexVersion> {
 
   private final IndicesService indicesService;
+  private final IndexVersionService indexVersionService;
 
   @Inject
   public TransportGetIndicesVersionAction(Settings settings, ThreadPool threadPool, ClusterService clusterService,
                                           TransportService transportService, IndicesService indicesService,
-                                          ActionFilters actionFilters, IndexNameExpressionResolver indexNameExpressionResolver) {
+                                          ActionFilters actionFilters, IndexNameExpressionResolver indexNameExpressionResolver,
+                                          IndexVersionService indexVersionService) {
     super(settings, GetIndicesVersionAction.NAME, threadPool, clusterService, transportService, actionFilters, indexNameExpressionResolver,
-            GetIndicesVersionRequest.class, ThreadPool.Names.MANAGEMENT);
+            GetIndicesVersionRequest::new, ThreadPool.Names.MANAGEMENT);
     this.indicesService = indicesService;
+    this.indexVersionService = indexVersionService;
   }
 
   @Override
@@ -73,14 +75,11 @@ public class TransportGetIndicesVersionAction extends TransportBroadcastByNodeAc
 
   @Override
   protected ShardIndexVersion shardOperation(GetIndicesVersionRequest request, ShardRouting shardRouting) throws IOException {
-    IndexService indexService = indicesService.indexServiceSafe(shardRouting.getIndex());
-    IndexShard indexShard = indexService.shardSafe(shardRouting.id());
+    IndexService indexService = indicesService.indexServiceSafe(shardRouting.index());
+    IndexShard indexShard = indexService.getShard(shardRouting.id());
 
     // Get the IndexVersionShardService associated to this shard
-    Injector injector = indexService.shardInjectorSafe(shardRouting.id());
-    IndexVersionShardService indexVersionService = injector.getBinding(IndexVersionShardService.class).getProvider().get();
-    long version = indexVersionService.getVersion();
-
+    long version = indexVersionService.getVersion(indexService.index(), indexShard.shardId());
     return new ShardIndexVersion(indexShard.routingEntry(), version);
   }
 

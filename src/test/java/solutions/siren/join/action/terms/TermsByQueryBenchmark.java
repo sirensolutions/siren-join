@@ -18,7 +18,6 @@
  */
 package solutions.siren.join.action.terms;
 
-import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
@@ -31,16 +30,18 @@ import org.elasticsearch.common.StopWatch;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.node.NodeValidationException;
 import solutions.siren.join.SirenJoinPlugin;
 import solutions.siren.join.action.coordinate.execution.FilterJoinCache;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
@@ -77,7 +78,7 @@ public class TermsByQueryBenchmark {
   private final Client client;
   private final Random random;
 
-    TermsByQueryBenchmark() {
+    TermsByQueryBenchmark() throws NodeValidationException {
       Settings settings = Settings.builder()
         .put(FilterJoinCache.SIREN_FILTERJOIN_CACHE_ENABLED, false)
         .put("index.engine.robin.refreshInterval", "-1")
@@ -88,10 +89,8 @@ public class TermsByQueryBenchmark {
         .build();
 
       this.nodes = new MockNode[2];
-      this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
-      this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(),
-              Version.CURRENT, Collections.<Class<? extends Plugin>>singletonList(SirenJoinPlugin.class)).start();
+      this.nodes[0] = new MockNode(Settings.builder().put(settings).put("name", "node1").build(), Collections.singletonList(SirenJoinPlugin.class)).start();
+      this.nodes[1] = new MockNode(Settings.builder().put(settings).put("name", "node2").build(), Collections.singletonList(SirenJoinPlugin.class)).start();
       this.client = nodes[0].client();
       this.random = new Random(System.currentTimeMillis());
     }
@@ -116,7 +115,7 @@ public class TermsByQueryBenchmark {
       client.admin().cluster().prepareHealth().setWaitForGreenStatus().setTimeout("10s").execute().actionGet();
     }
 
-    public void shutdown() {
+    public void shutdown() throws IOException {
       client.close();
       nodes[0].close();
       nodes[1].close();
@@ -127,18 +126,18 @@ public class TermsByQueryBenchmark {
     }
 
     public void memStatus() throws IOException {
-      NodeStats[] nodeStats = client.admin().cluster().prepareNodesStats()
+      List<NodeStats> nodeStats = client.admin().cluster().prepareNodesStats()
         .setJvm(true).setIndices(true).setTransport(true)
         .execute().actionGet().getNodes();
 
       log("==== MEMORY ====");
-      log("Committed heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapCommitted());
-      log("Used heap size: [0]=" + nodeStats[0].getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats[1].getJvm().getMem().getHeapUsed());
-      log("FieldData cache size: [0]=" + nodeStats[0].getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getFieldData().getMemorySize());
-      log("Query cache size: [0]=" + nodeStats[0].getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats[1].getIndices().getQueryCache().getMemorySize());
+      log("Committed heap size: [0]=" + nodeStats.get(0).getJvm().getMem().getHeapCommitted() + ", [1]=" + nodeStats.get(1).getJvm().getMem().getHeapCommitted());
+      log("Used heap size: [0]=" + nodeStats.get(0).getJvm().getMem().getHeapUsed() + ", [1]=" + nodeStats.get(1).getJvm().getMem().getHeapUsed());
+      log("FieldData cache size: [0]=" + nodeStats.get(0).getIndices().getFieldData().getMemorySize() + ", [1]=" + nodeStats.get(1).getIndices().getFieldData().getMemorySize());
+      log("Query cache size: [0]=" + nodeStats.get(0).getIndices().getQueryCache().getMemorySize() + ", [1]=" + nodeStats.get(1).getIndices().getQueryCache().getMemorySize());
       log("");
       log("==== NETWORK ====");
-      log("Transport: [0]=" + nodeStats[0].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats[1].getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+      log("Transport: [0]=" + nodeStats.get(0).getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string() + ", [1]=" + nodeStats.get(1).getTransport().toXContent(jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
       log("");
     }
 
@@ -203,7 +202,7 @@ public class TermsByQueryBenchmark {
         }
 
         client.admin().indices().prepareRefresh().execute().actionGet();
-        log("Number of docs in index: " + client.prepareCount(PARENT_INDEX, CHILD_INDEX).setQuery(matchAllQuery()).execute().actionGet().getCount());
+        log("Number of docs in index: " + client.prepareSearch(PARENT_INDEX, CHILD_INDEX).setQuery(matchAllQuery()).setSize(0).execute().actionGet().getHits().getTotalHits());
         log("");
     }
 
@@ -254,7 +253,7 @@ public class TermsByQueryBenchmark {
      * Child long field = "num"
      */
     public void benchHasChildSingleTerm() {
-      QueryBuilder lookupQuery;
+      BoolQueryBuilder lookupQuery;
 
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(CHILD_INDEX)
@@ -339,7 +338,7 @@ public class TermsByQueryBenchmark {
      * Child numeric field = "num"
      */
     public void benchHasParentSingleTerm() {
-      QueryBuilder lookupQuery;
+      BoolQueryBuilder lookupQuery;
 
       TermsByQueryRequestBuilder stringFilter = this.newTermsByQueryRequestBuilder();
       stringFilter.setIndices(PARENT_INDEX)

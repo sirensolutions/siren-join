@@ -18,12 +18,13 @@
  */
 package solutions.siren.join.index.query;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.*;
-import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import solutions.siren.join.action.terms.collector.*;
+import solutions.siren.join.action.terms.collector.BytesRefTermsSet;
+import solutions.siren.join.action.terms.collector.TermsSet;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -60,7 +61,7 @@ public class TermsEnumTermsQuery extends Query implements Accountable {
    */
   protected final long cacheKey;
 
-  private static final ESLogger logger = Loggers.getLogger(TermsEnumTermsQuery.class);
+  private static final Logger logger = Loggers.getLogger(TermsEnumTermsQuery.class);
 
   /**
    * Creates a new {@link TermsEnumTermsQuery} from the given field data.
@@ -94,9 +95,6 @@ public class TermsEnumTermsQuery extends Query implements Accountable {
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
     if (cacheKey != ((TermsEnumTermsQuery) obj).cacheKey) { // relies on the cache key instead of the encodedTerms for equality
       return false;
     }
@@ -108,8 +106,7 @@ public class TermsEnumTermsQuery extends Query implements Accountable {
 
   @Override
   public int hashCode() {
-    int hashcode = super.hashCode();
-    hashcode = 31 * hashcode + ((int) cacheKey); // relies on the cache key instead of the encodedTerms for hashcode
+    int hashcode = 31 * ((int) cacheKey); // relies on the cache key instead of the encodedTerms for hashcode
     hashcode = 31 * hashcode + field.hashCode();
     return hashcode;
   }
@@ -258,7 +255,7 @@ public class TermsEnumTermsQuery extends Query implements Accountable {
     SeekingTermSetTermsEnum(TermsEnum tenum, BytesRefTermsSet termsSet) {
       super(tenum);
       this.terms = termsSet.getBytesRefHash();
-      this.ords = this.terms.sort(BytesRef.getUTF8SortedAsUnicodeComparator());
+      this.ords = this.terms.sort();
       lastElement = terms.size() - 1;
       lastTerm = terms.get(ords[lastElement], new BytesRef());
       seekTerm = terms.get(ords[upto], spare);

@@ -18,25 +18,24 @@
  */
 package solutions.siren.join.action.coordinate.execution;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.node.Node;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
-import org.elasticsearch.test.rest.client.RestException;
-import org.elasticsearch.test.rest.client.http.HttpResponse;
 import org.junit.Test;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.terms.TermsByQueryRequest;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
@@ -47,13 +46,13 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static solutions.siren.join.index.query.QueryBuilders.filterJoin;
 
-@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0)
+@ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes=1, numClientNodes=0, supportsDedicatedMasters = false)
 public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
     return Settings.builder()
-            .put(Node.HTTP_ENABLED, true) // enable http for these tests
+            .put("force.http.enabled", true) // enable http for these tests
             .put(super.nodeSettings(nodeOrdinal)).build();
   }
 
@@ -75,64 +74,64 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
   }
 
   private void assertAction(Map action, ExpectedAction expectedAction) {
-    String key = CoordinateSearchMetadata.Action.Fields.RELATIONS.underscore().getValue();
+    String key = CoordinateSearchMetadata.Action.Fields.RELATIONS;
     assertTrue(action.containsKey(key));
     Map relations = (Map) action.get(key);
 
-    key = CoordinateSearchMetadata.Action.Fields.FROM.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.FROM;
     assertTrue(relations.containsKey(key));
     Map to = (Map) relations.get(key);
-    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()));
-    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()), contains(equalTo(expectedAction.toIndex)));
-    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()));
-    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()), contains(equalTo(expectedAction.toType)));
-    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()));
-    assertThat((String) to.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()), equalTo(expectedAction.toField));
+    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.INDICES));
+    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.INDICES), contains(equalTo(expectedAction.toIndex)));
+    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.TYPES));
+    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.TYPES), contains(equalTo(expectedAction.toType)));
+    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.FIELD));
+    assertThat((String) to.get(CoordinateSearchMetadata.Relation.Fields.FIELD), equalTo(expectedAction.toField));
 
-    key = CoordinateSearchMetadata.Action.Fields.TO.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.TO;
     assertTrue(relations.containsKey(key));
     Map from = (Map) relations.get(key);
     if (expectedAction.fromIndex == null) {
-      assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()));
+      assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.INDICES));
     } else {
-      assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()));
-      assertThat((List<String>) from.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()), contains(equalTo(expectedAction.fromIndex)));
+      assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.INDICES));
+      assertThat((List<String>) from.get(CoordinateSearchMetadata.Relation.Fields.INDICES), contains(equalTo(expectedAction.fromIndex)));
     }
     if (expectedAction.fromType == null) {
-      assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()));
+      assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.TYPES));
     } else {
-      assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()));
-      assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()), contains(equalTo(expectedAction.fromType)));
+      assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.TYPES));
+      assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.TYPES), contains(equalTo(expectedAction.fromType)));
     }
-    assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()));
-    assertThat((String) from.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()), equalTo(expectedAction.fromField));
+    assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.FIELD));
+    assertThat((String) from.get(CoordinateSearchMetadata.Relation.Fields.FIELD), equalTo(expectedAction.fromField));
 
-    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED;
     assertThat((Boolean) action.get(key), equalTo(expectedAction.isPruned));
 
-    key = CoordinateSearchMetadata.Action.Fields.SIZE.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.SIZE;
     assertThat((Integer) action.get(key), equalTo(expectedAction.size));
 
-    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT;
     assertThat((Boolean) action.get(key), equalTo(expectedAction.cacheHit));
 
-    key = CoordinateSearchMetadata.Action.Fields.SIZE_IN_BYTES.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.SIZE_IN_BYTES;
     assertThat((Integer) action.get(key), greaterThan(expectedAction.sizeInBytes));
 
-    key = CoordinateSearchMetadata.Action.Fields.TOOK.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.TOOK;
     assertThat((Integer) action.get(key), greaterThan(expectedAction.took));
 
-    key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.TERMS_ENCODING;
     assertThat((String) action.get(key), equalTo(expectedAction.termsEncoding.name().toLowerCase(Locale.ROOT)));
 
-    key = CoordinateSearchMetadata.Action.Fields.ORDERING.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.ORDERING;
     if (expectedAction.ordering == null) {
       assertNull(action.get(key));
     } else {
       assertThat((String) action.get(key), equalTo(expectedAction.ordering.name().toLowerCase(Locale.ROOT)));
     }
 
-    key = CoordinateSearchMetadata.Action.Fields.MAX_TERMS_PER_SHARD.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.MAX_TERMS_PER_SHARD;
     if (expectedAction.maxTermsPerShard == -1) {
       assertNull(action.get(key));
     } else {
@@ -141,9 +140,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
   }
 
   @Test
-  public void testMaxTermsPerShard() throws IOException, RestException, ExecutionException, InterruptedException {
-    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+  public void testMaxTermsPerShard() throws IOException, ExecutionException, InterruptedException {
+    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -163,17 +162,17 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
             ).maxTermsPerShard(42)).toString();
-    String body = "{ \"query\" : " + q + "}";
+    HttpEntity body = new NStringEntity("{ \"query\" : " + q + "}", ContentType.APPLICATION_JSON);
 
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
 
-    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     assertTrue(map.containsKey(key));
     Map coordinateSearch = (Map) map.get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     List actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(1));
@@ -191,9 +190,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
   }
 
   @Test
-  public void testTermsEncoding() throws IOException, RestException, ExecutionException, InterruptedException {
-    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+  public void testTermsEncoding() throws IOException, ExecutionException, InterruptedException {
+    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -213,17 +212,17 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
             ).termsEncoding(TermsByQueryRequest.TermsEncoding.INTEGER)).toString();
-    String body = "{ \"query\" : " + q + "}";
+    HttpEntity body = new NStringEntity("{ \"query\" : " + q + "}", ContentType.APPLICATION_JSON);
 
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
 
-    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     assertTrue(map.containsKey(key));
     Map coordinateSearch = (Map) map.get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     List actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(1));
@@ -241,9 +240,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
   }
 
   @Test
-  public void testOrdering() throws IOException, RestException, ExecutionException, InterruptedException {
-    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+  public void testOrdering() throws IOException, ExecutionException, InterruptedException {
+    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -263,17 +262,17 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
             filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                     boolQuery().filter(termQuery("tag", "aaa"))
             ).orderBy(TermsByQueryRequest.Ordering.DOC_SCORE).maxTermsPerShard(10)).toString();
-    String body = "{ \"query\" : " + q + "}";
+    HttpEntity body = new NStringEntity("{ \"query\" : " + q + "}", ContentType.APPLICATION_JSON);
 
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
 
-    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     assertTrue(map.containsKey(key));
     Map coordinateSearch = (Map) map.get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     List actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(1));
@@ -292,9 +291,9 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
   }
 
   @Test
-  public void testCoordinateSearchMetadata() throws IOException, RestException, ExecutionException, InterruptedException {
-    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+  public void testCoordinateSearchMetadata() throws IOException, ExecutionException, InterruptedException {
+    ElasticsearchAssertions.assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    ElasticsearchAssertions.assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -314,17 +313,17 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
                 filterJoin("foreign_key").indices("index2").types("type").path("id").query(
                   boolQuery().filter(termQuery("tag", "aaa"))
                 ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)).toString();
-    String body = "{ \"query\" : " + q + "}";
+    HttpEntity body = new NStringEntity("{ \"query\" : " + q + "}", ContentType.APPLICATION_JSON);
 
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
 
-    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     assertTrue(map.containsKey(key));
     Map coordinateSearch = (Map) map.get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     List actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(1));
@@ -341,10 +340,10 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
   }
 
   @Test
-  public void testCoordinateSearchMetadataWithNestedJoins() throws IOException, RestException, ExecutionException, InterruptedException {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));
-    assertAcked(prepareCreate("index3").addMapping("type", "id", "type=integer", "tag", "type=string"));
+  public void testCoordinateSearchMetadataWithNestedJoins() throws IOException, ExecutionException, InterruptedException {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword", "tag", "type=string"));
+    assertAcked(prepareCreate("index3").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -377,17 +376,17 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
                   .filter(
                     termQuery("id", "1")
                   ).toString();
-    String body = "{ \"query\" : " + q + "}";
+    HttpEntity body = new NStringEntity("{ \"query\" : " + q + "}", ContentType.APPLICATION_JSON);
 
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
 
-    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     assertTrue(map.containsKey(key));
     Map coordinateSearch = (Map) map.get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     List actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(2));
@@ -416,13 +415,13 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
   }
 
   @Test
-  public void testPrunedCachedAction() throws IOException, RestException, ExecutionException, InterruptedException {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
+  public void testPrunedCachedAction() throws IOException, ExecutionException, InterruptedException {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
 
     // Enforce one single shard for index2
     Map<String, Object> indexSettings = new HashMap<>();
     indexSettings.put("number_of_shards", 1);
-    assertAcked(prepareCreate("index2").setSettings(indexSettings).addMapping("type", "id", "type=string", "tag", "type=string"));
+    assertAcked(prepareCreate("index2").setSettings(indexSettings).addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -444,67 +443,67 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
                     boolQuery().filter(termQuery("tag", "aaa"))
             ).termsEncoding(TermsByQueryRequest.TermsEncoding.LONG)
              .orderBy(TermsByQueryRequest.Ordering.DOC_SCORE).maxTermsPerShard(1)).toString();
-    String body = "{ \"query\" : " + q + "}";
+    HttpEntity body = new NStringEntity("{ \"query\" : " + q + "}", ContentType.APPLICATION_JSON);
 
     // Execute a first time to add the action to the cache
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    Response response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
     // Only one document contains a odd document id as foreign key.
     assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(1));
 
     // Execute a second time to hit the cache
-    response = httpClient().method("GET").path("/_coordinate_search").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    response = getRestClient().performRequest("GET", "/_coordinate_search", Collections.emptyMap(), body);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
     // Only one document contains a odd document id as foreign key.
     assertThat((Integer) ((Map) map.get("hits")).get("total"), equalTo(1));
 
-    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     Map coordinateSearch = (Map) map.get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     List actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(1));
     Map action = (Map) actions.get(0);
 
-    key = CoordinateSearchMetadata.Action.Fields.RELATIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.RELATIONS;
     assertTrue(action.containsKey(key));
     Map relations = (Map) action.get(key);
 
-    key = CoordinateSearchMetadata.Action.Fields.FROM.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.FROM;
     assertTrue(relations.containsKey(key));
     Map to = (Map) relations.get(key);
-    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()));
-    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()), contains(equalTo("index2")));
-    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()));
-    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()), contains(equalTo("type")));
-    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()));
-    assertThat((String) to.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()), equalTo("id"));
+    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.INDICES));
+    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.INDICES), contains(equalTo("index2")));
+    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.TYPES));
+    assertThat((List<String>) to.get(CoordinateSearchMetadata.Relation.Fields.TYPES), contains(equalTo("type")));
+    assertNotNull(to.get(CoordinateSearchMetadata.Relation.Fields.FIELD));
+    assertThat((String) to.get(CoordinateSearchMetadata.Relation.Fields.FIELD), equalTo("id"));
 
-    key = CoordinateSearchMetadata.Action.Fields.TO.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.TO;
     assertTrue(relations.containsKey(key));
     Map from = (Map) relations.get(key);
-    assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.INDICES.underscore().getValue()));
-    assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.TYPES.underscore().getValue()));
-    assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()));
-    assertThat((String) from.get(CoordinateSearchMetadata.Relation.Fields.FIELD.underscore().getValue()), equalTo("foreign_key"));
+    assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.INDICES));
+    assertNull(from.get(CoordinateSearchMetadata.Relation.Fields.TYPES));
+    assertNotNull(from.get(CoordinateSearchMetadata.Relation.Fields.FIELD));
+    assertThat((String) from.get(CoordinateSearchMetadata.Relation.Fields.FIELD), equalTo("foreign_key"));
 
-    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED;
     assertThat((Boolean) action.get(key), equalTo(true));
 
-    key = CoordinateSearchMetadata.Action.Fields.SIZE.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.SIZE;
     assertThat((Integer) action.get(key), equalTo(1));
 
-    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT;
     assertThat((Boolean) action.get(key), equalTo(true));
   }
 
   @Test
-  public void testCoordinateMultiSearchMetadata() throws IOException, RestException, ExecutionException, InterruptedException {
-    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=string", "foreign_key", "type=string"));
-    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=string", "tag", "type=string"));
+  public void testCoordinateMultiSearchMetadata() throws IOException, ExecutionException, InterruptedException {
+    assertAcked(prepareCreate("index1").addMapping("type", "id", "type=keyword", "foreign_key", "type=keyword"));
+    assertAcked(prepareCreate("index2").addMapping("type", "id", "type=keyword", "tag", "type=string"));
 
     ensureGreen();
 
@@ -528,50 +527,52 @@ public class CoordinateSearchMetadataTest extends SirenJoinTestCase {
     body += "{\"index\" : \"index1\"}\n";
     body += "{ \"query\" : " + q + "}\n";
 
-    HttpResponse response = httpClient().method("GET").path("/_coordinate_msearch").body(body).execute();
-    assertThat(response.getStatusCode(), equalTo(RestStatus.OK.getStatus()));
-    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(response.getBody().getBytes("UTF-8")), false).v2();
+    HttpEntity entity = new NStringEntity(body, ContentType.APPLICATION_JSON);
+
+    Response response = getRestClient().performRequest("GET", "/_coordinate_msearch", Collections.emptyMap(), entity);
+    assertThat(response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
+    Map<String, Object> map = XContentHelper.convertToMap(new BytesArray(IOUtils.toByteArray(response.getEntity().getContent())), false).v2();
     ArrayList responses = (ArrayList) map.get("responses");
     assertThat(responses.size(), equalTo(2));
     assertThat((Integer) ((Map) ((Map) responses.get(0)).get("hits")).get("total"), equalTo(3));
     assertThat((Integer) ((Map) ((Map) responses.get(1)).get("hits")).get("total"), equalTo(3));
 
     // First query
-    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    String key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     Map coordinateSearch = (Map) ((Map) responses.get(0)).get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     List actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(1));
     Map action = (Map) actions.get(0);
 
-    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED;
     assertThat((Boolean) action.get(key), equalTo(false));
 
-    key = CoordinateSearchMetadata.Action.Fields.SIZE.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.SIZE;
     assertThat((Integer) action.get(key), equalTo(2));
 
-    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT;
     assertThat((Boolean) action.get(key), equalTo(false));
 
     // Second query
-    key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.COORDINATE_SEARCH;
     coordinateSearch = (Map) ((Map) responses.get(1)).get(key);
 
-    key = CoordinateSearchMetadata.Fields.ACTIONS.underscore().getValue();
+    key = CoordinateSearchMetadata.Fields.ACTIONS;
     assertTrue(coordinateSearch.containsKey(key));
     actions = (List) coordinateSearch.get(key);
     assertThat(actions.size(), equalTo(1));
     action = (Map) actions.get(0);
 
-    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.IS_PRUNED;
     assertThat((Boolean) action.get(key), equalTo(false));
 
-    key = CoordinateSearchMetadata.Action.Fields.SIZE.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.SIZE;
     assertThat((Integer) action.get(key), equalTo(2));
 
-    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT.underscore().getValue();
+    key = CoordinateSearchMetadata.Action.Fields.CACHE_HIT;
     assertThat((Boolean) action.get(key), equalTo(true));
   }
 

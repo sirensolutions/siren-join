@@ -33,7 +33,7 @@ public class CoordinateMultiSearchActionTest extends SirenJoinTestCase {
 
   @Test
   public void testSimpleJoinWithIntegerFields() throws Exception {
-    Settings settings = Settings.settingsBuilder().put("number_of_shards", 1).build();
+    Settings settings = Settings.builder().put("number_of_shards", 1).build();
 
     assertAcked(prepareCreate("index1").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer"));
     assertAcked(prepareCreate("index2").setSettings(settings).addMapping("type", "id", "type=integer", "foreign_key", "type=integer", "tag", "type=string"));

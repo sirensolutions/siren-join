@@ -23,15 +23,16 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.*;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.search.SearchRequestParsers;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import solutions.siren.join.action.admin.cache.FilterJoinCacheService;
@@ -65,9 +66,10 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
                                               TransportService transportService, ClusterService clusterService,
                                               FilterJoinCacheService cacheService,
                                               TransportSearchAction search, ActionFilters actionFilters,
+                                              SearchRequestParsers searchRequestParsers,
                                               IndexNameExpressionResolver indexNameExpressionResolver, Client client) {
     super(settings, CoordinateMultiSearchAction.NAME, threadPool, transportService, actionFilters,
-            indexNameExpressionResolver, client, MultiSearchRequest.class);
+            indexNameExpressionResolver, searchRequestParsers, client,  MultiSearchRequest::new);
     this.searchAction = search;
     this.clusterService = clusterService;
     this.cacheService = cacheService;
@@ -90,7 +92,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
 
     for (int i = 0; i < request.requests().size(); i++) {
       // Parse query source
-      Tuple<XContentType, Map<String, Object>> parsedSource = this.parseSource(request.requests().get(i).source());
+      Tuple<XContentType, Map<String, Object>> parsedSource = this.parseSource(request.requests().get(i).source().buildAsBytes());
       Map<String, Object> map = parsedSource.v2();
 
       // Query planning and execution of filter joins
@@ -115,7 +117,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
     final AtomicInteger counter = new AtomicInteger(responses.length());
     for (int i = 0; i < responses.length(); i++) {
       final int index = i;
-      SearchRequest searchRequest = new SearchRequest(request.requests().get(i), request);
+      SearchRequest searchRequest = request.requests().get(i);
       searchAction.execute(searchRequest, new ActionListener<SearchResponse>() {
 
         @Override
@@ -127,7 +129,7 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
         }
 
         @Override
-        public void onFailure(Throwable e) {
+        public void onFailure(Exception e) {
           responses.set(index, new CoordinateMultiSearchResponse.Item(null, ExceptionsHelper.detailedMessage(e)));
           if (counter.decrementAndGet() == 0) {
             finishHim();
