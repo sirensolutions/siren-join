@@ -14,6 +14,7 @@ The following table shows the compatibility between releases of Elasticsearch an
 
 Elasticsearch|SIREn Join
 ---|---
+2.4.4|2.4.4-1
 2.4.2|2.4.2-1
 2.4.1|2.4.1-1
 2.3.5|2.3.5-1
