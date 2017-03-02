@@ -24,6 +24,7 @@ import solutions.siren.join.action.terms.TermsByQueryRequest;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
+import solutions.siren.join.common.Collections;
 
 import java.io.IOException;
 import java.util.List;
@@ -97,7 +98,7 @@ public class FilterJoinNode extends AbstractNode {
 
     // Generate the query hash based on the hashCode of the source map, before it is modified.
     // This should not be sensitive to the order of the fields, but this might be sensitive to the order of arrays.
-    this.queryHash = self.hashCode();
+    this.queryHash = Collections.hashCode(self);
   }
 
   public void setFailure(Throwable failure) {

@@ -93,6 +93,10 @@ public class TransportCoordinateMultiSearchAction extends BaseTransportCoordinat
       Tuple<XContentType, Map<String, Object>> parsedSource = this.parseSource(request.requests().get(i).source());
       Map<String, Object> map = parsedSource.v2();
 
+      // Unwrap "wrapper" queries
+      WrapperQueryVisitor wrapperVisitor = new WrapperQueryVisitor(map);
+      wrapperVisitor.traverse();
+
       // Query planning and execution of filter joins
       SourceMapVisitor mapVisitor = new SourceMapVisitor(map);
       mapVisitor.traverse();

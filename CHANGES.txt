@@ -1,3 +1,14 @@
+======================= Release 2.4.4 =======================
+
+Improvements
+
+* [GH-121] Support wrapped queries in the coordinator
+* [GH-118] Upgrade to Elasticsearch 2.4.4
+
+Bugs
+
+* [GH-112] Cache hit/miss based on `range` filter in query is hitting same cache
+
 ======================= Release 2.4.2 =======================
 
 Improvements

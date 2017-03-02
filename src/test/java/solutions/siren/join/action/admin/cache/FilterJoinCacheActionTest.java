@@ -23,8 +23,11 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.Test;
 import solutions.siren.join.SirenJoinTestCase;
 import solutions.siren.join.action.coordinate.CoordinateSearchRequestBuilder;
+import solutions.siren.join.action.coordinate.CoordinateSearchResponse;
 import solutions.siren.join.index.query.QueryBuilders;
 
+import java.util.HashMap;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.index.query.QueryBuilders.*;
@@ -91,6 +94,46 @@ public class FilterJoinCacheActionTest extends SirenJoinTestCase {
             client().prepareIndex("index2", "type", "2").setSource("id", "2", "tag", "aaa"),
             client().prepareIndex("index2", "type", "3").setSource("id", "3", "tag", "bbb"),
             client().prepareIndex("index2", "type", "4").setSource("id", "4", "tag", "ccc") );
+  }
+
+  /**
+   * Checks for cache id collisions when the query contains a range query with numerical bounds.
+   * @see <a href="https://github.com/sirensolutions/siren-join/issues/112">Issue #112</a>
+   */
+  @Test
+  public void testRangeQueries() throws Exception {
+    this.loadData();
+
+    // Joining index1.foreign_key with index2.id
+    SearchResponse searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+        boolQuery().filter(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                boolQuery().filter(rangeQuery("id").gte(0).lte(1))
+            ))
+    ).get();
+    assertHitCount(searchResponse, 2L);
+    assertSearchHits(searchResponse, "1", "4");
+    assertThat(((CoordinateSearchResponse) searchResponse).getCoordinateSearchMetadata().getActions().get(0).cacheHit(), is(equalTo(false)));
+
+    // Joining index1.foreign_key with index2.id
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+        boolQuery().filter(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                boolQuery().filter(rangeQuery("id").gte(0).lte(0))
+            ))
+    ).get();
+    assertHitCount(searchResponse, 0L);
+    assertThat(((CoordinateSearchResponse) searchResponse).getCoordinateSearchMetadata().getActions().get(0).cacheHit(), is(equalTo(false)));
+
+    // Joining index1.foreign_key with index2.id
+    searchResponse = new CoordinateSearchRequestBuilder(client()).setIndices("index1").setQuery(
+        boolQuery().filter(
+            QueryBuilders.filterJoin("foreign_key").indices("index2").types("type").path("id").query(
+                boolQuery().filter(rangeQuery("id").gte(1).lte(1))
+            ))
+    ).get();
+    assertHitCount(searchResponse, 2L);
+    assertThat(((CoordinateSearchResponse) searchResponse).getCoordinateSearchMetadata().getActions().get(0).cacheHit(), is(equalTo(false)));
   }
 
 }

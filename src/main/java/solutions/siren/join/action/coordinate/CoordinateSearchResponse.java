@@ -57,6 +57,10 @@ public class CoordinateSearchResponse extends SearchResponse {
    */
   CoordinateSearchResponse() {}
 
+  public CoordinateSearchMetadata getCoordinateSearchMetadata() {
+    return coordinateSearchMetadata;
+  }
+
   @Override
   public RestStatus status() {
     return searchResponse.status();
