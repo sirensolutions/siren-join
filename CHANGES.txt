@@ -3,6 +3,7 @@
 Improvements
 
 * [GH-121] Support wrapped queries in the coordinator
+* [GH-119] Upgrade to Elasticsearch 2.4.4
 
 Bugs
 
