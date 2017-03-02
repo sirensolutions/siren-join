@@ -1,9 +1,9 @@
-======================= Release 2.4.4 =======================
+======================= Release 2.4.3 =======================
 
 Improvements
 
 * [GH-121] Support wrapped queries in the coordinator
-* [GH-118] Upgrade to Elasticsearch 2.4.4
+* [GH-118] Upgrade to Elasticsearch 2.4.3
 
 Bugs
 
