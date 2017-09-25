@@ -1,3 +1,5 @@
+:warning: This project is unsupported, Siren technology for real time relational joins in Elasticsearch (also for 5.x)  is now available as part of the Siren Platform (link to http://siren.io).
+
 # SIREn Join Plugin for Elasticsearch
 
 This plugin extends Elasticsearch with new search actions and a filter query parser that enables to perform
