@@ -1,6 +1,14 @@
-:warning: This project is unsupported, Siren technology for real time relational joins in Elasticsearch (also for 5.x)  is now available as part of the Siren Platform (link to http://siren.io).
+:warning: This project (Siren "Join") is superseded  by the new Siren "FEDERATE" plugin (AKA Vanguard). 
 
-# SIREn Join Plugin for Elasticsearch
+Siren Federate is capable of fully distributed (scale with the number of machines) Elasticsearch joins and can even perform joins across multiple backends making JDBC datasources appear as if they were Elasticsearch indexes. 
+
+Siren Federate is available for Elasticsearch 5.x, and soon 6.x
+
+For more information and downloads see http://siren.io 
+
+
+
+# (Superseded) The SIREn Join Plugin for Elasticsearch 2.x
 
 This plugin extends Elasticsearch with new search actions and a filter query parser that enables to perform
 a "Filter Join" between two set of documents (in the same index or in different indexes).
